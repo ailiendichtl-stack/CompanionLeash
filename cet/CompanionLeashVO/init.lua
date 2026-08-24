@@ -454,10 +454,12 @@ local function playVoiceset(voiceset, mode, handle, uniqueName)
       log("    CreateNodeRef(#player) -> " .. tostring(nr))
       ref.reference = nr
     else
+      --  Her entity carries the tag NCA_Companion, and Tag is one of the four
+      --  gameEntityReferenceType options, so that is how she gets addressed.
       prm.isPlayer = false
-      if uniqueName and uniqueName ~= "" then
-        ref.dynamicEntityUniqueName = CName.new(uniqueName)
-      end
+      ref.type  = Enum.new("gameEntityReferenceType", "Tag")
+      ref.names = { CName.new(uniqueName or "NCA_Companion") }
+      log("    Tag-Referenz: " .. tostring(uniqueName or "NCA_Companion"))
     end
     prm.puppetRef = ref
 
@@ -844,9 +846,11 @@ registerForEvent("onDraw", function()
         "Erkennung unmoeglich: Untertitel sind unterdrueckt.")
     end
     ImGui.TextColored(0.6, 0.8, 1.0, 1.0, "Quest-Voiceset - anderer Dispatcher")
-    ImGui.TextWrapped("Der Weg des V Voice Framework. Moeglicherweise nicht an die " ..
-                      "8.2s-Sperre gebunden. Erst der Test auf V zeigt, ob das aus Lua " ..
-                      "ueberhaupt geht - ohne den sagt alles andere nichts.")
+    ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
+      "Bestaetigt: KEINE 8.2s-Sperre. Jeder Schuss zuendet, im Sekundentakt.")
+    ImGui.TextWrapped("Auf V gemessen: Zeilen um 19:34:03/05/06/08/09 - fuenf Treffer in " ..
+                      "sechs Sekunden, gegenueber 4.3% Trefferquote bei PlayVoiceOver. " ..
+                      "Judy wird ueber ihren Tag NCA_Companion adressiert.")
     --  "greeting" is a BARK event name. Voicesets are a different namespace - VVF uses
     --  names like generic_5 and character_creation. Testing with a name that framework
     --  actually ships separates "wrong name" from "mechanism does not work".
@@ -856,8 +860,12 @@ registerForEvent("onDraw", function()
     ImGui.SameLine()
     if ImGui.Button("V: greeting") then playVoiceset("greeting", 0) end
     ImGui.SameLine()
-    if ImGui.Button("Voiceset auf Ziel") then
-      playVoiceset("greeting", 1, target, "")
+    if ImGui.Button("Judy: greeting") then
+      playVoiceset("greeting", 1, target, "NCA_Companion")
+    end
+    ImGui.SameLine()
+    if ImGui.Button("Judy: generic_5") then
+      playVoiceset("generic_5", 1, target, "NCA_Companion")
     end
     ImGui.SameLine()
     if ImGui.Button("Ziel-Entity ausgeben") then
