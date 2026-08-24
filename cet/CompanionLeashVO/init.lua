@@ -377,6 +377,67 @@ local function dumpDialogKeys()
   if not ok then log("BLACKBOARD-Dump fehlgeschlagen: " .. tostring(err)) end
 end
 
+--  Dumps a live object instead of a fresh one, for things we cannot construct.
+local function inspectObj(obj, label)
+  local ok, err = pcall(function()
+    if not obj then log("INSPEKT " .. label .. ": nil"); return end
+    local cls = Reflection.GetClassOf(ToVariant(obj))
+    if not cls then log("INSPEKT " .. label .. ": keine Klasse"); return end
+    log("INSPEKT " .. label .. " -> " .. tostring(cls:GetName().value))
+    for _, prop in pairs(cls:GetProperties()) do
+      local nm = tostring(prop:GetName().value)
+      local tn = tostring(prop:GetType():GetName().value)
+      --  only the identifying ones; a puppet has hundreds of fields
+      if nm:find("ame") or nm:find("ag") or nm:find("ef") or nm:find("[Ii]d") then
+        local ok2, cur = pcall(function() return obj[nm] end)
+        log(string.format("    %-28s %-24s %s", nm, tn,
+            ok2 and tostring(cur) or "<nicht lesbar>"))
+      end
+    end
+  end)
+  if not ok then log("INSPEKT " .. label .. " fehlgeschlagen: " .. tostring(err)) end
+end
+
+--  THE QUEST VOICESET PATH
+--
+--  The V Voice Framework does not call PlayVoiceOver at all; it builds a quest node and
+--  runs it through QuestsSystem.ExecuteNode. That is a different dispatcher, so it may
+--  not share the ~8.2s per-NPC bark cooldown that caps the PlayVoiceOver route at roughly
+--  35% mouth coverage.
+--
+--  Mode 0 targets the player and is the control: if that produces nothing, the mechanism
+--  does not work from Lua at all and nothing else here means anything. VVF only ever
+--  targets the player, so pointing this at a companion is unproven either way.
+local function playVoiceset(voiceset, mode, handle, uniqueName)
+  local ok, err = pcall(function()
+    local node = NewObject("questVoicesetManagerNodeDefinition")
+    local nt   = NewObject("questPlayVoiceset_NodeType")
+    local prm  = NewObject("questPlayVoiceset_NodeTypeParams")
+
+    prm.voicesetName      = CName.new(voiceset)
+    prm.useVoicesetSystem = true
+    prm.playOnlyGrunt     = false
+
+    if mode == 0 then
+      prm.isPlayer = true
+      local ref = NewObject("gameEntityReference")
+      ref.reference = CreateNodeRef("#player")
+      prm.puppetRef = ref
+    else
+      prm.isPlayer = false
+      local ref = NewObject("gameEntityReference")
+      ref.dynamicEntityUniqueName = CName.new(uniqueName or "")
+      prm.puppetRef = ref
+    end
+
+    nt.params = { prm }
+    node.type = nt
+    Game.GetQuestsSystem():ExecuteNode(node)
+  end)
+  log(string.format("VOICESET %s modus=%d name=%s -> %s", voiceset, mode,
+      tostring(uniqueName or "-"), ok and "abgesetzt" or ("FEHLER: " .. tostring(err))))
+end
+
 local function voPerceptible(handle)
   if not handle then return false end
   local ok, res = pcall(function()
@@ -742,6 +803,23 @@ registerForEvent("onDraw", function()
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
         "Erkennung unmoeglich: Untertitel sind unterdrueckt.")
     end
+    ImGui.TextColored(0.6, 0.8, 1.0, 1.0, "Quest-Voiceset - anderer Dispatcher")
+    ImGui.TextWrapped("Der Weg des V Voice Framework. Moeglicherweise nicht an die " ..
+                      "8.2s-Sperre gebunden. Erst der Test auf V zeigt, ob das aus Lua " ..
+                      "ueberhaupt geht - ohne den sagt alles andere nichts.")
+    if ImGui.Button("Voiceset auf V (Kontrolle)") then
+      playVoiceset("greeting", 0)
+    end
+    ImGui.SameLine()
+    if ImGui.Button("Voiceset auf Ziel") then
+      playVoiceset("greeting", 1, target, "")
+    end
+    ImGui.SameLine()
+    if ImGui.Button("Ziel-Entity ausgeben") then
+      inspectObj(target, "Ziel")
+    end
+    ImGui.Separator()
+
     if ImGui.Button("Struktur ausgeben (ins Log)") then
       inspect("questPlayVoiceset_NodeTypeParams")
       --  the params field is typed gameEntityReference, not EntityReference - that is
