@@ -113,6 +113,11 @@ local optHideOver = true   -- Overheads -> false
 --  comparison only.
 local optEntry = 2         -- 0 = PlayVoiceOver, 1 = ChatterHelper, 2 = Quest-Voiceset
 local optTag = "NCA_Companion"
+--  We set overrideVisualStyle = true because VVF does, but never set the style itself, so
+--  the default applies - which is very likely why her barks now render as normal
+--  bottom-of-screen subtitles instead of overhead ones. Selectable so it can be tested.
+local optStyle = -1        -- -1 = do not override at all
+local STYLES = { "Default", "OverHead", "Cinematic", "Radio", "GlobalTV" }
 --  fireVo calls this but it is defined further down; without the forward declaration the
 --  local is nil at that point and the call fails at runtime.
 local playVoiceset
@@ -453,8 +458,16 @@ playVoiceset = function(voiceset, mode, handle, uniqueName)
     node.type  = NewObject("questPlayVoiceset_NodeType")
 
     local prm = NewObject("questPlayVoiceset_NodeTypeParams")
-    prm.overrideVisualStyle         = true
     prm.overrideVoiceoverExpression = true
+    if optStyle >= 0 then
+      prm.overrideVisualStyle = true
+      pcall(function()
+        prm.overridingVisualStyle =
+          Enum.new("scnDialogLineVisualStyle", STYLES[optStyle + 1])
+      end)
+    else
+      prm.overrideVisualStyle = false
+    end
     prm.voicesetName                = CName.new(voiceset)
 
     local ref = NewObject("gameEntityReference")
@@ -485,6 +498,25 @@ playVoiceset = function(voiceset, mode, handle, uniqueName)
   log(string.format("VOICESET %s modus=%d -> %s", voiceset, mode,
       ok and "abgesetzt" or ("FEHLER: " .. tostring(err))))
 end
+
+--  Every name we have ever seen used as an NPC voice-over event. Under PlayVoiceOver a
+--  sweep like this was worthless - the throttle meant most names were merely locked out
+--  rather than empty, which is what produced the earlier "17 of 44" figure. On the quest
+--  path each dispatch lands, so a name that stays silent really is silent.
+local SWEEP = {
+  "greeting", "combat_ended", "stealth_ended", "stealth_restored", "coop_irritation",
+  "coop_reports_kill", "elite_warning", "sniper_warning", "camera_warning",
+  "turret_warning", "drone_warning", "netrunner_warning", "mech_warning",
+  "heavy_warning", "octant_warning", "enemy_warning", "start_combat", "crowd_combat",
+  "hit_reaction_light", "hit_reaction_heavy", "grenade_throw", "vehicle_bump", "bump",
+  "danger", "shove", "fear_beg", "fear_run", "battlecry_curse", "combat_target_hit",
+  "vo_any_damage_hit", "stlh_curious_grunt", "stlh_call", "stlh_death", "start_dead",
+  "following", "waiting", "heavy_reloading", "hmg_charge", "hit_grapple",
+  "pedestrian_hit", "attack_fragile_player_order", "cpo_armor_broken", "cpo_got_data",
+  "cpo_nearly_dead", "reload", "cover_me", "flanking", "regroup", "affirmative",
+  "negative", "taunt", "victory", "wounded", "help",
+}
+local sweep = nil  -- { i, t, lastCount }
 
 local function voPerceptible(handle)
   if not handle then return false end
@@ -651,6 +683,40 @@ registerForEvent("onUpdate", function(dt)
       if lipLogAll then
         log(string.format("  [ZEILE] dauer=%.2f  \"%s\"  [%s]",
             dl.dur, dl.text, dl.name))
+      end
+    end
+  end
+
+  --  Sweep: fire each candidate name, wait out the longest observed line, then record
+  --  whether anything came back FROM OUR TARGET. Judy's longest bark measured 2.84s, so
+  --  3.0s between names is enough; passers-by run much longer and are filtered by hash.
+  if sweep then
+    sweep.t = sweep.t + (dt or 0.016)
+    if sweep.t >= 3.0 then
+      if sweep.i > 0 then
+        local name = SWEEP[sweep.i]
+        local hit = false
+        pcall(function()
+          hit = lipDiag.changes > sweep.mark
+                and lipDiag.lastHash == tostring(tgt:GetEntityID().hash)
+        end)
+        if hit then
+          sweep.hits = sweep.hits + 1
+          log(string.format("  TREFFER  %-28s %.2fs  \"%s\"",
+              name, lipDiag.lastDur, lipDiag.lastText))
+        else
+          log(string.format("  still    %s", name))
+        end
+      end
+      sweep.i = sweep.i + 1
+      if sweep.i > #SWEEP or not tgt then
+        log(string.format("=== SWEEP FERTIG: %d von %d Namen antworten",
+            sweep.hits, #SWEEP))
+        sweep = nil
+      else
+        sweep.mark = lipDiag.changes
+        sweep.t = 0
+        fireVo(tgt, SWEEP[sweep.i])
       end
     end
   end
@@ -878,6 +944,32 @@ registerForEvent("onDraw", function()
     ImGui.SameLine()
     if ImGui.Button("V: greeting") then playVoiceset("greeting", 0) end
     ImGui.SameLine()
+    if sweep then
+      ImGui.Text(string.format("Sweep laeuft: %d/%d, %d Treffer",
+                 sweep.i, #SWEEP, sweep.hits))
+      if ImGui.Button("Sweep abbrechen") then sweep = nil end
+    else
+      if ImGui.Button(string.format("Alle %d Namen durchmessen", #SWEEP)) then
+        if target then
+          sweep = { i = 0, t = 99, hits = 0, mark = lipDiag.changes }
+          log(string.format("=== SWEEP ueber %d Namen, Ziel gesperrt", #SWEEP))
+        else
+          log("Sweep braucht ein gesperrtes Ziel")
+        end
+      end
+      ImGui.TextDisabled("Rund 3 Minuten. Schreibt pro Name Treffer/still mit Text und " ..
+                         "Dauer ins Log - damit wissen wir, welche langen Zeilen es gibt.")
+    end
+    ImGui.Separator()
+    ImGui.Text("Untertitel-Stil:")
+    ImGui.SameLine()
+    if ImGui.RadioButton("kein Override", optStyle == -1) then optStyle = -1 end
+    for i, nm in ipairs(STYLES) do
+      ImGui.SameLine()
+      if ImGui.RadioButton(nm, optStyle == i - 1) then optStyle = i - 1 end
+    end
+    ImGui.Separator()
+
     if ImGui.Button("Judy: greeting") then
       playVoiceset("greeting", 1, target, "NCA_Companion")
     end
