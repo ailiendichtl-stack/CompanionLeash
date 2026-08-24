@@ -1,0 +1,4 @@
+# Byte-exactness matters here: apply.py verifies md5 hashes of the .reds files
+# against manifest.json. Any LF<->CRLF conversion on checkout would change those
+# hashes and make the installer refuse to run. Disable all text conversion.
+* -text
