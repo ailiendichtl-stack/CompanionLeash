@@ -57,6 +57,19 @@ def main():
     for name, with_voinfo in (("cl_mit_voinfo", True), ("cl_ohne_voinfo", False)):
         _add(root, graph, lines, starts, ds, state, name, with_voinfo)
 
+    #  Trennt neuen EINSTIEGSPUNKT von neuen KNOTEN: dieser Eintrag legt keinen Knoten an,
+    #  sondern zeigt auf den vorhandenen Start-Knoten von `danger`. Spielt er "Achtung!",
+    #  funktionieren neue Einstiegspunkte und der Fehler liegt an unseren neuen Knoten.
+    #  Bleibt er still oder bringt follow_me, tragen neue Einstiegspunkte selbst nicht.
+    di = [k for k, e in enumerate(root["entryPoints"])
+          if e["name"]["$value"] == "danger"][0]
+    danger_node = root["entryPoints"][di]["nodeId"]["id"]
+    root["entryPoints"].append({"$type": "scnEntryPoint", "name": _cname("cl_zeigt_auf_danger"),
+                                "nodeId": {"$type": "scnNodeId", "id": danger_node}})
+    starts.append({"$type": "scnNodeId", "id": danger_node})
+    print("%-16s zeigt auf vorhandenen Knoten %d (danger), keine neuen Knoten"
+          % ("cl_zeigt_auf_danger", danger_node))
+
     print("Einstiege %d | startNodes %d | voInfo %d | Knoten %d | Zeilen %d"
           % (len(root["entryPoints"]), len(starts), len(root["voInfo"]),
              len(graph), len(lines)))

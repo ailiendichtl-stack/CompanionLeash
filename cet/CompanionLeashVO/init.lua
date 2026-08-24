@@ -203,6 +203,8 @@ local MATRIX = {
     hint = "wie bisher gebaut - erwartet: Ich bin froh, dass du da bist." },
   { label = "4b ohne voInfo",   name = "cl_ohne_voinfo",      player = false,
     hint = "wie VVF gebaut - erwartet: dasselbe" },
+  { label = "4c nur Einstieg",  name = "cl_zeigt_auf_danger", player = false,
+    hint = "neuer Name, ABER vorhandener Knoten - erwartet: Achtung!" },
   { label = "5 Unsinn",         name = "cl_gibt_es_nicht_xyz", player = false,
     hint = "zeigt den echten Rueckfall bei unbekanntem Namen" },
   { label = "6 VVF auf Judy",   name = "vfv_better_run",      player = false,
