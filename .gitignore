@@ -5,3 +5,5 @@ __pycache__/
 
 # machine-specific game path, written on first run
 game-root.txt
+# extracted game data, regenerate with tools/voice_inventory.py
+data/
