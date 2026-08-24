@@ -15,3 +15,4 @@ tools/cp-scripts/
 infos_delete_later_gitignore/
 data/vvf/
 data/scene_json/
+build/

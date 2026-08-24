@@ -508,6 +508,19 @@ registerForEvent("onDraw", function()
     end
   end
 
+  if ImGui.CollapsingHeader("Durchstich - eigener Voiceset-Eintrag") then
+    ImGui.TextWrapped("Prueft, ob ein selbst gebauter Eintrag zur Laufzeit aufloest, " ..
+                      "sein Audio findet und Lipsync startet. Braucht das Archiv " ..
+                      "CompanionLeash_Durchstich und einen Spielneustart.")
+    ImGui.TextDisabled("Erwartet: Judy sagt \"Ich bin froh, dass du da bist.\"")
+    if ImGui.Button("cl_test_froh##durchstich") then
+      speaker = 0
+      playBark("cl_test_froh")
+    end
+    ImGui.SameLine()
+    ImGui.TextDisabled("Ziel muss gesperrt sein")
+  end
+
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
     for _, g in ipairs(BARKS) do
       if ImGui.TreeNode(g.fam) then
