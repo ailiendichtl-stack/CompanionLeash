@@ -1,0 +1,114 @@
+# Voicesets erweitern - vollstaendige Bauanleitung
+
+Wie sich beliebige vorhandene Sprachzeilen als spielbare Voiceset-Eintraege registrieren
+lassen, **mit Lipsync**. Damit waeren Judys 1104 Quest-Zeilen erreichbar, nicht nur ihre
+55 Barks - und der Stumm-Trick waere nur noch Reserve.
+
+Das Verfahren ist nicht erdacht, sondern abgelesen: **V Voice Framework** macht genau das.
+Sein Archiv enthaelt eine einzige Datei, `base/quest/primary_characters/vsets/vset_v.scene`,
+mit **12807 eigenen Eintraegen** gegenueber 0 im Original (10251 KB gegen 283 KB).
+
+## Werkzeug
+
+WolvenKit kann die Szene verlustfrei hin- und zurueckwandeln:
+
+```
+WolvenKit.CLI convert serialize   vset_judy.scene  -o <ziel>   # -> .scene.json
+WolvenKit.CLI convert deserialize vset_judy.scene.json         # -> .scene
+```
+
+## Aufbau einer Voiceset-Szene
+
+Am Beispiel `vset_judy.scene`: 65 Einstiegspunkte, 55 Zeilen, 130 Graphknoten.
+
+```
+entryPoints            name "player_fallback_var_2"  ->  nodeId 132
+sceneGraph.graph       65x scnStartNode        ein Einstieg je Name
+                       10x scnRandomizerNode   waehlt bei Familien eine Variante
+                       55x scnSectionNode      eine je Zeile
+screenplayStore.lines  55x scnscreenplayDialogLine
+```
+
+### Die Kette fuer eine Zeile
+
+```
+entryPoint(name)  ->  scnStartNode  ->  scnSectionNode  ->  scnDialogLineEvent
+                                                              screenplayLineId ->
+                                                            scnscreenplayDialogLine
+```
+
+### Was die Zeile bindet
+
+```json
+{
+  "$type": "scnscreenplayDialogLine",
+  "itemId":     { "id": 1 },
+  "locstringId": { "ruid": "1796592928298090500" },
+  "femaleLipsyncAnimationName": { "$value": "f_18EEC7BFE12FC004" },
+  "maleLipsyncAnimationName":   { "$value": "m_18EEC7BFE12FC004" },
+  "speaker": { "id": 0 }, "addressee": { "id": 0 },
+  "usage": { "playerGenderMask": { "mask": 3 } }
+}
+```
+
+**Der entscheidende Zusammenhang, im Spiel geprueft:** die `ruid` ist dezimal genau der
+Hex-Teil des Dateinamens, und die beiden Lipsync-Namen sind `f_<hex>` / `m_<hex>`.
+
+```
+1796592928298090500  ==  0x18eec7bfe12fc004  ==  judy_..._f_18eec7bfe12fc004.wem
+```
+
+Fuer alle 55 Zeilen des Voicesets stimmt das ausnahmslos. Und **beides haben wir fuer
+Judys gesamten Bestand bereits** - `data/judy_ALL_de.json` fuehrt zu jeder der 1662 Dateien
+die stringId und den Dateinamen.
+
+### Was das Ereignis steuert
+
+```json
+{
+  "$type": "scnDialogLineEvent",
+  "duration": 3045,
+  "screenplayLineId": { "id": 6657 },
+  "visualStyle": "overHead",
+  "voParams": { "voContext": "Vo_Context_Combat",
+                "voExpression": "Vo_Expression_Spoken" }
+}
+```
+
+`duration` steht in **Millisekunden** - also genau der Wert, den wir bei Judy im Spiel
+gemessen haben. Fuer die Quest-Zeilen ist er unbekannt und muesste aus den Audiodateien
+kommen; WolvenKit hat dafuer einen `wwise`-Befehl. Eine grobe Schaetzung waere riskant: zu
+kurz schneidet ab, zu lang laesst eine Luecke.
+
+## Vorgehen
+
+Fuer jede zusaetzliche Zeile sind vier Eintraege noetig:
+
+1. `scnscreenplayDialogLine` in `screenplayStore.lines`, mit freier `itemId`
+2. `scnSectionNode` mit einem `scnDialogLineEvent`, das auf diese `itemId` zeigt
+3. `scnStartNode`, der auf den Section-Node zeigt
+4. `scnEntryPoint` mit dem gewaehlten Namen, der auf den Start-Node zeigt
+
+Alle vier lassen sich maschinell aus dem vorhandenen Bestand erzeugen. Ein eigener Praefix
+wie `cl_` haelt sie von den Vanilla-Namen getrennt.
+
+## Warum maximal gross bauen
+
+VVF filtert nicht: alle 12807 Eintraege sind drin. Das ist die richtige Reihenfolge, denn
+ein Voiceset ist eine Nachschlagetabelle - ungenutzte Eintraege kosten zur Laufzeit nichts,
+und **Kuratieren wird danach reine Datenarbeit** im Mod-Code, ohne die Szene neu zu bauen.
+Wer vorher filtert, baut die Szene bei jeder Meinungsaenderung neu.
+
+## Konflikte
+
+VVF ersetzt `vset_v.scene`. Wir wuerden `vset_judy.scene` ersetzen - kein Konflikt. Wollten
+wir **Vs** Voiceset erweitern, muessten wir uns mit VVF abstimmen oder auf dessen
+`vfv_`-Eintraege aufsetzen, die ohnehin fast Vs gesamten Bestand abdecken.
+
+## Offen
+
+* **Dauern** der Quest-Zeilen - aus den `.wem` messen statt schaetzen.
+* **Randomizer** - wie `scnRandomizerNode` die Varianten waehlt, falls wir Familien bauen.
+* **Sprecher-Id** - `speaker`/`addressee` stehen bei Judy beide auf 0; ob das fuer
+  zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
+* Ein **Durchstich mit einer einzigen Zeile** sollte vor dem Massenbau stehen.
