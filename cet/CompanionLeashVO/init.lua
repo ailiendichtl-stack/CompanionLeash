@@ -121,6 +121,76 @@ local FACES = {
   { "veraechtlich", 8, 9 }, { "misstrauisch", 9, 10 }, { "erschoepft", 10, 11 },
 }
 
+--  Aus vset_v.scene gelesen: 266 Eintraege, hier ohne Textfragmente und
+--  fremdsprachige Reste. V ist Player-POV - bei ihr zaehlen nur Text und Dauer,
+--  Mundbewegung spielt keine Rolle.
+local VSET_V = {
+  "battlecry_curse", "battlecry_curse_var_1", "battlecry_curse_var_10",
+  "battlecry_curse_var_2", "battlecry_curse_var_3", "battlecry_curse_var_4",
+  "battlecry_curse_var_5", "battlecry_curse_var_6", "battlecry_curse_var_7",
+  "battlecry_curse_var_8", "battlecry_curse_var_9", "character_creation",
+  "combat_ally_check", "combat_ally_check_var_1", "combat_ally_check_var_2",
+  "combat_ally_check_var_3", "combat_ally_cover", "combat_ally_cover_var_1",
+  "combat_ally_cover_var_2", "combat_ally_cover_var_3", "combat_ally_stealth",
+  "combat_ally_stealth_var_1", "combat_ally_stealth_var_2", "combat_ally_stealth_var_3",
+  "combat_ally_warning", "combat_ally_warning_var_1", "combat_ally_warning_var_2",
+  "combat_ally_warning_var_3", "follower_end", "follower_end_var_1", "follower_end_var_2",
+  "follower_end_var_3", "generic_1", "generic_10", "generic_11", "generic_12", "generic_13",
+  "generic_14", "generic_15", "generic_16", "generic_17", "generic_18", "generic_19",
+  "generic_2", "generic_20", "generic_21", "generic_22", "generic_23", "generic_24",
+  "generic_25", "generic_26", "generic_27", "generic_28", "generic_29", "generic_3",
+  "generic_30", "generic_4", "generic_5", "generic_6", "generic_7", "generic_8", "generic_9",
+  "generic_sickness", "generic_sickness_1", "generic_sickness_2", "generic_sickness_3",
+  "generic_sickness_4", "gp_vehicle_destroyed", "gp_vehicle_destroyed_var_1",
+  "gp_vehicle_destroyed_var_2", "gp_vehicle_reckless", "gp_vehicle_reckless_var_1",
+  "gp_vehicle_reckless_var_2", "gp_vehicle_reckless_var_3", "gp_vehicle_steal",
+  "gp_vehicle_steal_var_1", "gp_vehicle_steal_var_2", "gp_vehicle_steal_var_3",
+  "gp_vehicle_v_hit", "gp_vehicle_v_hit_var_1", "gp_vehicle_v_hit_var_2",
+  "gp_vehicle_v_hit_var_3", "hint_check", "hint_check_var_1", "hint_check_var_2",
+  "hint_check_var_3", "hint_check_var_4", "interrupt_phone", "interrupt_phone_done2",
+  "interrupt_phone_var_1", "interrupt_phone_var_2", "interrupt_phone_var_3",
+  "interrupt_phone_var_4", "interrupt_phone_var_5", "interrupt_phone_var_6",
+  "interrupt_phone_var_7", "interrupt_var_1", "interrupt_var_10", "interrupt_var_2",
+  "interrupt_var_3", "interrupt_var_4", "interrupt_var_5", "interrupt_var_6",
+  "interrupt_var_7", "interrupt_var_8", "interrupt_var_9", "primary_characters", "prosz",
+  "reaction", "reaction_curse", "reaction_curse_var_1", "reaction_curse_var_2",
+  "reaction_curse_var_3", "reaction_curse_var_4", "reaction_curse_var_5", "reaction_happy",
+  "reaction_happy_var_1", "reaction_happy_var_2", "reaction_happy_var_3",
+  "reaction_hostiles", "reaction_hostiles_var_1", "reaction_hostiles_var_2",
+  "reaction_hostiles_var_3", "reaction_hostiles_var_4", "reaction_hostiles_var_5",
+  "reaction_inspect", "reaction_inspect_var_1", "reaction_inspect_var_2",
+  "reaction_inspect_var_3", "reaction_inspect_var_4", "reaction_inspect_var_5",
+  "reaction_shocked", "reaction_shocked_var_1", "reaction_shocked_var_2",
+  "reaction_shocked_var_3", "reaction_sickness", "reaction_sickness_01",
+  "reaction_sickness_01_var_1", "reaction_sickness_01_var_2", "reaction_sickness_02",
+  "reaction_sickness_02_var_1", "reaction_sickness_02_var_2", "reaction_sickness_03",
+  "reaction_sickness_03_var_1", "reaction_sickness_03_var_2", "reaction_sickness_04",
+  "reaction_sickness_04_var_1", "reaction_sickness_04_var_2", "reaction_sickness_05",
+  "reaction_sickness_05_var_1", "reaction_sickness_05_var_2", "reaction_surprise",
+  "reaction_surprise_var_1", "reaction_surprise_var_2", "reaction_surprise_var_3",
+  "reaction_wtf", "reaction_wtf_var_1", "reaction_wtf_var_2", "reaction_wtf_var_3",
+  "return_var_1", "return_var_10", "return_var_2", "return_var_3", "return_var_4",
+  "return_var_5", "return_var_6", "return_var_7", "return_var_8", "return_var_9", "right",
+  "scene_crowd", "scene_crowd_var_1", "scene_crowd_var_2", "scene_holocall_end",
+  "scene_holocall_end_var_1", "scene_holocall_end_var_2", "scene_holocall_start",
+  "scene_holocall_start_var_1", "scene_holocall_start_var_2", "scene_insult",
+  "scene_insult_var_1", "scene_insult_var_2", "scene_insult_var_3", "scene_insult_var_4",
+  "scene_insult_var_5", "scene_johnny_move", "scene_johnny_move_var_1",
+  "scene_johnny_move_var_2", "scene_johnny_move_var_3", "scene_johnny_shoot",
+  "scene_johnny_shoot_var_1", "scene_johnny_shoot_var_2", "scene_johnny_shoot_var_3",
+  "scene_thanks", "scene_thanks_var_1", "scene_thanks_var_2", "scene_thanks_var_3", "shit",
+  "spokojnie", "sts_wat_kab_04_distract_01", "take", "talk", "tego", "the", "this",
+  "timelapse_output", "timelapse_var_1", "timelapse_var_2", "timelapse_var_3",
+  "timelapse_var_4", "timelapse_var_5", "tylko", "ugh", "v_vs_generic_1_done",
+  "v_vs_generic_6_done", "v_vs_scene_thanks_var_1_done2", "vset_v", "well", "what", "who",
+  "will", "yelling_happy", "yelling_happy_var_1", "yelling_happy_var_2",
+  "yelling_happy_var_3"
+}
+
+--  0 = Judy ueber ihren Tag, 1 = V ueber #player.
+local speaker = 0
+local sweep = nil
+
 local STYLES, styleIdx = {}, -1
 local target, targetName = nil, "-"
 local facePending = nil
@@ -144,7 +214,7 @@ end
 --  gesetzt werden, die beiden override-Flags MUESSEN gesetzt werden, und die Params gehen
 --  NACH der Zuweisung in node.type.
 local function playBark(name)
-  if not target then log("kein Ziel"); return end
+  if speaker == 0 and not target then log("kein Ziel"); return end
   local ok, err = pcall(function()
     local node = NewObject("questVoicesetManagerNodeDefinition")
     node.type  = NewObject("questPlayVoiceset_NodeType")
@@ -164,9 +234,16 @@ local function playBark(name)
     --  Ihre Entity traegt den Tag NCA_Companion, und Tag ist einer der vier Referenztypen -
     --  eine dynamisch gespawnte Begleiterin braucht damit keinen NodeRef.
     local ref = NewObject("gameEntityReference")
-    prm.isPlayer = false
-    ref.type  = Enum.new("gameEntityReferenceType", "Tag")
-    ref.names = { CName.new("NCA_Companion") }
+    if speaker == 1 then
+      prm.isPlayer  = true
+      ref.reference = CreateNodeRef("#player")
+    else
+      --  Ihre Entity traegt den Tag NCA_Companion, und Tag ist einer der vier
+      --  Referenztypen - eine gespawnte Begleiterin braucht damit keinen NodeRef.
+      prm.isPlayer = false
+      ref.type  = Enum.new("gameEntityReferenceType", "Tag")
+      ref.names = { CName.new("NCA_Companion") }
+    end
     prm.puppetRef = ref
 
     node.type.params = { prm }
@@ -239,8 +316,68 @@ registerForEvent("onInit", function()
   log(string.format("bereit - %d Stile gelesen, invisible=%s", #STYLES, tostring(styleIdx >= 0)))
 end)
 
+--  Liest die zuletzt angezeigte Dialogzeile. ShowDialogLine haelt ein ARRAY von
+--  scnDialogLineData - als Struct gelesen ist jedes Feld nil.
+local function lastLine()
+  local ok, res = pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb   = Game.GetBlackboardSystem():Get(defs.UIGameData)
+    local arr  = FromVariant(bb:GetVariant(defs.UIGameData.ShowDialogLine))
+    if type(arr) ~= "table" then return nil end
+    local el = arr[#arr]
+    if el == nil then return nil end
+    local hash = ""
+    pcall(function() hash = tostring(el.speaker:GetEntityID().hash) end)
+    return { text = tostring(el.text or ""), dur = tonumber(el.duration) or 0,
+             name = tostring(el.speakerName or ""), hash = hash }
+  end)
+  if ok then return res end
+  return nil
+end
+
+--  Bei V ist der Sprecher der Spieler, nicht das gesperrte Ziel.
+local function expectedHash()
+  local ok, h = pcall(function()
+    if speaker == 1 then return tostring(Game.GetPlayer():GetEntityID().hash) end
+    return tostring(target:GetEntityID().hash)
+  end)
+  if ok then return h end
+  return nil
+end
+
 registerForEvent("onUpdate", function(dt)
   local d = dt or 0.016
+
+  --  Sweep: jeden Namen feuern, kurz auf die Zeile warten, Ergebnis mitschreiben.
+  --  Ein Treffer steht nach ~0.25s fest, ein Blindgaenger kostet nur den Timeout.
+  if sweep then
+    sweep.t = sweep.t + d
+    if sweep.pending then
+      local dl = lastLine()
+      if dl and not sweep.got and dl.text ~= "" and dl.text ~= sweep.before
+         and dl.hash == expectedHash() then
+        sweep.got = true
+        sweep.hits = sweep.hits + 1
+        sweep.wait = math.max(0.4, dl.dur * 0.6)
+        log(string.format("  TREFFER  %-30s %.2fs  \"%s\"",
+            sweep.list[sweep.i], dl.dur, dl.text))
+      end
+      if sweep.t >= (sweep.got and sweep.wait or 1.3) then sweep.pending = false end
+    end
+    if not sweep.pending then
+      sweep.i = sweep.i + 1
+      if sweep.i > #sweep.list then
+        styleIdx = sweep.savedStyle
+        log(string.format("=== SWEEP FERTIG: %d von %d", sweep.hits, #sweep.list))
+        sweep = nil
+      else
+        local dl = lastLine()
+        sweep.before = dl and dl.text or ""
+        sweep.t, sweep.got, sweep.pending = 0, false, true
+        playBark(sweep.list[sweep.i])
+      end
+    end
+  end
 
   if facePending then
     facePending.t = facePending.t + d
@@ -299,6 +436,40 @@ registerForEvent("onDraw", function()
   ImGui.SameLine()
   ImGui.TextDisabled("zuletzt: " .. lastPlayed)
   ImGui.Separator()
+
+  ImGui.Text("Sprecher:")
+  ImGui.SameLine()
+  if ImGui.RadioButton("Judy", speaker == 0) then speaker = 0 end
+  ImGui.SameLine()
+  if ImGui.RadioButton("V (Player-POV)", speaker == 1) then speaker = 1 end
+  if speaker == 1 then
+    ImGui.TextDisabled("V braucht kein Ziel und kein Lipsync - nur Text und Dauer.")
+  end
+  ImGui.Separator()
+
+  if ImGui.CollapsingHeader("Vs Voiceset durchmessen") then
+    ImGui.TextWrapped("Feuert alle " .. #VSET_V .. " Eintraege aus vset_v.scene und " ..
+                      "schreibt Text und Dauer ins Log. Erzwingt dafuer einen " ..
+                      "sichtbaren Untertitel-Stil - die Erkennung liest die " ..
+                      "Untertiteldaten.")
+    if sweep then
+      ImGui.Text(string.format("laeuft: %d/%d, %d Treffer",
+                 sweep.i, #sweep.list, sweep.hits))
+      if ImGui.Button("abbrechen") then
+        styleIdx = sweep.savedStyle
+        sweep = nil
+      end
+    else
+      if ImGui.Button("Vs Voiceset durchmessen") then
+        speaker = 1
+        sweep = { list = VSET_V, i = 0, t = 99, hits = 0, pending = false,
+                  got = false, before = "", savedStyle = styleIdx }
+        styleIdx = -1  -- sichtbar, sonst wird nichts gemeldet
+        log(string.format("=== SWEEP ueber %d V-Eintraege", #VSET_V))
+      end
+      ImGui.TextDisabled("Rund 5 Minuten, unbeaufsichtigt.")
+    end
+  end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
     for _, g in ipairs(BARKS) do
