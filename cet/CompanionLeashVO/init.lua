@@ -526,7 +526,30 @@ registerForEvent("onDraw", function()
     end
     ImGui.SameLine()
     ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "erwartet: Ich bin froh, dass du da bist.")
-    ImGui.TextDisabled("Kommt nichts, ist der Einstieg weiter nicht registriert.")
+    ImGui.Separator()
+    --  Kontrollversuch mit einem Namen, den es garantiert nicht gibt. Faellt der auf
+    --  dieselbe Zeile wie cl_test_froh, dann loest unser Name gar nicht auf und der
+    --  Dispatcher hat schlicht einen Rueckfallwert - das waere eine ganz andere Ursache
+    --  als eine falsch gebundene Zeile.
+    if ImGui.Button("Unsinnsname##ctl") then
+      speaker = 0
+      for i, nm in ipairs(STYLES) do
+        if nm:lower() == "regular" then styleIdx = i - 1 end
+      end
+      playBark("cl_gibt_es_nicht_xyz")
+      log("KONTROLLE: cl_gibt_es_nicht_xyz gefeuert")
+    end
+    ImGui.SameLine()
+    if ImGui.Button("greeting##ctl") then
+      speaker = 0
+      for i, nm in ipairs(STYLES) do
+        if nm:lower() == "regular" then styleIdx = i - 1 end
+      end
+      playBark("greeting")
+      log("KONTROLLE: greeting gefeuert")
+    end
+    ImGui.TextDisabled("Sagt der Unsinnsname dasselbe wie cl_test_froh, wird unser Name " ..
+                       "nicht aufgeloest. Sagt greeting korrekt Hallo, lebt der Rest.")
   end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
