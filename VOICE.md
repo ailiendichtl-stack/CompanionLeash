@@ -322,3 +322,42 @@ CR2W strings are varint length-prefixed: bit 7 marks a string, bit 6 marks a con
 byte, the low 6 bits are the length. Reading only a single length byte silently truncates
 every line longer than 63 characters and corrupts multi-byte characters at the cut — the
 first pass here produced exactly that before it was fixed.
+
+## Lipsync ohne eigene Szene: der Stumm-Trick
+
+Getestet und bestaetigt: **das Muten des Dialog-Busses stoppt das Lipsync nicht.** Der Mund
+bewegt sich weiter. Damit laesst sich ein stummes VO-Event als Mundanimation missbrauchen,
+waehrend die eigentliche Zeile ueber den SFX-Bus laeuft - Audioware registriert eigene
+Dateien unter `sfx:`, einem anderen Bus als `DialogueVolume`.
+
+Zwei Probleme des ersten Ansatzes und der Trick, der beide zugleich loest:
+
+| Problem | Ursache |
+|---|---|
+| Manchmal passiert gar nichts | Ein VO-Event zieht eine zufaellige Variante aus einem Pool; einige von Judys sind leer |
+| Mundbewegung passt nicht zur Zeile | Der Mund bewegt sich so lange wie das *Event*, nicht wie unsere Zeile |
+
+Weil das Event stumm ist, kostet mehrfaches Abfeuern nichts. Wir feuern deshalb im Intervall
+nach, solange die Zeile laeuft: eine tote Variante faengt der naechste Schuss ab, und der
+Mund bleibt bis zum Ende in Bewegung. Ueberlappung ist gratis, wenn sie niemand hoert.
+
+### Zwei Einstellungen, beide `update_policy: immediately`
+
+| Pfad | Var | Typ | Zweck |
+|---|---|---|---|
+| `/audio/volume` | `DialogueVolume` | int | auf 0 - macht das VO-Event stumm |
+| `/accessibility/subtitles` | `Overheads` | bool | auf false - unterdrueckt den Text ueber dem Kopf |
+
+`Overheads` betrifft ausschliesslich Bark-Untertitel ueber NPC-Koepfen. `Cinematic` ist eine
+eigene Variable und bleibt unangetastet.
+
+`DialogueVolume` ist dagegen **global**: waehrend des Fensters ist jede andere Dialogzeile
+im Spiel ebenfalls stumm. Bei einem Zwei-Sekunden-Bark meist folgenlos, bei einer laufenden
+Quest-Szene nicht. Vor einem echten Einsatz gehoert eine Pruefung davor, ob gerade ein
+Dialog laeuft.
+
+Zugriff zur Laufzeit ueber `Game.GetSettingsSystem():GetVar(pfad, name)` und `:SetValue()` -
+dasselbe Muster wie AMMs `External/GameSettings.lua`.
+
+Beide Werte werden per Timer, beim Shutdown und per Knopf zurueckgesetzt, mit hartem Deckel
+bei 20 s. Eine haengende Sitzung darf den Spieler nicht stumm zuruecklassen.

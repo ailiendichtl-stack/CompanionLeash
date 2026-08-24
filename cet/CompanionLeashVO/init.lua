@@ -78,8 +78,11 @@ local lastAnim = "-"
 local heard = {}
 local pending = nil     -- waiting for the spawned workspot entity to exist
 local facePending = nil -- waiting out the ResetFacial cooldown before applying
-local mutePending = nil -- restoring DialogueVolume after the mute experiment
-local savedVolume = nil -- non-nil means dialogue is currently muted BY US
+local lipDuration = 6.0    -- panel sliders; tuned by eye, not derived from anything
+local lipInterval = 1.0
+local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
+local savedVolume = nil    -- non-nil means dialogue is currently muted BY US
+local savedOverheads = nil -- non-nil means overhead subtitles are suppressed BY US
 local active = nil    -- {handle, target}
 
 local function targetName(handle)
@@ -170,59 +173,105 @@ local function face(handle, cat, idle, name)
   facePending = { target = handle, cat = cat, idle = idle, name = name, t = 0 }
 end
 
---  THE MUTE EXPERIMENT
+--  LIPSYNC ENGINE
 --
---  Idea: lipsync is driven by the VO event playing, not by whether it is audible. If the
---  dialogue bus is muted, the event may still animate the mouth while a custom line plays
---  from the SFX bus - Audioware registers its files under "sfx:", a different bus from
---  DialogueVolume, so the two do not mute each other.
+--  Confirmed by testing: muting the dialogue bus does NOT stop the lipsync. The mouth
+--  still moves. So a silent VO event can drive the face while a custom line plays from
+--  the SFX bus - Audioware registers its files under "sfx:", a separate bus.
 --
---  The open question this button settles: does muting kill the lipsync too? If it does,
---  the whole approach is dead and we know in two minutes.
+--  Two problems that first pass had, and the one trick that fixes both:
 --
---  DialogueVolume is a GLOBAL setting, so while muted every other line in the game is
---  silent too. It is restored automatically, on shutdown, and by hand - leaving it at 0
---  would be a genuinely annoying state to hand back.
-local function dialogueVar()
+--  1. Reliability. A VO event picks a random variant from a pool and some of Judy's are
+--     empty, so a single fire sometimes produces nothing at all.
+--  2. Duration. The mouth moves for as long as the EVENT lasts, not our line - a short
+--     bark under a long sentence looks like bad dubbing.
+--
+--  Because the event is muted, re-firing it costs nothing audibly. So we fire on an
+--  interval for as long as our line runs: a dud variant is covered by the next shot, and
+--  the mouth keeps moving to the end. Overlap is free when nobody can hear it.
+--
+--  Two settings get changed for the window and both are restored on a timer, on shutdown
+--  and by hand - the panel shows their live values:
+--    /audio/volume DialogueVolume  -> 0      (global; every other line is silent too)
+--    /accessibility/subtitles Overheads -> false
+--  Overheads is the one that printed the muted text above her head. It only covers
+--  overhead barks; Cinematic subtitles are a separate var and stay untouched.
+local function settingVar(path, name)
   local ok, var = pcall(function()
-    return Game.GetSettingsSystem():GetVar("/audio/volume", "DialogueVolume")
+    return Game.GetSettingsSystem():GetVar(path, name)
   end)
   if ok then return var end
   return nil
 end
 
-local function restoreVolume(why)
-  if savedVolume == nil then return end
-  local var = dialogueVar()
-  if var then pcall(function() var:SetValue(savedVolume) end) end
-  print(MOD .. " DialogueVolume wiederhergestellt (" .. tostring(savedVolume) .. ") - " .. (why or ""))
-  savedVolume = nil
-  mutePending = nil
+local function dialogueVar() return settingVar("/audio/volume", "DialogueVolume") end
+local function overheadVar() return settingVar("/accessibility/subtitles", "Overheads") end
+
+local LIP_MAX = 20.0 -- hard ceiling; a stuck session must not mute the game forever
+
+local function lipRestore(why)
+  if savedVolume ~= nil then
+    local var = dialogueVar()
+    if var then pcall(function() var:SetValue(savedVolume) end) end
+    savedVolume = nil
+  end
+  if savedOverheads ~= nil then
+    local var = overheadVar()
+    if var then pcall(function() var:SetValue(savedOverheads) end) end
+    savedOverheads = nil
+  end
+  if lip then
+    print(MOD .. " Lipsync beendet (" .. (why or "") .. ") - Einstellungen zurueckgesetzt")
+    lip = nil
+  end
 end
 
-local function muteTest(handle, vo, cat, idle)
+local function fireVo(handle, vo)
+  pcall(function()
+    Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"](
+      handle, CName.new(vo), CName.new("CompanionLeashLip"),
+      0.0, handle:GetEntityID(), true)
+  end)
+end
+
+local function lipStart(handle, vo, duration, interval, cat, idle)
   if not handle then
     print(MOD .. " kein Ziel")
     return
   end
-  local var = dialogueVar()
-  if not var then
+  local dv, ov = dialogueVar(), overheadVar()
+  if not dv then
     print(MOD .. " DialogueVolume nicht erreichbar")
     return
   end
-  restoreVolume("neuer Versuch")
+  lipRestore("Neustart")
+
   local ok, err = pcall(function()
-    savedVolume = var:GetValue()
-    var:SetValue(0)
+    savedVolume = dv:GetValue()
+    dv:SetValue(0)
+    if ov then
+      savedOverheads = ov:GetValue()
+      ov:SetValue(false)
+    end
   end)
   if not ok then
-    print(MOD .. " Muten fehlgeschlagen: " .. tostring(err))
-    savedVolume = nil
+    print(MOD .. " Stummschalten fehlgeschlagen: " .. tostring(err))
+    lipRestore("Fehler")
     return
   end
-  print(MOD .. " MUTE-TEST: Dialog stumm, spiele " .. vo .. " - MUND BEOBACHTEN")
-  talk(handle, vo, cat, idle)
-  mutePending = 0
+
+  if duration > LIP_MAX then duration = LIP_MAX end
+  --  t starts at the interval so the first shot goes out on this very frame
+  lip = { target = handle, vo = vo, interval = interval,
+          remaining = duration, t = interval, shots = 0 }
+
+  if cat then
+    local stim = handle:GetStimReactionComponent()
+    if stim then pcall(function() stim:ResetFacial(0) end) end
+    facePending = { target = handle, cat = cat, idle = idle, name = vo, t = 0 }
+  end
+  print(MOD .. " LIPSYNC: " .. vo .. " alle " .. string.format("%.1f", interval)
+        .. "s fuer " .. string.format("%.1f", duration) .. "s")
 end
 
 local function stopAnim()
@@ -260,10 +309,18 @@ local function playAnim(target, animName)
 end
 
 registerForEvent("onUpdate", function(dt)
-  if mutePending ~= nil then
-    mutePending = mutePending + (dt or 0.016)
-    if mutePending >= 4.0 then
-      restoreVolume("Zeitablauf")
+  if lip then
+    local d = dt or 0.016
+    lip.remaining = lip.remaining - d
+    if lip.remaining <= 0 then
+      lipRestore("Zeitablauf")
+    else
+      lip.t = lip.t + d
+      if lip.t >= lip.interval then
+        lip.t = 0
+        lip.shots = lip.shots + 1
+        fireVo(lip.target, lip.vo)
+      end
     end
   end
 
@@ -346,24 +403,41 @@ registerForEvent("onDraw", function()
 
   ImGui.Separator()
 
-  if ImGui.CollapsingHeader("Stumm-Trick (Experiment)") then
-    local var = dialogueVar()
-    local cur = var and var:GetValue() or "?"
-    ImGui.Text("DialogueVolume: " .. tostring(cur))
-    if savedVolume ~= nil then
-      ImGui.SameLine()
-      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns stummgeschaltet]")
+  if ImGui.CollapsingHeader("Lipsync-Motor") then
+    local dv, ov = dialogueVar(), overheadVar()
+    ImGui.Text("DialogueVolume: " .. tostring(dv and dv:GetValue() or "?")
+               .. "   Overheads: " .. tostring(ov and ov:GetValue() or "?"))
+    if savedVolume ~= nil or savedOverheads ~= nil then
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns veraendert - laeuft]")
     end
-    ImGui.TextWrapped("Frage: bleibt die Mundbewegung erhalten, wenn das VO-Event stumm " ..
-                      "ist? Wenn ja, koennte ein stummes Event die Lippen bewegen, waehrend " ..
-                      "eine eigene Zeile ueber den SFX-Bus laeuft. Auf den MUND schauen.")
+    ImGui.TextWrapped("Feuert ein stummes VO-Event im Intervall nach, solange die Zeile " ..
+                      "laeuft. Deckt tote Varianten ab und haelt den Mund bis zum Ende in " ..
+                      "Bewegung. Intervall runter, wenn es stockt; hoch, wenn es zuckt.")
     ImGui.Separator()
-    if ImGui.Button("Stumm + greeting") then muteTest(target, "greeting", 3, 5) end
+
+    lipDuration = ImGui.SliderFloat("Dauer (s)", lipDuration, 1.0, 20.0, "%.1f")
+    lipInterval = ImGui.SliderFloat("Intervall (s)", lipInterval, 0.2, 3.0, "%.2f")
+
+    if ImGui.Button("Start: greeting") then
+      lipStart(target, "greeting", lipDuration, lipInterval, 3, 5)
+    end
     ImGui.SameLine()
-    if ImGui.Button("Stumm + combat_ended") then muteTest(target, "combat_ended", 3, 6) end
+    if ImGui.Button("Start: elite_warning") then
+      lipStart(target, "elite_warning", lipDuration, lipInterval, 3, 6)
+    end
     ImGui.SameLine()
-    if ImGui.Button("Lautstaerke wiederherstellen") then restoreVolume("manuell") end
-    ImGui.TextDisabled("wird nach 4s automatisch zurueckgesetzt")
+    if ImGui.Button("Start: combat_ended") then
+      lipStart(target, "combat_ended", lipDuration, lipInterval, 3, 6)
+    end
+
+    if ImGui.Button("STOPP / Einstellungen zuruecksetzen") then
+      lipRestore("manuell")
+    end
+    if lip then
+      ImGui.SameLine()
+      ImGui.Text(string.format("noch %.1fs, %d Schuss", lip.remaining, lip.shots))
+    end
+    ImGui.TextDisabled("Deckel bei " .. string.format("%.0f", LIP_MAX) .. "s")
   end
 
   if ImGui.CollapsingHeader("Mimik + Talk") then
@@ -417,7 +491,7 @@ end)
 
 registerForEvent("onShutdown", function()
   stopAnim()
-  restoreVolume("Shutdown")
+  lipRestore("Shutdown")
 end)
 
 registerForEvent("onInit", function()
