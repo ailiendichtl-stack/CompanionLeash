@@ -118,6 +118,14 @@ local optTag = "NCA_Companion"
 --  bottom-of-screen subtitles instead of overhead ones. Selectable so it can be tested.
 local optStyle = -1        -- -1 = do not override at all
 local STYLES = { "Default", "OverHead", "Cinematic", "Radio", "GlobalTV" }
+
+--  The sweep found only greeting and battlecry_curse, yet combat_ended demonstrably works
+--  and her mouth moved more often than lines were counted. The voiceset system resolves a
+--  name against a CONTEXT, and we were standing around peacefully while asking for
+--  combat_ended, stealth_* and the warnings. Enum values read from the game earlier.
+local optContext = -1      -- -1 = do not override
+local CONTEXTS = { "Vo_Context_Quest", "Vo_Context_Community", "Vo_Context_Combat",
+                   "Vo_Context_Minor_Activity", "Default_Vo_Context" }
 --  fireVo calls this but it is defined further down; without the forward declaration the
 --  local is nil at that point and the call fails at runtime.
 local playVoiceset
@@ -459,6 +467,12 @@ playVoiceset = function(voiceset, mode, handle, uniqueName)
 
     local prm = NewObject("questPlayVoiceset_NodeTypeParams")
     prm.overrideVoiceoverExpression = true
+    if optContext >= 0 then
+      pcall(function()
+        prm.overridingVoiceoverContext =
+          Enum.new("locVoiceoverContext", CONTEXTS[optContext + 1])
+      end)
+    end
     if optStyle >= 0 then
       prm.overrideVisualStyle = true
       pcall(function()
@@ -952,7 +966,9 @@ registerForEvent("onDraw", function()
       if ImGui.Button(string.format("Alle %d Namen durchmessen", #SWEEP)) then
         if target then
           sweep = { i = 0, t = 99, hits = 0, mark = lipDiag.changes }
-          log(string.format("=== SWEEP ueber %d Namen, Ziel gesperrt", #SWEEP))
+          log(string.format("=== SWEEP ueber %d Namen | kontext=%s | stil=%s", #SWEEP,
+            (optContext >= 0) and CONTEXTS[optContext + 1] or "keiner",
+            (optStyle >= 0) and STYLES[optStyle + 1] or "keiner"))
         else
           log("Sweep braucht ein gesperrtes Ziel")
         end
@@ -960,6 +976,17 @@ registerForEvent("onDraw", function()
       ImGui.TextDisabled("Rund 3 Minuten. Schreibt pro Name Treffer/still mit Text und " ..
                          "Dauer ins Log - damit wissen wir, welche langen Zeilen es gibt.")
     end
+    ImGui.Separator()
+    ImGui.Text("Kontext:")
+    ImGui.SameLine()
+    if ImGui.RadioButton("keiner", optContext == -1) then optContext = -1 end
+    for i, nm in ipairs(CONTEXTS) do
+      ImGui.SameLine()
+      if ImGui.RadioButton(nm:gsub("Vo_Context_", ""):gsub("_Vo_Context", ""),
+                           optContext == i - 1) then optContext = i - 1 end
+    end
+    ImGui.TextDisabled("Kampf-Namen antworten vermutlich nur im Kampf-Kontext. Sweep " ..
+                       "einmal je Kontext laufen lassen.")
     ImGui.Separator()
     ImGui.Text("Untertitel-Stil:")
     ImGui.SameLine()
