@@ -85,65 +85,68 @@ considerably more involved, which is exactly why the spike comes first.
 
 ---
 
-## Result: the generic VO surface, fully mapped
+## Result: the generic VO surface
 
-All 44 event names attested in vanilla scripts were played on Judy in-game and listened to
-across three rounds. A missing VO fails silently, so this could only be settled by ear;
-the log recorded what was attempted, the listener recorded what sounded.
+Mapped in two passes. A timed redscript sweep played every name on a schedule; a CET panel
+(`cet/CompanionLeashVO`) then allowed clicking each event by hand.
 
-**11 of 44 work.** Every one of them carries multiple varied German lines.
+**The timed sweep was substantially wrong.** It reported 11 working and 33 silent. Manual
+testing showed many "silent" events do work — they just need several attempts, because
+individual variants are frequently empty. A single scheduled attempt per event produced
+false negatives at scale. The manual panel is the authoritative source below.
 
-| Event | German line heard | Natural trigger |
+### Distinct, contextual lines — the valuable set
+
+| Event | German line | Natural trigger |
 |---|---|---|
 | `greeting` | "Hey V" / "Oh hey" | catching up, arrival |
 | `stealth_restored` | "Die haben wir abgeschüttelt" / "Perfekt, die sehen uns nicht mehr" | detection broken |
 | `stealth_ended` | "Da kommen sie" / "Sie sind hier, bleib wachsam" / "Achtung!" | spotted |
 | `combat_ended` | "Oh das wars, wir habens geschafft" / "Sieh uns an. Nicht tot zu kriegen." | fight over |
-| `coop_irritation` | "Aaah!" | annoyed |
-| `coop_reports_kill` | "Echt jetzt!?" | she got a kill |
-| `sniper_warning` | "Wo haben die nur diese Ausrüstung her?" / "Ordentlich ausgestattet die Typen." | well-equipped enemy spotted |
-| `attack_fragile_player_order` | "Hey V! Mach was, verdammte Scheiße!" | urging V to act |
-| `battlecry_curse` | "Fuuuuck!" | combat |
+| `elite_warning` | "Wo haben die nur diese Ausrüstung her?" / "Ordentlich ausgestattet die Typen" | tough enemy — **reliable** |
+| `camera_warning` | several distinct lines | camera spotted |
 | `bump` | "Was zur Hölle?" | **player walks into her** |
 | `combat_target_hit` | "Na, wie schmeckt dir das?" | she hit an enemy |
+| `attack_fragile_player_order` | "Hey V! Mach was, verdammte Scheiße!" | urging V to act |
+| `battlecry_curse` | "Fuuuuck!" | combat |
+| `coop_reports_kill` | "Echt jetzt!?" | she got a kill |
+| `coop_irritation` | "Aaah!" | annoyed |
+| `start_combat` | works, most attempts | fight starts |
+| `enemy_warning` | works | enemy spotted |
+| `hit_reaction_light` | works | taking a light hit |
+| `grenade_throw` | works | grenade |
+| `vehicle_bump` | the short "…?" | vehicle contact |
 
-**Silent (33):** `danger`, `stlh_curious_grunt`, `stlh_call`, `stlh_death`, `enemy_warning`,
-`start_combat`, `start_dead`, `crowd_combat`, `shove`, `fear_beg`, `fear_run`,
-`hit_reaction_heavy`, `hit_reaction_light`, `hit_grapple`, `vo_any_damage_hit`,
-`grenade_throw`, `heavy_reloading`, `hmg_charge`, `pedestrian_hit`, `vehicle_bump`,
-`octant_warning`, and every `*_warning` except sniper, plus the entire `cpo_*` family.
+### Generic pool only — low value
 
-The pattern is coherent: she answers **companion and stealth** events, and stays silent on
-enemy-NPC combat chatter. `cpo_*` looked promising after `coop_*` paid off, but is empty.
+`octant_warning`, `turret_warning`, `drones_warning`, `netrunner_warning`, `mech_warning`,
+`heavy_warning` — these fire sometimes, but only ever produce the generic "Aaah!" and
+"Echt jetzt!?" reactions. No distinct lines of their own. Usable as filler, not worth
+wiring to a specific situation when `elite_warning` or `camera_warning` say something real.
 
-### How the mapping was derived, and its one weakness
+### Still open
 
-Sounds were matched to events by two independent signals: semantic fit of the German line
-to the event name, and position within the logged cycle. Both agree.
+Not yet exercised by hand: `danger`, `stlh_curious_grunt`, `stlh_call`, `stlh_death`,
+`start_dead`, `crowd_combat`, `shove`, `fear_beg`, `fear_run`, `hit_reaction_heavy`,
+`hit_grapple`, `vo_any_damage_hit`, `heavy_reloading`, `hmg_charge`, `pedestrian_hit`,
+`cpo_armor_broken`, `cpo_got_data`, `cpo_nearly_dead`, `following`, `waiting`.
 
-The weak point is per-index attribution rather than the working set. Individual variants
-are sometimes silent — one round-1 group produced two lines where three were expected — so
-a given slot can appear empty on one pass. The **set** of working events is solid; if a
-line turns out to sit on a neighbouring event, it will be obvious the first time it fires
-in the wrong context, and it costs nothing to move.
+Given how the timed sweep misjudged the others, these should be assumed **untested**
+rather than silent.
 
-Also observed: "Sieh uns an, nicht tot zu kriegen" surfaced under both `stealth_restored`
-and `combat_ended`, so events appear to share a line pool.
+### Structure worth knowing
 
-### What this unlocks
+**Events share line pools.** "Sieh uns an, nicht tot zu kriegen" surfaced under both
+`stealth_restored` and `combat_ended`. The gear lines appear under both `sniper_warning`
+(timed sweep, position-derived) and `elite_warning` (manual, reliable) — the manual result
+is the one to trust. Half a dozen warning events resolve to the same two generic screams.
 
-Seven of the eleven map directly onto triggers CompanionLeash already computes:
+**Empty variants are normal.** Even confirmed events stay silent on some presses. Anything
+built on these must tolerate a call producing no audio, and must not treat silence as an
+error or retry into a stutter.
 
-    greeting          -> arrival, after a catch-up
-    bump              -> the Crowding cancel we already detect
-    stealth_ended     -> PlayerStateMachine detection change
-    stealth_restored  -> ditto, the other direction
-    combat_ended      -> EventBus.OnCombatEnd
-    coop_reports_kill -> EventBus.OnCompanionDealDamage
-    sniper_warning    -> threat spotted
-
-No new detection work is needed for those — the events already exist in the policy or in
-NCA's EventBus. What remains is a cooldown table so lines cannot chain or repeat.
+**Design consequence:** prefer events with distinct lines, and treat the generic-pool
+events as interchangeable filler rather than meaningful signals.
 
 ## Technical notes
 
