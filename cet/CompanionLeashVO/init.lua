@@ -550,6 +550,30 @@ registerForEvent("onDraw", function()
     end
     ImGui.TextDisabled("Sagt der Unsinnsname dasselbe wie cl_test_froh, wird unser Name " ..
                        "nicht aufgeloest. Sagt greeting korrekt Hallo, lebt der Rest.")
+    ImGui.Separator()
+    ImGui.TextColored(0.6, 0.8, 1.0, 1.0, "Referenztest gegen V Voice Framework")
+    ImGui.TextWrapped("VVF legt 12807 eigene Eintraege an und feuert sie mit exakt " ..
+                      "unserem Aufruf - eine Funktion, kein eigener Resolver. Wenn einer " ..
+                      "seiner Namen hier laeuft, tragen neu angelegte Eintraege " ..
+                      "grundsaetzlich und der Fehler liegt in unserem Szenenbau.")
+    if ImGui.Button("vfv_better_run (V)##vvf") then
+      speaker = 1
+      for i, nm in ipairs(STYLES) do
+        if nm:lower() == "regular" then styleIdx = i - 1 end
+      end
+      playBark("vfv_better_run")
+      log("REFERENZ: vfv_better_run auf V gefeuert")
+    end
+    ImGui.SameLine()
+    if ImGui.Button("vfv_talk_later (V)##vvf") then
+      speaker = 1
+      for i, nm in ipairs(STYLES) do
+        if nm:lower() == "regular" then styleIdx = i - 1 end
+      end
+      playBark("vfv_talk_later")
+      log("REFERENZ: vfv_talk_later auf V gefeuert")
+    end
+    ImGui.TextDisabled("Braucht das Archiv VVF_Referenztest. V spricht, kein Ziel noetig.")
   end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
