@@ -374,6 +374,12 @@ registerForEvent("onUpdate", function(dt)
         local dl = lastLine()
         sweep.before = dl and dl.text or ""
         sweep.t, sweep.got, sweep.pending = 0, false, true
+        if sweep.i % 20 == 1 then
+          --  grob 1.5s je Eintrag; nur zur Orientierung waehrend des Laufs
+          log(string.format("  ... %d/%d, %d Treffer, noch etwa %d min",
+              sweep.i, #sweep.list, sweep.hits,
+              math.ceil((#sweep.list - sweep.i) * 1.5 / 60)))
+        end
         playBark(sweep.list[sweep.i])
       end
     end
@@ -437,6 +443,17 @@ registerForEvent("onDraw", function()
   ImGui.TextDisabled("zuletzt: " .. lastPlayed)
   ImGui.Separator()
 
+  if sweep then
+    ImGui.TextColored(0.4, 1.0, 0.4, 1.0, string.format(
+      "SWEEP %d/%d  -  %d Treffer  -  noch etwa %d min",
+      sweep.i, #sweep.list, sweep.hits,
+      math.ceil((#sweep.list - sweep.i) * 1.5 / 60)))
+    ImGui.ProgressBar(sweep.i / #sweep.list, 320, 18,
+      string.format("%d%%", math.floor(100 * sweep.i / #sweep.list)))
+    ImGui.TextDisabled("laeuft auch bei geschlossenem Overlay weiter")
+    ImGui.Separator()
+  end
+
   ImGui.Text("Sprecher:")
   ImGui.SameLine()
   if ImGui.RadioButton("Judy", speaker == 0) then speaker = 0 end
@@ -465,7 +482,8 @@ registerForEvent("onDraw", function()
         sweep = { list = VSET_V, i = 0, t = 99, hits = 0, pending = false,
                   got = false, before = "", savedStyle = styleIdx }
         styleIdx = -1  -- sichtbar, sonst wird nichts gemeldet
-        log(string.format("=== SWEEP ueber %d V-Eintraege", #VSET_V))
+        log(string.format("=== SWEEP ueber %d V-Eintraege, etwa %d min",
+            #VSET_V, math.ceil(#VSET_V * 1.5 / 60)))
       end
       ImGui.TextDisabled("Rund 5 Minuten, unbeaufsichtigt.")
     end
