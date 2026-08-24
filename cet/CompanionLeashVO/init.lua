@@ -193,10 +193,10 @@ local sweep = nil
 
 --  name/ziel getrennt; hint sagt, was zu erwarten ist.
 local MATRIX = {
-  { label = "1 danger_var_1",    name = "danger_var_1",        player = false,
-    hint = "EINZIGE Frage: bewegt sich der Mund? Ton passt absichtlich nicht" },
-  { label = "2 greeting_var_2",  name = "greeting_var_2",      player = false,
-    hint = "Gegenprobe: unveraenderte Bark, muss Lippen bewegen" },
+  { label = "Quest-Zeile",       name = "cl_klon_danger",      player = false,
+    hint = "selbst gebauter Eintrag: Ich bin froh, dass du da bist." },
+  { label = "Bark",              name = "greeting_var_2",      player = false,
+    hint = "Vanilla-Bark zum Vergleich" },
 }
 
 local STYLES, styleIdx = {}, -1

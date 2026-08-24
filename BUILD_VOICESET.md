@@ -174,10 +174,21 @@ Die Referenz allein reicht nicht. Was geprueft und widerlegt ist:
 | Zuordnung ueber die Position (`actorId`) | widerlegt: Set auf Index 0 - Barks behielten ihre Bewegung, der Klon bekam keine |
 | Fehlende `m_`-Animation | Vanilla traegt sie ebenfalls ein, obwohl sie im Set fehlt |
 
-Belegt ist, dass `f_39669188B9A4E000` in `mq055_01_megabuilding/judy.anims` liegt und dass
-das Set referenziert wird. Warum die Engine es nicht heranzieht, ist offen. Naechster
-Verdaechtiger waere der Actor: unsere Szene hat einen einzigen, `vset_judy` mit
-`findInContext`, waehrend mq055 seine Figuren per `spawnDespawn` fuehrt.
+**Der entscheidende Test:** an `danger_var_1` - einem funktionierenden Eintrag - wurde
+NUR der Lipsync-Name auf die fremde mq055-Animation getauscht. Knoten, Ereignis, Timing,
+Audio-ruid und Sprecher blieben unveraendert, das Set war referenziert.
+
+Ergebnis: **Ton ja, Mundbewegung nein.** Eine unveraenderte Bark daneben bewegte den Mund.
+
+Damit ist es eindeutig: **eine nachtraeglich in `lipsyncAnimSets` eingetragene Referenz
+wird zur Laufzeit nicht herangezogen.** Die Szene benutzt nur das Set, mit dem sie erstellt
+wurde. Weder Reihenfolge noch Pfadform noch der Actor sind dafuer verantwortlich - die
+Referenz selbst wirkt nicht.
+
+Der gangbare Weg waere daher, die benoetigten Animationen in **ein** Set zu bringen, also
+eine eigene `.anims`-Ressource zu bauen, die alle gewuenschten Animationen enthaelt, und
+sie als Set der Szene zu setzen. Das ist Ressourcen-Authoring und deutlich mehr Arbeit als
+alles bisherige.
 
 **Kein Blocker:** Ton, richtige Zeile und Untertitel funktionieren. Und fuer die
 Mundbewegung gibt es den Stumm-Trick als Rueckfall - stumme Barks bewegen den Mund,
