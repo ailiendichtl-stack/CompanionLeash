@@ -105,13 +105,73 @@ VVF ersetzt `vset_v.scene`. Wir wuerden `vset_judy.scene` ersetzen - kein Konfli
 wir **Vs** Voiceset erweitern, muessten wir uns mit VVF abstimmen oder auf dessen
 `vfv_`-Eintraege aufsetzen, die ohnehin fast Vs gesamten Bestand abdecken.
 
+## BESTAETIGT im Spiel
+
+`cl_klon_danger` spielt "Ich bin froh, dass du da bist." - eine `mq055`-Quest-Zeile, die in
+Judys Voiceset nie vorkam, ueber einen selbst gebauten Eintrag. Das Verfahren traegt.
+
+### Die vollstaendige Rezeptur
+
+Eine Zeile hinzufuegen heisst: einen vorhandenen Eintrag **tief kopieren** und nur das
+Noetige ersetzen. Nicht von Hand nachbauen - das hat drei Anlaeufe gekostet.
+
+**Vorlage waehlen.** Eine gewoehnliche Bark, die direkt vom Start-Knoten auf die Section
+zeigt. Von Judys 65 Eintraegen sind 55 direkt, die 10 Familien-Basisnamen laufen ueber
+einen `scnRandomizerNode`. `danger_var_1` ist eine gute Wahl; `player_fallback_var_2` ist
+eine schlechte - der Name deutet auf einen Fallback-Pfad, und der Klon davon blieb
+mehrdeutig.
+
+**Kopieren:** Start-Knoten, Section-Knoten samt Ereignis, `voParams`, Sockets,
+`actorBehaviors`, `sectionDuration` - und die zugehoerige `scnscreenplayDialogLine`.
+
+**Ersetzen - und nur das:**
+
+| Feld | Wert |
+|---|---|
+| `nodeId` von Start und Section | naechste freie Ids |
+| `HandleId` beider Knoten und des Ereignisses | naechste freie |
+| Ereignis-`id` | **Vielfaches von 4** |
+| `itemId` der Zeile | **`(n << 8) \| 1`** |
+| `screenplayLineId` im Ereignis | dieselbe `itemId` |
+| `locstringId.ruid` | die stringId der Zielzeile |
+| `femaleLipsyncAnimationName` / `male...` | `f_<hex>` / `m_<hex>` |
+| Name im `scnEntryPoint` | frei, z.B. `cl_*` |
+
+**Registrieren:** `entryPoints` **und** `sceneGraph.Data.startNodes` - beide parallel, gleiche
+Reihenfolge. Dazu je ein `scnNodeSymbol` pro Knoten und ein `scnSceneEventSymbol` pro
+Ereignis.
+
+**Nicht anfassen:** `voInfo` (VVF fuehrt 13012 Eintraege bei 205 voInfo), `locStore`
+(Editor-Beschriftungen).
+
+### Die beiden Ids sind der Knackpunkt
+
+```
+itemId    Judy:  1, 257, 513, 769, 1025 ...  = 0x1, 0x101, 0x201, 0x301
+          VVF:   alle 12978 enden auf 0x01
+Ereignis  alle auf 4 ausgerichtet, in Vanilla wie bei VVF
+```
+
+Beide als "naechste freie Zahl" zu vergeben schlaegt fehl - und zwar **still**: der
+Eintrag loest auf, spielt aber eine andere Zeile. Keine Laengenpruefung und kein
+Feldvergleich findet das, weil die Felder da sind und die Typen stimmen. Nur die Werte
+sind ungueltig.
+
+Das erklaert auch, warum das Umbiegen einer **vorhandenen** Zeile von Anfang an
+funktionierte: deren Ids waren bereits wohlgeformt.
+
 ## Offen
+
 
 * **Dauern** der Quest-Zeilen - aus den `.wem` messen statt schaetzen.
 * **Randomizer** - wie `scnRandomizerNode` die Varianten waehlt, falls wir Familien bauen.
 * **Sprecher-Id** - `speaker`/`addressee` stehen bei Judy beide auf 0; ob das fuer
   zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
-* Ein **Durchstich mit einer einzigen Zeile** sollte vor dem Massenbau stehen.
+* **Dauer** - die Vorlage-Dauer bleibt beim Klonen stehen. Fuer eine laengere Zielzeile
+  schneidet das ab. Als naechstes aus den `.wem` messen.
+* **Lipsync** - `resouresReferences.lipsyncAnimSets` verweist nur auf
+  `vsets/lipsync/en/vset_judy/judy.anims` mit den 55 Bark-Animationen. Eine Quest-Zeile
+  braucht das Anim-Set ihrer Herkunftsszene.
 
 ## Nachtrag aus dem Durchstich
 
