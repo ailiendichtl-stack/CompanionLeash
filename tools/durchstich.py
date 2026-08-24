@@ -138,7 +138,23 @@ def main():
         },
     })
 
-    #  4. Der Einstiegspunkt - das ist der Name, den voicesetName spaeter erwartet.
+    #  4. Debug-Symbole. NICHT optional: sceneNodesDebugSymbols hat in jeder Szene genau
+    #     so viele Eintraege wie der Graph Knoten, sceneEventsDebugSymbols genau so viele
+    #     wie es Dialogzeilen-Ereignisse gibt. Beim ersten Versuch fehlten sie, und die
+    #     Namensaufloesung landete daraufhin auf fremden Zeilen - die Engine scheint ueber
+    #     diese Listen zu indizieren. VVF fuehrt sie ebenfalls mit: 26036 Knotensymbole bei
+    #     26036 Knoten.
+    ds = root["debugSymbols"]
+    ds["sceneNodesDebugSymbols"].append(_node_symbol(sec_id))
+    ds["sceneNodesDebugSymbols"].append(_node_symbol(start_id))
+    ds["sceneEventsDebugSymbols"].append({
+        "$type": "scnSceneEventSymbol",
+        "editorEventId": str(268435483 + 9000),
+        "originNodeId": {"$type": "scnNodeId", "id": sec_id},
+        "sceneEventIds": [{"$type": "scnSceneEventId", "id": str(2248180971940790000 + 1)}],
+    })
+
+    #  5. Der Einstiegspunkt - das ist der Name, den voicesetName spaeter erwartet.
     root["entryPoints"].append({
         "$type": "scnEntryPoint",
         "name": _cname(NAME),
@@ -155,6 +171,9 @@ def main():
     print("Dauer        : %d ms (geschaetzt)" % DURATION_MS)
     print("itemId       : %d   nodeIds: %d/%d   Handles: %d/%d/%d"
           % (item_id, sec_id, start_id, h_sec, h_evt, h_start))
+    print("Knoten %d = Knotensymbole %d | Ereignissymbole %d = Zeilen %d"
+          % (len(graph), len(ds["sceneNodesDebugSymbols"]),
+             len(ds["sceneEventsDebugSymbols"]), len(lines)))
     print()
 
     r = subprocess.run([CLI, "convert", "deserialize", out_json], capture_output=True,
@@ -167,6 +186,15 @@ def main():
         os.remove(out_json)
     else:
         print("!! .scene wurde nicht erzeugt")
+
+
+def _node_symbol(node_id):
+    return {
+        "$type": "scnNodeSymbol",
+        "editorEventId": "9223372036854775807",
+        "editorNodeId": {"$type": "scnNodeId", "id": node_id},
+        "nodeId": {"$type": "scnNodeId", "id": node_id},
+    }
 
 
 def _cname(v):
