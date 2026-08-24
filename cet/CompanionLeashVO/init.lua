@@ -90,7 +90,9 @@ local lipDuration = 6.0    -- panel sliders; tuned by eye, not derived from anyt
 local lipInterval = 1.0
 local lipMode = 0          -- 0 = single shot (default), 1 = duration-driven (experimental)
 local lipRotIdx = 0
-local lipRetry = 0.4       -- how long to wait for a shot to register before ONE retry
+local lipRetry = 0.6       -- wait before ONE retry. Below ~0.3 the retry lands inside the
+                           -- first line and cuts it off, which is the failure we are
+                           -- trying to avoid, so the slider does not go lower.
 local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended barrage
 --  Each suppression is switchable on its own. Changing mute and subtitle handling at the
 --  same time is how you end up unable to say which one produced a result.
@@ -261,10 +263,10 @@ local function fireVo(handle, vo)
   end)
 end
 
+--  Always the same event. An earlier version rotated on retry, which changed two things
+--  at once - whether a second shot helps, and whether the event matters.
 local function nextVo(session)
-  if lipMode == 0 then return session.vo end
-  lipRotIdx = (lipRotIdx % #LIP_ROTATION) + 1
-  return LIP_ROTATION[lipRotIdx]
+  return session.vo
 end
 
 --  Is a voice-over from this entity audible right now? AudioSystem.VoIsPerceptible is what
@@ -352,8 +354,7 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
     if stim then pcall(function() stim:ResetFacial(0) end) end
     facePending = { target = handle, cat = cat, idle = idle, name = vo, t = 0 }
   end
-  log(" LIPSYNC: " .. vo .. " alle " .. string.format("%.1f", interval)
-        .. "s fuer " .. string.format("%.1f", duration) .. "s")
+  log(string.format("  fenster max %.1fs", duration))
 end
 
 local function stopAnim()
@@ -570,6 +571,18 @@ registerForEvent("onDraw", function()
                        "Text da, traegt der Weg. Laeuft er von allein hoch, nicht.")
     ImGui.Separator()
 
+    if optHideOver then
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
+        "Erkennung unmoeglich: Untertitel sind unterdrueckt.")
+    end
+    if ImGui.Button("Erkennungstest (hoerbar, mit Untertitel)") then
+      optMute, optHideOver, lipMode = false, false, 0
+      lipStart(target, "greeting", lipDuration, lipInterval, 3, 5)
+    end
+    ImGui.TextDisabled("Setzt beide Haken zurueck und feuert einmal. Beantwortet zuerst " ..
+                       "die Grundfrage: wird ueberhaupt je eine Zeile gemeldet?")
+    ImGui.Separator()
+
     optMute = ImGui.Checkbox("stummschalten", optMute)
     ImGui.SameLine()
     optHideOver = ImGui.Checkbox("Untertitel unterdruecken", optHideOver)
@@ -584,7 +597,7 @@ registerForEvent("onDraw", function()
 
     lipDuration = ImGui.SliderFloat("Fenster max (s)", lipDuration, 1.0, 20.0, "%.1f")
     if lipMode == 1 then
-      lipRetry = ImGui.SliderFloat("Wartezeit vor Neuversuch (s)", lipRetry, 0.1, 1.5, "%.2f")
+      lipRetry = ImGui.SliderFloat("Wartezeit vor Neuversuch (s)", lipRetry, 0.3, 2.5, "%.2f")
     end
     ImGui.TextDisabled("Das Fenster endet frueher, sobald eine Zeile ihre Dauer meldet.")
 
