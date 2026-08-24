@@ -222,6 +222,46 @@ Use a **custom bank** for a small number of deliberately chosen lines where the 
 system has nothing to offer. Quality over quantity - a handful of well-placed lines beats
 a large library that fires at the wrong moment.
 
+---
+
+## The line archive
+
+WolvenKit's archive listing revealed the voice file naming scheme, and it changes what is
+possible:
+
+    base\localization\de-deo\judy_q202_f_1787cc94372cd000.wem
+                                  ^^^^ ^^^^ ^ ^^^^^^^^^^^^^^^^
+                               speaker quest │ stringId in hex
+                                          V's gender
+
+The hex suffix **is** the subtitle `stringId`. That gives a direct join between text and
+audio - and the speaker sits in the filename, which solves attribution that the subtitle
+data alone cannot provide. Earlier notes in this file called speaker attribution
+impossible from the data; that was wrong, it just required the audio side.
+
+    tools/line_archive.py
+
+    subtitle entries : 8,367
+    voice files      : 62,196 with a resolvable id
+    joined for Judy  : 1,473   (1,440 female-V variants)
+
+Output is `data/line_archive_judy_de.json`, one row per line:
+
+    id, speaker, gender, scene, text[], wem-path
+
+Richest scenes: `q105_07_judy_braindance` (108), `judy_default` (94),
+`sq030_06_lake_exploration` (90), `sq030_09_pier` (69), `sq026_02_holocall_judy` (62).
+
+`judy_default` remains the most interesting for companion work - lines that are not welded
+to a single story beat.
+
+### What remains
+
+Extraction and conversion: `.wem` out of the archive, then to a format Audioware accepts.
+WolvenKit ships `opus-tools` and has `extract` and `wwise` commands, so the tooling is
+present. The archive above tells us exactly which files to pull, which was the missing
+piece.
+
 ## Technical notes
 
 The extractor reads the RDAR archive format directly, resolves paths by FNV-1a64 hash,

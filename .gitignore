@@ -7,3 +7,6 @@ __pycache__/
 game-root.txt
 # extracted game data, regenerate with tools/voice_inventory.py
 data/
+
+# WolvenKit, ~470 MB Werkzeug - nicht ins Repo
+tools/wolvenkit/
