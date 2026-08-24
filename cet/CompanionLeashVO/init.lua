@@ -513,12 +513,28 @@ registerForEvent("onDraw", function()
                       "sein Audio findet und Lipsync startet. Braucht das Archiv " ..
                       "CompanionLeash_Durchstich und einen Spielneustart.")
     ImGui.TextDisabled("Erwartet: Judy sagt \"Ich bin froh, dass du da bist.\"")
-    if ImGui.Button("cl_test_froh##durchstich") then
+    --  Untertitel MUSS sichtbar sein: er kommt aus der locstringId der Zeile und ist
+    --  damit der einzige Beleg dafuer, welche Zeile das Spiel tatsaechlich aufgeloest
+    --  hat. Ohne ihn ist von aussen nicht zu unterscheiden, ob unser Eintrag falsch
+    --  aufloest oder ob NCA nebenher etwas anderes gefeuert hat.
+    if ImGui.Button("cl_test_froh (mit Untertitel)##durchstich") then
       speaker = 0
+      for i, nm in ipairs(STYLES) do
+        if nm:lower() == "overhead" then styleIdx = i - 1 end
+      end
       playBark("cl_test_froh")
+      log("DURCHSTICH: cl_test_froh gefeuert, Stil overHead erzwungen")
     end
     ImGui.SameLine()
-    ImGui.TextDisabled("Ziel muss gesperrt sein")
+    if ImGui.Button("Vergleich: follow_me##durchstich") then
+      speaker = 0
+      for i, nm in ipairs(STYLES) do
+        if nm:lower() == "overhead" then styleIdx = i - 1 end
+      end
+      playBark("follow_me")
+      log("DURCHSTICH: follow_me als Vergleich gefeuert")
+    end
+    ImGui.TextDisabled("Ziel muss gesperrt sein. Untertitel zeigt, welche Zeile wirklich lief.")
   end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
