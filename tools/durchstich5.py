@@ -118,9 +118,15 @@ def main():
 
     #  Ohne dieses Set spielt die Zeile, aber der Mund bewegt sich nicht - im Spiel
     #  beobachtet: Vorlage mit Lippenbewegung, Klon ohne.
+    #  In mq055 folgen die Anim-Sets der Actor-Reihenfolge: judy->judy.anims,
+    #  kerry->kerry.anims, panam->panam.anims. Judys Voiceset hat genau einen Actor
+    #  (vset_judy) und genau ein Set, und unsere Zeile hat speaker = 0 - greift also
+    #  vermutlich auf Set 0 zu. Angehaengt lag unseres auf 1 und blieb wirkungslos.
+    #  Deshalb hier VORNE einsortieren. Nebenwirkung fuer diesen Test: die 55 Barks
+    #  verlieren dadurch ihre Lippenbewegung. Genau das macht den Test eindeutig.
     refs = root["resouresReferences"]["lipsyncAnimSets"]
     if not any(r["asyncRefLipsyncAnimSet"]["DepotPath"]["$value"] == ANIMS for r in refs):
-        refs.append({
+        refs.insert(0, {
             "$type": "scnLipsyncAnimSetSRRef",
             "asyncRefLipsyncAnimSet": {
                 "DepotPath": {"$type": "ResourcePath", "$storage": "string",
@@ -131,7 +137,9 @@ def main():
                               "$value": "0"},
                 "Flags": "Default"},
         })
-    print("Anim-Sets: %d (%s ergaenzt)" % (len(refs), ANIMS.split(BS)[-2]))
+    print("Anim-Sets: %d, Reihenfolge:" % len(refs))
+    for i, r in enumerate(refs):
+        print("   [%d] %s" % (i, r["asyncRefLipsyncAnimSet"]["DepotPath"]["$value"].split(BS)[-2:]))
 
     dur = ev["Data"]["duration"]
     stu = sec["Data"]["sectionDuration"]["stu"]
