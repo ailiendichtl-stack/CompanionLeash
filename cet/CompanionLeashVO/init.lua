@@ -78,6 +78,8 @@ local lastAnim = "-"
 local heard = {}
 local pending = nil     -- waiting for the spawned workspot entity to exist
 local facePending = nil -- waiting out the ResetFacial cooldown before applying
+local mutePending = nil -- restoring DialogueVolume after the mute experiment
+local savedVolume = nil -- non-nil means dialogue is currently muted BY US
 local active = nil    -- {handle, target}
 
 local function targetName(handle)
@@ -168,6 +170,61 @@ local function face(handle, cat, idle, name)
   facePending = { target = handle, cat = cat, idle = idle, name = name, t = 0 }
 end
 
+--  THE MUTE EXPERIMENT
+--
+--  Idea: lipsync is driven by the VO event playing, not by whether it is audible. If the
+--  dialogue bus is muted, the event may still animate the mouth while a custom line plays
+--  from the SFX bus - Audioware registers its files under "sfx:", a different bus from
+--  DialogueVolume, so the two do not mute each other.
+--
+--  The open question this button settles: does muting kill the lipsync too? If it does,
+--  the whole approach is dead and we know in two minutes.
+--
+--  DialogueVolume is a GLOBAL setting, so while muted every other line in the game is
+--  silent too. It is restored automatically, on shutdown, and by hand - leaving it at 0
+--  would be a genuinely annoying state to hand back.
+local function dialogueVar()
+  local ok, var = pcall(function()
+    return Game.GetSettingsSystem():GetVar("/audio/volume", "DialogueVolume")
+  end)
+  if ok then return var end
+  return nil
+end
+
+local function restoreVolume(why)
+  if savedVolume == nil then return end
+  local var = dialogueVar()
+  if var then pcall(function() var:SetValue(savedVolume) end) end
+  print(MOD .. " DialogueVolume wiederhergestellt (" .. tostring(savedVolume) .. ") - " .. (why or ""))
+  savedVolume = nil
+  mutePending = nil
+end
+
+local function muteTest(handle, vo, cat, idle)
+  if not handle then
+    print(MOD .. " kein Ziel")
+    return
+  end
+  local var = dialogueVar()
+  if not var then
+    print(MOD .. " DialogueVolume nicht erreichbar")
+    return
+  end
+  restoreVolume("neuer Versuch")
+  local ok, err = pcall(function()
+    savedVolume = var:GetValue()
+    var:SetValue(0)
+  end)
+  if not ok then
+    print(MOD .. " Muten fehlgeschlagen: " .. tostring(err))
+    savedVolume = nil
+    return
+  end
+  print(MOD .. " MUTE-TEST: Dialog stumm, spiele " .. vo .. " - MUND BEOBACHTEN")
+  talk(handle, vo, cat, idle)
+  mutePending = 0
+end
+
 local function stopAnim()
   if not active then return end
   pcall(function()
@@ -203,6 +260,13 @@ local function playAnim(target, animName)
 end
 
 registerForEvent("onUpdate", function(dt)
+  if mutePending ~= nil then
+    mutePending = mutePending + (dt or 0.016)
+    if mutePending >= 4.0 then
+      restoreVolume("Zeitablauf")
+    end
+  end
+
   if facePending then
     facePending.t = facePending.t + (dt or 0.016)
     if facePending.t >= 0.5 then
@@ -282,6 +346,26 @@ registerForEvent("onDraw", function()
 
   ImGui.Separator()
 
+  if ImGui.CollapsingHeader("Stumm-Trick (Experiment)") then
+    local var = dialogueVar()
+    local cur = var and var:GetValue() or "?"
+    ImGui.Text("DialogueVolume: " .. tostring(cur))
+    if savedVolume ~= nil then
+      ImGui.SameLine()
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns stummgeschaltet]")
+    end
+    ImGui.TextWrapped("Frage: bleibt die Mundbewegung erhalten, wenn das VO-Event stumm " ..
+                      "ist? Wenn ja, koennte ein stummes Event die Lippen bewegen, waehrend " ..
+                      "eine eigene Zeile ueber den SFX-Bus laeuft. Auf den MUND schauen.")
+    ImGui.Separator()
+    if ImGui.Button("Stumm + greeting") then muteTest(target, "greeting", 3, 5) end
+    ImGui.SameLine()
+    if ImGui.Button("Stumm + combat_ended") then muteTest(target, "combat_ended", 3, 6) end
+    ImGui.SameLine()
+    if ImGui.Button("Lautstaerke wiederherstellen") then restoreVolume("manuell") end
+    ImGui.TextDisabled("wird nach 4s automatisch zurueckgesetzt")
+  end
+
   if ImGui.CollapsingHeader("Mimik + Talk") then
     ImGui.TextWrapped("Talk = Blick + Stimme + Mimik zusammen, wie NCA es intern macht. " ..
                       "WICHTIG: dabei auf den MUND schauen. Bewegt er sich, liefern die " ..
@@ -333,6 +417,7 @@ end)
 
 registerForEvent("onShutdown", function()
   stopAnim()
+  restoreVolume("Shutdown")
 end)
 
 registerForEvent("onInit", function()
