@@ -433,3 +433,57 @@ ist ungeprueft und wird nicht angenommen.
 **Standard ist wieder Einzelschuss.** Nachfeuern gibt es nur als expliziten Modus, hoechstens
 ein Neuversuch, und nur solange nichts gezuendet hat - nach einer bestaetigten Zeile nie.
 
+## Der Quest-Voiceset-Pfad
+
+Das V Voice Framework ruft `PlayVoiceOver` gar nicht auf. Es baut einen Quest-Knoten und
+laesst ihn vom QuestsSystem ausfuehren - der Weg, den echte Quest-Szenen gehen:
+
+```reds
+let node = new questVoicesetManagerNodeDefinition();
+node.type = new questPlayVoiceset_NodeType();
+params.voicesetName = voiceName;
+params.puppetRef    = playerRef;          // CreateNodeRef("#player")
+ArrayPush((node.type as questPlayVoiceset_NodeType).params, params);
+GameInstance.GetQuestsSystem(this.GetGame()).ExecuteNode(node);
+```
+
+`questPlayVoiceset_NodeTypeParams` ist ein nativer Typ und steht **nicht** im Script-Dump.
+Per Reflection im Spiel ausgelesen:
+
+| Feld | Typ |
+|---|---|
+| `puppetRef` | `gameEntityReference` |
+| `isPlayer` | Bool |
+| `voicesetName` | CName |
+| `useVoicesetSystem` | Bool |
+| `playOnlyGrunt` | Bool |
+| `overridingVoiceoverContext` | `locVoiceoverContext` |
+| `overrideVoiceoverExpression` | Bool |
+| `overridingVoiceoverExpression` | `locVoiceoverExpression` |
+| `overrideVisualStyle` | Bool |
+| `overridingVisualStyle` | `scnDialogLineVisualStyle` |
+
+Zwei Enum-Felder steuern Kontext und Gesichtsausdruck direkt am Knoten - das waere der
+eingebaute Ersatz fuer unsere separate `AnimFeature_FacialReaction`-Bastelei.
+
+Offen: `puppetRef` ist `gameEntityReference`. Die Script-Dump-Variante `EntityReference`
+enthaelt nur `reference : NodeRef`, keine EntityID. Ob eine dynamisch gespawnte
+Begleiterin damit ueberhaupt adressierbar ist, entscheidet, ob dieser Weg fuer uns
+nutzbar ist oder nur fuer V.
+
+### Cooldown-Falle (aus dem VVF-Quelltext)
+
+VVF setzt bewusst **genau ein** Cooldown-Gate im gesamten Aufrufpfad und warnt davor, es
+zu umwickeln: teilen sich mehrere Mods dieselbe Funktion und bringt jeder sein eigenes
+Gate mit, muss eine Zeile alle Cooldowns zugleich passieren und wird umso seltener, je
+mehr Mods installiert sind.
+
+### CET-Reflection (verifiziert)
+
+| Zweck | Aufruf |
+|---|---|
+| Variant entpacken | `FromVariant(bb:GetVariant(def))` |
+| Klasse eines Objekts | `Reflection.GetClassOf(ToVariant(obj))` |
+| Felder auflisten | `class:GetProperties()`, `prop:GetName().value` |
+| Struct/Handle bauen | `NewObject("Typ")` / `NewObject("handle:Typ")` |
+

@@ -309,6 +309,42 @@ local function inspect(typeName)
   if not ok then log("INSPEKT " .. typeName .. " fehlgeschlagen: " .. tostring(err)) end
 end
 
+--  Enums cannot be built with NewObject; Reflection lists them separately. The two
+--  expression/context enums are the built-in facial control on the quest voiceset node.
+local function inspectEnum(name)
+  local ok, err = pcall(function()
+    local e = Reflection.GetEnum(name)
+    if not e then log("ENUM " .. name .. ": nicht gefunden"); return end
+    log("ENUM " .. name)
+    local out = {}
+    for _, c in pairs(e:GetConstants()) do out[#out + 1] = tostring(c.value or c) end
+    log("    " .. table.concat(out, ", "))
+  end)
+  if not ok then log("ENUM " .. name .. " fehlgeschlagen: " .. tostring(err)) end
+end
+
+--  FromVariant now yields a table but every field read nil, so either the table is empty
+--  or its keys are named differently. Listing them settles which.
+local function dumpDialogKeys()
+  local ok, err = pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb = Game.GetBlackboardSystem():Get(defs.UIGameData)
+    local raw = bb:GetVariant(defs.UIGameData.ShowDialogLine)
+    log("BLACKBOARD ShowDialogLine: raw=" .. type(raw))
+    if not raw then return end
+    local v = FromVariant(raw)
+    log("  entpackt=" .. type(v))
+    if type(v) ~= "table" then return end
+    local n = 0
+    for k, val in pairs(v) do
+      n = n + 1
+      log(string.format("    %-22s %-10s %s", tostring(k), type(val), tostring(val)))
+    end
+    if n == 0 then log("    (leer - es wurde nichts geschrieben)") end
+  end)
+  if not ok then log("BLACKBOARD-Dump fehlgeschlagen: " .. tostring(err)) end
+end
+
 local function voPerceptible(handle)
   if not handle then return false end
   local ok, res = pcall(function()
@@ -622,8 +658,12 @@ registerForEvent("onDraw", function()
     end
     if ImGui.Button("Struktur ausgeben (ins Log)") then
       inspect("questPlayVoiceset_NodeTypeParams")
-      inspect("questVoicesetManagerNodeDefinition")
-      inspect("EntityReference")
+      --  the params field is typed gameEntityReference, not EntityReference - that is
+      --  why the previous run logged "Type 'EntityReference' not found"
+      inspect("gameEntityReference")
+      inspectEnum("locVoiceoverExpression")
+      inspectEnum("locVoiceoverContext")
+      dumpDialogKeys()
     end
     ImGui.TextDisabled("Listet die Felder des Quest-Voiceset-Knotens. Der Weg, den das " ..
                        "V Voice Framework nutzt - kein PlayVoiceOver, sondern ein " ..
