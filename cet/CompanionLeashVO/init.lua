@@ -193,14 +193,22 @@ local sweep = nil
 
 --  name/ziel getrennt; hint sagt, was zu erwarten ist.
 local MATRIX = {
-  { label = "1 froh (2922ms)",   name = "cl_froh",             player = false,
-    hint = "Ich bin froh, dass du da bist.  [mq055]" },
-  { label = "2 kurz (2502ms)",   name = "cl_kurz",             player = false,
-    hint = "Da haben sich zwei gefunden.  [q105]" },
-  { label = "3 lang (5005ms)",   name = "cl_lang",             player = false,
-    hint = "Das wars schon. Glueckwunsch ...  [sq030]" },
-  { label = "4 Bark",            name = "danger_var_1",        player = false,
-    hint = "Vanilla-Bark als Vergleich - hat sie denselben Versatz?" },
+  -- Die ersten drei haben Animationen, die zu ihrer Laenge passen. Sollten sitzen.
+  { label = "1 Gut dass du da bist", name = "cl_froh",         player = false,
+    hint = "1917 ms, Animation +150 - fast dieselbe Aussage wie 4, aber passgenau" },
+  { label = "2 Zwei gefunden",       name = "cl_kurz",         player = false,
+    hint = "2502 ms, Animation -135" },
+  { label = "3 Zugang zur Wohnung",  name = "cl_lang",         player = false,
+    hint = "5005 ms, Animation -305" },
+  -- Dieselbe Zeile dreimal: 2922 ms Ton gegen 4267 ms Animation. Welcher Hebel hilft?
+  { label = "4 froh ROH",            name = "cl_v_roh",        player = false,
+    hint = "unveraendert - der bekannte Versatz, als Vergleichsmass" },
+  { label = "5 froh BESCHNITTEN",    name = "cl_v_trim",       player = false,
+    hint = "Animation faengt erst bei Bild 40 an - hilft, wenn der Vorlauf vorne sitzt" },
+  { label = "6 froh GEDEHNT",        name = "cl_v_lang",       player = false,
+    hint = "Zeilendauer auf 4267 ms - hilft, wenn die Laufzeit die Animation streckt" },
+  { label = "7 Vanilla-Bark",        name = "danger_var_1",    player = false,
+    hint = "unangetastet - der Nullpunkt" },
 }
 
 local STYLES, styleIdx = {}, -1

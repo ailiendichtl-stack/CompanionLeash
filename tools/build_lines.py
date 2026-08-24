@@ -16,6 +16,20 @@ Zwei Id-Muster sind zwingend, sonst loest der Eintrag auf und spielt eine FREMDE
     itemId        (n << 8) | 1
     Ereignis-Id   Vielfaches von 4
 
+Vor dem Bau wird jede Zeile gegen `data/anim_durations.json` geprueft. Eine Animation
+traegt kein Versatzfeld, laeuft also ab Ereignisbeginn; ist sie deutlich laenger als die
+Zeile, hinkt der Mund dem Ton hinterher. Genau daran lag das beobachtete Delay - die
+Animation war 4267 ms lang, die Zeile 2922. Betroffen sind 3 % der Zeilen (44 von 1375),
+und die sollen nicht verloren gehen. Zwei Hebel stehen dagegen bereit:
+
+    trim=True       die Animation kommt beschnitten ins Set, ab Bild `delta`. Wenn der
+                    Vorlauf vorne sitzt, faengt der Mund damit zum Ton an.
+    anim_dur=True   die Zeile bekommt die Laenge der ANIMATION statt ihre eigene. Wenn die
+                    Laufzeit die Animation auf die Ereignisdauer streckt, passt es damit.
+
+Welcher greift, entscheidet das Spiel. Darum liegt dieselbe Zeile unten dreimal im Set -
+einmal roh als Vergleich, einmal je Hebel.
+
 Dazu wird ein `judy.anims` erzeugt, das die 55 Bark-Animationen und die Animationen aller
 gewuenschten Zeilen enthaelt. Die Laufzeit laedt es nicht ueber die Szenenreferenz, sondern
 ueber einen aus dem Szenenpfad abgeleiteten Konventionspfad.
@@ -36,20 +50,28 @@ SCENE_DEPOT = "base/quest/secondary_characters/vsets"
 ANIM_DEPOT = ("base/localization/de-de/lipsync/base/quest/secondary_characters/"
               "vsets/vset_judy")
 TEMPLATE = "danger_var_1"     # direkt, kein Randomizer, Nachlauf +1
+WARN_MS = 1000                # ab hier laeuft die Animation der Zeile sichtbar davon
 
-#  (Eintragsname, stringId als Hex) - bewusst drei Laengen aus drei Szenen, um das
-#  beobachtete Delay einzugrenzen: es blieb auch mit korrekter Dauer bestehen.
+#  (Eintragsname, stringId als Hex). Die ersten beiden sagen fast dasselbe, unterscheiden
+#  sich aber im Verhaeltnis Animation zu Zeile - nebeneinander machen sie hoerbar, dass es
+#  daran liegt und nicht am Bauverfahren.
 WANTED = [
-    ("cl_froh",   "39669188b9a4e000"),   # 2922 ms, mq055_01_megabuilding
-    ("cl_kurz",   "1812474b462b6000"),   # 2502 ms, q105_06c_finding_studio
-    ("cl_lang",   "18795a0a822fc000"),   # 5005 ms, sq030_11_morning
+    dict(name="cl_froh", hex="1b2f276faf2fc000"),   # 1917 ms, q105_07      Anim  +150
+    dict(name="cl_kurz", hex="1812474b462b6000"),   # 2502 ms, q105_06c     Anim  -135
+    dict(name="cl_lang", hex="18795a0a822fc000"),   # 5005 ms, sq030_11     Anim  -305
+    #  Dreimal dieselbe Zeile aus mq055 - 2922 ms Ton gegen 4267 ms Animation.
+    dict(name="cl_v_roh",  hex="39669188b9a4e000"),
+    dict(name="cl_v_trim", hex="39669188b9a4e000", trim=True),
+    dict(name="cl_v_lang", hex="39669188b9a4e000", anim_dur=True),
 ]
+FPS = 30            # 129 Bilder auf 4,26667 s - alle geprueften Sets laufen mit 30
 
 
 def main():
     durations = json.load(open(os.path.join(HERE, "data", "durations.json"),
                                encoding="utf-8"))
-    scene_paths = _scene_paths()
+    anims = json.load(open(os.path.join(HERE, "data", "anim_durations.json"),
+                           encoding="utf-8"))
 
     dst = json.load(open(os.path.join(HERE, "data", "scene_json",
                                       "vset_judy.scene.json"), encoding="utf-8"))
@@ -63,15 +85,36 @@ def main():
         "handle": _max_handle(dst),
     }
 
-    anims_needed = {}   # Szene -> Menge der Animationsnamen
-    for name, hexid in WANTED:
+    anims_needed = {}   # Szene -> {Zielname: Spezifikation fuer merge_anims}
+    for w in WANTED:
+        name, hexid = w["name"], w["hex"]
         rec = durations.get(str(int(hexid, 16)))
         if not rec:
             print("!! keine Dauer bekannt: %s" % name)
             continue
-        _add_entry(root, st, name, hexid, rec["dur"])
-        anims_needed.setdefault(rec["scene"], set()).add("f_" + hexid.upper())
-        print("  %-10s %-18s %5d ms  aus %s" % (name, hexid, rec["dur"], rec["scene"]))
+        src = "f_" + hexid.upper()
+        anim = anims.get(src)
+        delta = (anim["ms"] - rec["dur"]) if anim else None
+
+        duration, lipsync, spec, note = rec["dur"], src, src, ""
+        if delta is None:
+            note = "kein Anim-Eintrag"
+        elif w.get("trim"):
+            frame = int(round(delta / 1000.0 * FPS))
+            lipsync = src + "_T"
+            spec = "%s>%s@%d" % (src, lipsync, frame)
+            note = "Anim ab Bild %d beschnitten" % frame
+        elif w.get("anim_dur"):
+            duration = anim["ms"]
+            note = "Dauer auf Animationslaenge %d" % anim["ms"]
+        else:
+            note = "Anim %+d ms" % delta
+            if delta > WARN_MS:
+                note += "  << Mund hinkt nach"
+
+        _add_entry(root, st, name, hexid, duration, lipsync)
+        anims_needed.setdefault(rec["scene"], {})[lipsync] = spec
+        print("  %-11s %5d ms  %-24s %s" % (name, duration, rec["scene"][:24], note))
 
     print()
     print("Einstiege %d = startNodes %d | Knoten %d = Symbole %d | Zeilen %d"
@@ -90,7 +133,7 @@ def main():
     os.remove(out)
     print("Szene gebaut.")
 
-    _build_anims(anims_needed, scene_paths)
+    _build_anims(anims_needed)
 
     print()
     for r, _, fs in os.walk(BUILD):
@@ -100,7 +143,7 @@ def main():
                                        os.path.getsize(p) // 1024))
 
 
-def _add_entry(root, st, name, hexid, duration):
+def _add_entry(root, st, name, hexid, duration, lipsync):
     graph = root["sceneGraph"]["Data"]["graph"]
     lines = root["screenplayStore"]["lines"]
     starts = root["sceneGraph"]["Data"]["startNodes"]
@@ -125,8 +168,8 @@ def _add_entry(root, st, name, hexid, duration):
     line = copy.deepcopy(line_src)
     line["itemId"]["id"] = item_id
     line["locstringId"]["ruid"] = str(int(hexid, 16))
-    line["femaleLipsyncAnimationName"]["$value"] = "f_" + hexid.upper()
-    line["maleLipsyncAnimationName"]["$value"] = "m_" + hexid.upper()
+    line["femaleLipsyncAnimationName"]["$value"] = lipsync
+    line["maleLipsyncAnimationName"]["$value"] = "m" + lipsync[1:]
     lines.append(line)
 
     sec = copy.deepcopy(w_sec)
@@ -172,7 +215,7 @@ def _add_entry(root, st, name, hexid, duration):
     starts.append({"$type": "scnNodeId", "id": start_id})
 
 
-def _build_anims(needed, scene_paths):
+def _build_anims(needed):
     van = _find_anims("vset_judy")
     work = os.path.join(HERE, "build", "lines_anim")
     if os.path.exists(work):
@@ -182,7 +225,7 @@ def _build_anims(needed, scene_paths):
     _run([CLI, "convert", "serialize", van, "-o", work])
     target = os.path.join(work, "judy.anims.json")
 
-    for scene, names in needed.items():
+    for scene, specs in needed.items():
         src = _find_anims(scene)
         if not src:
             print("!! kein Anim-Set fuer %s" % scene)
@@ -191,7 +234,8 @@ def _build_anims(needed, scene_paths):
         os.makedirs(sub, exist_ok=True)
         _run([CLI, "convert", "serialize", src, "-o", sub])
         _run([sys.executable, os.path.join(HERE, "tools", "merge_anims.py"),
-              target, os.path.join(sub, "judy.anims.json")] + sorted(names))
+              target, os.path.join(sub, "judy.anims.json")]
+             + [specs[k] for k in sorted(specs)])
         merged = target.replace(".json", ".merged.json")
         if os.path.exists(merged):
             os.replace(merged, target)
@@ -211,16 +255,6 @@ def _find_anims(scene):
     hits = glob.glob(os.path.join(HERE, "data", "lipsync", "**", scene, "judy.anims"),
                      recursive=True)
     return hits[0] if hits else None
-
-
-def _scene_paths():
-    out = {}
-    for p in glob.glob(os.path.join(HERE, "data", "scenes", "**", "*.scene"),
-                       recursive=True):
-        if os.sep + "versions" + os.sep in p:
-            continue
-        out[os.path.basename(p).replace(".scene", "")] = p
-    return out
 
 
 def _wrap(graph, nid):

@@ -24,7 +24,16 @@ Der Merge kopiert die gewuenschten Eintraege, haengt die von ihnen benutzten Chu
 schreibt `unkIndex` auf die neue Position um. HandleIds werden neu vergeben, damit sie
 eindeutig bleiben.
 
-    python tools/merge_anims.py <ziel.anims.json> <quelle.anims.json> <name> [<name> ...]
+Eine Animation kann dabei unter einem ZWEITEN Namen und beschnitten mit uebernommen
+werden. Das ist noetig, weil manche Animationen laenger sind als ihre Zeile: sie tragen
+kein Versatzfeld, laufen also ab Ereignisbeginn, und der Mund kommt zu spaet. `frameClamping`
+soll den Vorlauf ueberspringen. Da beide Fassungen im selben Set liegen muessen, um sie
+vergleichen zu koennen, bekommt die beschnittene einen eigenen Namen.
+
+    python tools/merge_anims.py <ziel.json> <quelle.json> <spec> [<spec> ...]
+
+    spec:  f_ABC                 unveraendert uebernehmen
+           f_ABC>f_ABC_T@40      als f_ABC_T, ab Bild 40
 """
 import copy
 import json
@@ -88,11 +97,23 @@ def renumber(obj, counter, buffers):
             renumber(v, counter, buffers)
 
 
+def parse(spec):
+    """`f_ABC` oder `f_ABC>f_NEU@40` -> (Quellname, Zielname, Startbild oder None)."""
+    src, clamp = spec, None
+    if "@" in src:
+        src, raw = src.split("@")
+        clamp = int(raw)
+    dst = src
+    if ">" in src:
+        src, dst = src.split(">")
+    return src, dst, clamp
+
+
 def main():
     if len(sys.argv) < 4:
         raise SystemExit(__doc__)
     dst_path, src_path = sys.argv[1], sys.argv[2]
-    wanted = sys.argv[3:]
+    specs = [parse(a) for a in sys.argv[3:]]
 
     dst = load(dst_path)
     src = load(src_path)
@@ -102,13 +123,13 @@ def main():
     have = {anim_name(e) for e in d["animations"]}
     by_name = {anim_name(e): e for e in s["animations"]}
 
-    missing = [w for w in wanted if w not in by_name]
+    missing = [s for s, _, _ in specs if s not in by_name]
     if missing:
         raise SystemExit("nicht in der Quelle: %s" % ", ".join(missing))
-    already = [w for w in wanted if w in have]
+    already = [d for _, d, _ in specs if d in have]
     if already:
         print("schon vorhanden, uebersprungen: %s" % ", ".join(already))
-    todo = [w for w in wanted if w not in have]
+    todo = [t for t in specs if t[1] not in have]
     if not todo:
         print("nichts zu tun")
         return
@@ -118,8 +139,8 @@ def main():
     chunk_map = {}          # Quell-Chunk-Index -> Ziel-Chunk-Index
     added_chunks = 0
 
-    for name in todo:
-        entry = copy.deepcopy(by_name[name])
+    for src_name, dst_name, clamp in todo:
+        entry = copy.deepcopy(by_name[src_name])
         buf = entry["Data"]["animation"]["Data"]["animBuffer"]
         bd = buf.get("Data", buf)
         da = bd["dataAddress"]
@@ -136,10 +157,17 @@ def main():
             added_chunks += 1
 
         da["unkIndex"] = chunk_map[src_idx]
+        a = entry["Data"]["animation"]["Data"]
+        a["name"]["$value"] = dst_name
+        if clamp is not None:
+            a["frameClamping"] = 1
+            a["frameClampingStartFrame"] = clamp
         renumber(entry, counter, buffers)
         d["animations"].append(entry)
-        print("  + %-22s Chunk %d -> %d, Offset %d, %d Bytes"
-              % (name, src_idx, da["unkIndex"], da["fsetInBytes"], da["zeInBytes"]))
+        extra = "" if clamp is None else "  ab Bild %d" % clamp
+        print("  + %-24s Chunk %d -> %d, Offset %d, %d Bytes%s"
+              % (dst_name, src_idx, da["unkIndex"], da["fsetInBytes"],
+                 da["zeInBytes"], extra))
 
     out = dst_path.replace(".json", ".merged.json")
     json.dump(dst, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
