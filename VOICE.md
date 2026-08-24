@@ -702,3 +702,27 @@ dasselbe Ergebnis.
 | `battlecry_curse` | 1.18 | Fuuuck! |
 | `greeting` | 1.11 | Hey, V. |
 
+### Untertitel unterdruecken: `invisible`
+
+`scnDialogLineVisualStyle` ist nativ und steht nicht im Script-Dump. Per Reflection aus dem
+Spiel gelesen:
+
+`regular`, `overHead`, `radio`, `globalTV`, **`invisible`**, `innerDialog`,
+`overHeadAlwaysVisible`, `alwaysCinematicNoSpeaker`, `globalTVAlwaysVisible`, `narrator`
+
+```lua
+prm.overrideVisualStyle   = true
+prm.overridingVisualStyle = Enum.new("scnDialogLineVisualStyle", "invisible")
+```
+
+Entscheidend ist nicht, dass es funktioniert, sondern **dass es pro Aufruf wirkt**. Die
+beiden Einstellungen `/accessibility/subtitles` `Overheads` und `Cinematic` sind global,
+muessen zurueckgesetzt werden und lassen den Spieler ohne Untertitel zurueck, wenn das
+Spiel im Fenster abstuerzt. Der Stil fasst nichts ausserhalb des eigenen Aufrufs an.
+
+"kein Override" wirkte im Test ebenfalls, verlaesst sich aber auf den Standardwert.
+`invisible` sagt, was es tut.
+
+Damit bleibt vom Stumm-Trick nur noch `DialogueVolume` uebrig, und das auch nur fuer das
+Fake-Lipsync, bei dem die Bark tatsaechlich stumm sein muss.
+

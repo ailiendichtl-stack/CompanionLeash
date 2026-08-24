@@ -108,12 +108,12 @@ local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended ba
 --  Each suppression is switchable on its own. Changing mute and subtitle handling at the
 --  same time is how you end up unable to say which one produced a result.
 local optMute = true       -- DialogueVolume -> 0
-local optHideOver = true   -- Overheads -> false
+local optHideOver = false  -- not needed any more: the invisible style handles it per call
 --  Fallback if no visual style turns the subtitle off: /accessibility/subtitles Cinematic
 --  is the bottom-of-screen one, same mechanism as Overheads. Blunter, because it silences
 --  quest subtitles too for the window - but for a two-second bark that is survivable, and
 --  it is guaranteed to work.
-local optHideCine = false
+local optHideCine = false  -- fallback only, if a build has no invisible style
 local savedCine = nil
 --  2 is the one that works: no 8.2s throttle, every dispatch lands. 0 and 1 stay for
 --  comparison only.
@@ -122,7 +122,11 @@ local optTag = "NCA_Companion"
 --  We set overrideVisualStyle = true because VVF does, but never set the style itself, so
 --  the default applies - which is very likely why her barks now render as normal
 --  bottom-of-screen subtitles instead of overhead ones. Selectable so it can be tested.
-local optStyle = -1        -- -1 = do not override at all
+--  "invisible" is picked by name once the enum is read. It beats leaving the style alone
+--  for a reason beyond appearance: it works PER DISPATCH. The two subtitle settings below
+--  are global, have to be restored, and leave the player with subtitles off if the game
+--  dies mid-window. This touches nothing outside our own call.
+local optStyle = -1        -- resolved to invisible in loadStyles()
 --  These were guessed and the guess was wrong - scnDialogLineVisualStyle is native and is
 --  not in the script dump. Filled from the game at init instead. The related
 --  scnDialogLineType has an "Invisible" member, so a comparable value is what we are
@@ -1032,9 +1036,14 @@ registerForEvent("onDraw", function()
                        "Text da, traegt der Weg. Laeuft er von allein hoch, nicht.")
     ImGui.Separator()
 
-    if optHideOver then
+    if optHideOver or optHideCine then
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
-        "Erkennung unmoeglich: Untertitel sind unterdrueckt.")
+        "Erkennung unmoeglich: Untertitel sind ueber die Einstellungen unterdrueckt.")
+    end
+    if optStyle >= 0 and STYLES[optStyle + 1] and
+       STYLES[optStyle + 1]:lower() == "invisible" then
+      ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
+        "Stil invisible: kein Untertitel, ohne an Spieleinstellungen zu drehen.")
     end
     ImGui.TextColored(0.6, 0.8, 1.0, 1.0, "Quest-Voiceset - anderer Dispatcher")
     ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
@@ -1276,9 +1285,17 @@ local function loadStyles()
   end)
   if #STYLES == 0 then
     log("scnDialogLineVisualStyle nicht lesbar - Stil-Auswahl bleibt leer")
-  else
-    log("Stile: " .. table.concat(STYLES, ", "))
+    return
   end
+  log("Stile: " .. table.concat(STYLES, ", "))
+  for i, nm in ipairs(STYLES) do
+    if nm:lower() == "invisible" then
+      optStyle = i - 1
+      log("Stil auf invisible gesetzt - Untertitel pro Aufruf aus, ohne Spieleinstellungen")
+      return
+    end
+  end
+  log("kein 'invisible' im Enum - Untertitel muessen ueber die Einstellungen weg")
 end
 
 registerForEvent("onInit", function()
