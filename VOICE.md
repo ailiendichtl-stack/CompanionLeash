@@ -738,3 +738,46 @@ Uebersehen hatte meine Extraktion sie, weil ich einen Unterstrich im Namen vorau
 `grapple` ist einwortig. Die restlichen acht Neufunde des Nachtrags sind Zweitnamen
 bereits bekannter Zeilen (`follow_me_2`, `urge_var_2`, `danger_var_2` und so weiter).
 
+## V hat ein eigenes Voiceset - und braucht kein Lipsync
+
+`base/quest/primary_characters/vsets/versions/gold/vset_v.scene`: **266 Eintraege in 38
+Familien mit Varianten**, gegenueber Judys 107 in 23.
+
+**V ist Player-POV.** Ihr Gesicht ist nie zu sehen, also stellt sich die Lipsync-Frage bei
+ihr gar nicht - der ganze Aufwand mit stummen Barks betrifft ausschliesslich Judy. Damit
+sind Vs **12360 Zeilen komplett** ueber Audioware nutzbar, nicht nur ihr Voiceset.
+
+### Familien, die fuer Begleiter geschrieben sind
+
+| Familie | Varianten |
+|---|---|
+| `combat_ally_check` | +3 |
+| `combat_ally_cover` | +3 |
+| `combat_ally_stealth` | +3 |
+| `combat_ally_warning` | +3 |
+| `follower_end` | +3 |
+
+Diese vier `combat_ally_*`-Familien sind Vs Zeilen **an einen Begleiter** - genau der
+Gegenpart, den die Matrix braucht.
+
+### Das Paar fuer unterbrochene Gespraeche
+
+`interrupt` haben beide. V hat zusaetzlich `return_var_1` bis `_var_10` und
+`interrupt_phone` mit acht Varianten - also das Gegenstueck zu Judys `interrupt` und
+`return_answer`:
+
+* Judy: "Hab ich dich gelangweilt?"
+* V: "Hey. Woruebor hatten wir geredet?" / "Okay, wieder da. Schiess los."
+
+Beide ueber denselben Quest-Voiceset-Knoten spielbar, ohne Cooldown. Ein Hin und Her ist
+damit **sofort machbar**, ohne Audioware und ohne Fake-Lipsync.
+
+### Weitere brauchbare V-Familien
+
+`generic_1` bis `generic_30`, `reaction_happy/_shocked/_surprise/_wtf/_curse/_hostiles/
+_inspect`, `scene_thanks`, `scene_insult`, `hint_check`, `yelling_happy`,
+`gp_vehicle_destroyed/_reckless/_steal/_v_hit`.
+
+Die Dauern sind **nicht gemessen** - bei Judy hat das der Panel-Sweep geliefert, fuer V
+steht das noch aus.
+
