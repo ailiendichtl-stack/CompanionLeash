@@ -625,3 +625,80 @@ Kein NodeRef und kein `dynamicEntityUniqueName` noetig.
 sind Voiceset-Namen derselbe Namensraum wie die Bark-Events, also bleiben unsere 55
 bekannten Zeilen aus `judy_vs_vset_judy` gueltig.
 
+## Judys Voiceset - vollstaendig vermessen
+
+Die Namen stehen in **`base/quest/secondary_characters/vsets/vset_judy.scene`**, einer
+Szenen-Ressource. Nicht in TweakDB und nicht in `eventsmetadata.json` - von den vier
+Namen, die vorher zufaellig trafen, steht nur `grenade_throw` in den Audio-Events.
+
+24 Familien, 77 adressierbare Eintraege. Gemessen im Spiel: **62 antworten, 54
+verschiedene Zeilen, 111 s Sprechzeit, Schnitt 2.06 s.**
+
+Die 15 stummen sind ausnahmslos **Basisnamen ohne Suffix** (`body_warning`, `bump`,
+`camera_warning`, `combat_ended`, `detection_warning`, `elite_warning`, `enemy_warning`,
+`grenade_enemy`, `hurry_up`, `phone_urge`, `player_fallback`, `reloading`,
+`stealth_restored`, `stealth_warning_bark`, `combat_aggro_bark`). Fuer manche Familien
+loest der Basisname auf, fuer die meisten nicht - die `_var_N`-Varianten sind der
+verlaessliche Weg, und sie sind ohnehin die besseren, weil jede eine **bestimmte** Zeile
+ist statt eines Zufallsgriffs.
+
+Der Kontext (`locVoiceoverContext`) macht **keinen** Unterschied - alle fuenf liefern
+dasselbe Ergebnis.
+
+| Name | Dauer (s) | Zeile |
+|---|---|---|
+| `player_fallback_var_2` | 3.46 | V, pass besser auf! Tot nützt du niemandem! |
+| `body_warning_var_1` | 3.15 | Lass uns hier klar Schiff machen, sonst fliegen wir auf. |
+| `battlecry_curse_var_3` | 2.89 | Hey, V! Mach was, verdammte Scheiße! |
+| `detection_warning_var_1` | 2.86 | Verschwinde da, sonst sehen sie uns! |
+| `combat_ended_var_1` | 2.84 | Oh, das war’s. Wir haben’s geschafft. |
+| `player_fallback_var_1` | 2.84 | Pass auf, verdammt! Schalt dein Hirn ein. |
+| `combat_ended_var_2` | 2.83 | Sieh uns an. Nicht totzukriegen. |
+| `player_fallback_var_3` | 2.76 | Alles okay? Schnauf mal kurz durch. |
+| `elite_warning_var_1` | 2.72 | Wo haben die nur diese Ausrüstung her? |
+| `follow_me_1` | 2.70 | Was ist los? Hör auf zu trödeln. |
+| `phone_urge_var_2` | 2.68 | Bist du da? Kannst du mich hören? |
+| `battlecry_morale_var_1` | 2.55 | Jetzt bin ich richtig sauer! |
+| `interrupt_var_1` | 2.54 | Okay, wir setzen das später fort. |
+| `hurry_up_var_2` | 2.53 | Wir haben was vor, schon vergessen? |
+| `detection_warning_var_2` | 2.38 | Vorsicht, die haben was gehört! |
+| `elite_warning_var_2` | 2.32 | Ordentlich ausgestattet, die Typen! |
+| `grenade_throw` | 2.28 | Na, wie schmeckt dir das?! |
+| `follow_me` | 2.26 | Komm schon, V, bleib bei mir. |
+| `stealth_restored_var_1` | 2.25 | Perfekt, die sehen uns nicht mehr. |
+| `grenade_enemy_var_3` | 2.23 | In Deckung! Granate! |
+| `body_warning_var_2` | 2.22 | Versteck den Körper, okay? |
+| `camera_warning_var_1` | 2.13 | Pass auf die Kameras auf, okay? |
+| `hurry_up_var_3` | 2.11 | Konzentration, V. |
+| `battlecry_morale_var_3` | 2.10 | Jetzt mach ich ernst! |
+| `camera_warning_var_2` | 2.07 | Die haben hier alles im Blick. |
+| `reloading_var_3` | 2.07 | Warte kurz, muss nachladen. |
+| `enemy_warning_var_2` | 2.06 | Sie sind hier. Bleib wachsam. |
+| `bump_var_2` | 2.01 | Komm schon, ernsthaft? |
+| `reloading_var_2` | 2.01 | Deck mich, ich lade nach! |
+| `return_answer_var_1` | 2.00 | Worüber hatten wir geredet? |
+| `grenade_enemy_var_2` | 1.92 | Achtung, Granate! |
+| `hurry_up_var_1` | 1.90 | Na? Los jetzt! |
+| `danger_var_1` | 1.88 | Oh, Scheiße! |
+| `interrupt` | 1.85 | Hab ich dich gelangweilt? |
+| `stealth_restored_var_2` | 1.79 | Die haben wir abgeschüttelt. |
+| `urge_var_1` | 1.78 | Was ist mit dir los? |
+| `phone_urge_var_1` | 1.76 | Äh ... V? |
+| `battlecry_morale` | 1.75 | Hast es so gewollt! |
+| `bump_var_1` | 1.71 | Hey, pass auf ... |
+| `reloading_var_1` | 1.70 | Ich muss nachladen. |
+| `battlecry_curse_var_2` | 1.65 | Was zur Hölle? |
+| `urge` | 1.64 | Komm schon, V. |
+| `grenade_enemy_var_1` | 1.45 | Granate! |
+| `combat_aggro_bark_var_1` | 1.42 | Echt jetzt?! |
+| `enemy_warning_var_1` | 1.41 | Da kommen sie! |
+| `return_answer` | 1.40 | Du bist zurück. |
+| `danger_var_3` | 1.38 | Bin bei dir. |
+| `greeting_var_1` | 1.35 | Oh, hey! |
+| `combat_aggro_bark_var_2` | 1.34 | Aaah! |
+| `stealth_warning_bark_var_2` | 1.33 | Vorsicht! |
+| `stealth_warning_bark_var_1` | 1.25 | Sei still! |
+| `danger` | 1.22 | Achtung! |
+| `battlecry_curse` | 1.18 | Fuuuck! |
+| `greeting` | 1.11 | Hey, V. |
+

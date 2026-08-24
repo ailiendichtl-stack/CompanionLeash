@@ -264,10 +264,23 @@ local LIP_MAX = 20.0 -- hard ceiling; a stuck session must not mute the game for
 --  Judy answers to these; each was heard in game and cross-checked against the log. Her
 --  whole bark vocabulary is 57 files / 55 distinct lines in the voice set
 --  judy_vs_vset_judy, so this is a decent slice of it, not a lucky handful.
+--  Measured in game, longest first. Every entry is a SPECIFIC line, so the chain runs
+--  on 2.2-3.5s lines instead of repeating a one-second greeting.
 local LIP_ROTATION = {
-  "greeting_var_1", "greeting_var_2", "combat_ended", "combat_ended_var_1",
-  "stealth_restored", "stealth_restored_var_1", "elite_warning", "elite_warning_var_1",
-  "hurry_up", "hurry_up_var_1", "urge_var_1", "return_answer",
+  "player_fallback_var_2",       -- 3.46s  V, pass besser auf! Tot nützt du niemandem!
+  "body_warning_var_1",          -- 3.15s  Lass uns hier klar Schiff machen, sonst flie
+  "battlecry_curse_var_3",       -- 2.89s  Hey, V! Mach was, verdammte Scheiße!
+  "detection_warning_var_1",     -- 2.86s  Verschwinde da, sonst sehen sie uns!
+  "combat_ended_var_1",          -- 2.84s  Oh, das war’s. Wir haben’s geschafft.
+  "player_fallback_var_1",       -- 2.84s  Pass auf, verdammt! Schalt dein Hirn ein.
+  "combat_ended_var_2",          -- 2.83s  Sieh uns an. Nicht totzukriegen.
+  "player_fallback_var_3",       -- 2.76s  Alles okay? Schnauf mal kurz durch.
+  "elite_warning_var_1",         -- 2.72s  Wo haben die nur diese Ausrüstung her?
+  "follow_me_1",                 -- 2.70s  Was ist los? Hör auf zu trödeln.
+  "phone_urge_var_2",            -- 2.68s  Bist du da? Kannst du mich hören?
+  "battlecry_morale_var_1",      -- 2.55s  Jetzt bin ich richtig sauer!
+  "interrupt_var_1",             -- 2.54s  Okay, wir setzen das später fort.
+  "hurry_up_var_2",              -- 2.53s  Wir haben was vor, schon vergessen?
 }
 
 local function lipRestore(why)
@@ -318,8 +331,12 @@ end
 
 --  Always the same event. An earlier version rotated on retry, which changed two things
 --  at once - whether a second shot helps, and whether the event matters.
+--  In chain mode the point is variety and length, so walk the measured list; single shot
+--  stays on the name that was asked for.
 local function nextVo(session)
-  return session.vo
+  if lipMode ~= 2 then return session.vo end
+  lipRotIdx = (lipRotIdx % #LIP_ROTATION) + 1
+  return LIP_ROTATION[lipRotIdx]
 end
 
 --  Is a voice-over from this entity audible right now? AudioSystem.VoIsPerceptible is what
