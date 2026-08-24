@@ -131,3 +131,4 @@ staging copy, and a purge/redeploy restores the stock file.
   should be fine, but it has not been verified.
 
 - [MATRIX.md](MATRIX.md) - Bark- und Zeilen-Matrix pro Situation
+- [LINES.md](LINES.md) - vollstaendiger Zeilenbestand
