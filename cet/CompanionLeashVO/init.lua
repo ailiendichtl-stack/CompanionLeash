@@ -450,6 +450,16 @@ local function playVoiceset(voiceset, mode, handle, uniqueName)
     end
 
     nt.params = { prm }
+    --  Assigning a Lua table into a RED array can silently do nothing. Read it back: if
+    --  this is 0, the node went out empty and the name is irrelevant.
+    local cnt = -1
+    pcall(function() cnt = #nt.params end)
+    log(string.format("    params nach Zuweisung: %d", cnt))
+    if cnt > 0 then
+      pcall(function()
+        log("    voicesetName im Array: " .. tostring(nt.params[1].voicesetName))
+      end)
+    end
     node.type = nt
     Game.GetQuestsSystem():ExecuteNode(node)
   end)
@@ -830,9 +840,14 @@ registerForEvent("onDraw", function()
     ImGui.TextWrapped("Der Weg des V Voice Framework. Moeglicherweise nicht an die " ..
                       "8.2s-Sperre gebunden. Erst der Test auf V zeigt, ob das aus Lua " ..
                       "ueberhaupt geht - ohne den sagt alles andere nichts.")
-    if ImGui.Button("Voiceset auf V (Kontrolle)") then
-      playVoiceset("greeting", 0)
-    end
+    --  "greeting" is a BARK event name. Voicesets are a different namespace - VVF uses
+    --  names like generic_5 and character_creation. Testing with a name that framework
+    --  actually ships separates "wrong name" from "mechanism does not work".
+    if ImGui.Button("V: generic_5") then playVoiceset("generic_5", 0) end
+    ImGui.SameLine()
+    if ImGui.Button("V: character_creation") then playVoiceset("character_creation", 0) end
+    ImGui.SameLine()
+    if ImGui.Button("V: greeting") then playVoiceset("greeting", 0) end
     ImGui.SameLine()
     if ImGui.Button("Voiceset auf Ziel") then
       playVoiceset("greeting", 1, target, "")
@@ -840,6 +855,15 @@ registerForEvent("onDraw", function()
     ImGui.SameLine()
     if ImGui.Button("Ziel-Entity ausgeben") then
       inspectObj(target, "Ziel")
+      --  gameObject.tags is a redTagList; Tag is one of the four gameEntityReferenceType
+      --  options, so her tags are a candidate way to address her
+      pcall(function()
+        local t = target.tags
+        log("TAGS: " .. tostring(t))
+        if t and t.tags then
+          for _, tg in pairs(t.tags) do log("    " .. tostring(tg.value or tg)) end
+        end
+      end)
     end
     ImGui.Separator()
 
