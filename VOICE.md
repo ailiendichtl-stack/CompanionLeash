@@ -396,3 +396,40 @@ VO-Schicht darueber, die ueber den `voiceTag` des Characters aufloest - `voiceTa
 TweakDB-Flat auf Character-Records.
 
 Ob eine so registrierte Zeile Lipsync bekommt, ist ungetestet.
+
+### Was als Aktiv-Signal nicht taugt
+
+`AudioSystem.VoIsPerceptible(entityID)` misst **Hoerbarkeit**, nicht ob ein VO-Request
+laeuft. Da wir den Dialog-Bus absichtlich muten, ist es zwangsläufig immer `false` - im
+Spiel bestaetigt, es ging nie auf `true`.
+
+Eine Schleife, die darauf hoert, stuft damit **jeden guten Schuss als Blindgaenger ein und
+schiesst ihn ab**. Das ist derselbe Fehler wie blindes Nachfeuern, nur automatisiert. Das
+Signal steht jetzt nur noch zur Beobachtung im Panel und steuert nichts.
+
+`tostring()` auf die Blackboard-Variant war ebenfalls wertlos: das ergibt jedes Frame eine
+neue Adresse, weshalb der Zaehler von allein hochlief.
+
+### Was taugt: die Zeilendaten selbst
+
+`UIGameData.ShowDialogLine` traegt eine `scnDialogLineData`
+(`cyberpunk/UI/blackboard/uiBlackboardData.script`):
+
+| Feld | Typ | Nutzen |
+|---|---|---|
+| `id` | CRUID | stabil pro Zeile, echter Aenderungs-Token |
+| `text` | String | welche Zeile lief |
+| `speaker` | GameObject | war es unser Ziel |
+| `duration` | Float | wie lange sich der Mund bewegt |
+
+`duration` ist der entscheidende Unterschied: das ist ein **Lebenszyklus-Wert, kein
+Hoerbarkeits-Wert**. Damit muss nicht gepollt werden, sondern es laesst sich planen - und
+das Stumm-Fenster endet, sobald die Zeile ihre Dauer meldet, statt auf dem 20-s-Deckel zu
+sitzen und einen laufenden Request abzuwuergen.
+
+Ob die Struktur aus Lua lesbar ist, zeigt das Panel an (`lesbar` / `NICHT lesbar`) - das
+ist ungeprueft und wird nicht angenommen.
+
+**Standard ist wieder Einzelschuss.** Nachfeuern gibt es nur als expliziten Modus, hoechstens
+ein Neuversuch, und nur solange nichts gezuendet hat - nach einer bestaetigten Zeile nie.
+
