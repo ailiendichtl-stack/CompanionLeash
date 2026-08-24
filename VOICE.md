@@ -262,6 +262,57 @@ WolvenKit ships `opus-tools` and has `extract` and `wwise` commands, so the tool
 present. The archive above tells us exactly which files to pull, which was the missing
 piece.
 
+---
+
+## Face and lipsync — tested, not assumed
+
+### VO events carry lipsync — confirmed
+
+Verified in-game by playing an event and watching her mouth. This had been asserted in
+earlier notes without ever being checked, which was careless: the whole "use events for
+anything visible" recommendation rests on it. It holds.
+
+### Workspot animations do not
+
+Judy's `talk` variants (`synced__v_hug_judy__talk__01__judy` and friends) produce body
+motion only — head shakes, gestures — and no mouth movement. The idea that the mouth
+movement might be baked into the animation, making a scene unnecessary, does not hold.
+
+Supporting evidence: the animation database has **no facial rig**. Every rig is a body rig
+(`Woman Average`, `Player Woman`, …), and names containing "face" are gestures such as
+`rub_face`. Facial animation is a separate track that workspots do not drive.
+
+### Facial expression IS script-controllable
+
+`AnimFeature_FacialReaction` takes two ints, and AMM has already mapped them - an earlier
+note in RESEARCH.md called this an unexplored axis, which was simply wrong:
+
+| Expression | category | idle | | Expression | category | idle |
+|---|---|---|---|---|---|---|
+| Neutral | 2 | 2 | | Anger | 3 | 1 |
+| Joy | 3 | 5 | | Disgust | 3 | 7 |
+| Smile | 3 | 6 | | Disappointed | 3 | 4 |
+| Sad | 3 | 3 | | Interested | 1 | 3 |
+| Surprise | 3 | 8 | | Disinterested | 1 | 6 |
+| Aggressive | 3 | 2 | | Exertion | 1 | 1 |
+
+**A facial feature latches.** Applying a second one on top of a live one does nothing —
+the first expression sticks until reset. The working sequence, taken from AMM and matching
+vanilla's own use of `ResetFacial(0.0)`:
+
+    stim:ResetFacial(0)
+    -- wait ~0.5s for the cooldown
+    anim:ApplyFeature(CName.new("FacialReaction"), feature)
+
+Without the reset and the delay, only the first expression after a load ever applies.
+
+### Consequence for the design
+
+Lipsync comes only from VO events (and scenes). Expression is ours to drive at any time.
+So a custom Audioware line can still be given a fitting face — mouth shape will not match
+the words, but a line delivered with the right expression reads far better than one
+delivered by a frozen face.
+
 ## Technical notes
 
 The extractor reads the RDAR archive format directly, resolves paths by FNV-1a64 hash,

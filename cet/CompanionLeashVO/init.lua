@@ -58,12 +58,26 @@ local ANIMS = {
   { "alt__stand__2h_on_sides__01",          "KONTROLLE - Standard-Idle" },
 }
 
+--  Facial expressions. AnimFeature_FacialReaction takes two ints, category and idle.
+--  These pairs are AMM's mapping, not guesses - see AMM init.lua GetPersonalityOptions.
+--  This is expression, NOT lipsync: it moves brows, eyes and mouth shape, but does not
+--  form visemes for speech.
+local FACES = {
+  { "Neutral",       2, 2 }, { "Joy",           3, 5 },
+  { "Smile",         3, 6 }, { "Sad",           3, 3 },
+  { "Surprise",      3, 8 }, { "Aggressive",    3, 2 },
+  { "Anger",         3, 1 }, { "Disgust",       3, 7 },
+  { "Disappointed",  3, 4 }, { "Interested",    1, 3 },
+  { "Disinterested", 1, 6 }, { "Exertion",      1, 1 },
+}
+
 local showUI = false
 local locked = nil
 local lastPlayed = "-"
 local lastAnim = "-"
 local heard = {}
-local pending = nil   -- waiting for the spawned workspot entity to exist
+local pending = nil     -- waiting for the spawned workspot entity to exist
+local facePending = nil -- waiting out the ResetFacial cooldown before applying
 local active = nil    -- {handle, target}
 
 local function targetName(handle)
@@ -103,6 +117,57 @@ local function playVO(handle, vo)
   end
 end
 
+--  Mirrors AMM's Util:NPCTalk - the full combination NCA's Talk() also uses:
+--  look-at, voice-over and facial reaction together. This is the closest thing to
+--  "she says a line", and the test for whether any mouth movement appears at all.
+local function talk(handle, vo, cat, idle)
+  if not handle then
+    print(MOD .. " kein Ziel")
+    return
+  end
+  local ok, err = pcall(function()
+    local stim = handle:GetStimReactionComponent()
+    local anim = handle:GetAnimationControllerComponent()
+    if not stim or not anim then error("Komponenten fehlen") end
+    stim:ResetFacial(0)
+    stim:ActivateReactionLookAt(Game.GetPlayer(), false, 1, true, true)
+    if vo then
+      Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"](
+        handle, CName.new(vo), CName.new("CompanionLeashPanel"),
+        0.0, handle:GetEntityID(), true)
+    end
+    -- deferred like face(), so a previous expression cannot block this one
+    facePending = { target = handle, cat = cat or 3, idle = idle or 5,
+                    name = tostring(vo), t = 0 }
+  end)
+  if ok then
+    lastPlayed = (vo or "-") .. " / face " .. tostring(cat) .. "," .. tostring(idle)
+    print(MOD .. " TALK: " .. tostring(vo) .. "  face=" .. tostring(cat) .. "," .. tostring(idle))
+  else
+    print(MOD .. " TALK fehlgeschlagen: " .. tostring(err))
+  end
+end
+
+--  A facial feature LATCHES: applying a second one on top of a live one does nothing,
+--  which is why only the first click appeared to work. AMM's sequence is the fix -
+--  ResetFacial first, wait out the cooldown, then apply. Confirmed against vanilla,
+--  which calls ResetFacial(0.0) itself in reactionComponent.
+local function face(handle, cat, idle, name)
+  if not handle then
+    print(MOD .. " kein Ziel")
+    return
+  end
+  local ok, err = pcall(function()
+    local stim = handle:GetStimReactionComponent()
+    if stim then stim:ResetFacial(0) end
+  end)
+  if not ok then
+    print(MOD .. " ResetFacial fehlgeschlagen: " .. tostring(err))
+    return
+  end
+  facePending = { target = handle, cat = cat, idle = idle, name = name, t = 0 }
+end
+
 local function stopAnim()
   if not active then return end
   pcall(function()
@@ -137,7 +202,29 @@ local function playAnim(target, animName)
   end
 end
 
-registerForEvent("onUpdate", function()
+registerForEvent("onUpdate", function(dt)
+  if facePending then
+    facePending.t = facePending.t + (dt or 0.016)
+    if facePending.t >= 0.5 then
+      local fp = facePending
+      facePending = nil
+      local ok, err = pcall(function()
+        local anim = fp.target:GetAnimationControllerComponent()
+        if not anim then error("kein AnimationController") end
+        local feat = NewObject("handle:AnimFeature_FacialReaction")
+        feat.category = fp.cat
+        feat.idle = fp.idle
+        anim:ApplyFeature(CName.new("FacialReaction"), feat)
+      end)
+      if ok then
+        lastPlayed = "face " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")"
+        print(MOD .. " FACE: " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")")
+      else
+        print(MOD .. " FACE fehlgeschlagen: " .. tostring(err))
+      end
+    end
+  end
+
   if not pending then return end
   pending.ticks = pending.ticks + 1
   local ent = Game.FindEntityByID(pending.id)
@@ -194,6 +281,25 @@ registerForEvent("onDraw", function()
   ImGui.Text("VO: " .. lastPlayed .. "  |  Anim: " .. lastAnim)
 
   ImGui.Separator()
+
+  if ImGui.CollapsingHeader("Mimik + Talk") then
+    ImGui.TextWrapped("Talk = Blick + Stimme + Mimik zusammen, wie NCA es intern macht. " ..
+                      "WICHTIG: dabei auf den MUND schauen. Bewegt er sich, liefern die " ..
+                      "VO-Events Lipsync - das habe ich bisher nur behauptet, nie geprueft.")
+    ImGui.Separator()
+    if ImGui.Button("Talk: greeting + Joy") then talk(target, "greeting", 3, 5) end
+    ImGui.SameLine()
+    if ImGui.Button("Talk: combat_ended + Smile") then talk(target, "combat_ended", 3, 6) end
+    ImGui.SameLine()
+    if ImGui.Button("Talk: bump + Anger") then talk(target, "bump", 3, 1) end
+    ImGui.Separator()
+    ImGui.TextDisabled("nur Mimik, ohne Stimme:")
+    for i, f in ipairs(FACES) do
+      if ImGui.Button(f[1] .. "##f") then face(target, f[2], f[3], f[1]) end
+      if i % 4 ~= 0 then ImGui.SameLine() end
+    end
+    ImGui.Text("")
+  end
 
   if ImGui.CollapsingHeader("Animation - Lipsync-Test") then
     ImGui.TextWrapped("Frage: steckt die Mundbewegung in der Animation selbst? " ..
