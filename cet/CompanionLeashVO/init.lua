@@ -98,8 +98,9 @@ local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended ba
 --  same time is how you end up unable to say which one produced a result.
 local optMute = true       -- DialogueVolume -> 0
 local optHideOver = true   -- Overheads -> false
+local optEntry = 0         -- 0 = GameObject.PlayVoiceOver, 1 = ChatterHelper.PlayVoiceOver
 local lipDiag = { perceptible = false, lastLine = "-", changes = 0, readable = false,
-                  lastText = "", lastDur = 0.0, lastName = "", fresh = false }
+                  lastText = "", lastDur = 0.0, lastName = "", fresh = false, kind = "-" }
 local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
 local savedVolume = nil    -- non-nil means dialogue is currently muted BY US
 local savedOverheads = nil -- non-nil means overhead subtitles are suppressed BY US
@@ -250,12 +251,29 @@ local function lipRestore(why)
     savedOverheads = nil
   end
   if lip then
-    log(" Lipsync beendet (" .. (why or "") .. ") - Einstellungen zurueckgesetzt")
+    if lip.confirmed then
+      log(string.format("  ENDE (%s) - Zeile erkannt, dauer %.2fs", why or "", lip.lineDur or 0))
+    elseif optHideOver then
+      log("  ENDE (" .. (why or "") .. ") - KEINE Zeile. AUSSAGELOS: Untertitel waren "
+          .. "unterdrueckt, es kann nichts gemeldet werden.")
+    else
+      log("  ENDE (" .. (why or "") .. ") - KEINE Zeile gemeldet.")
+    end
     lip = nil
   end
 end
 
+--  Two native entry points exist. ChatterHelper is the game's own chatter/bark helper
+--  (cyberpunk/helpers/chatterHelper.script) and takes only instigator and event name, so
+--  it may route differently from the GameObject call we have been using.
 local function fireVo(handle, vo)
+  if optEntry == 1 then
+    local ok = pcall(function()
+      Game["ChatterHelper::PlayVoiceOver;GameObjectCName"](handle, CName.new(vo))
+    end)
+    if not ok then log("  ChatterHelper-Aufruf fehlgeschlagen - Signatur stimmt nicht") end
+    return
+  end
   pcall(function()
     Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"](
       handle, CName.new(vo), CName.new("CompanionLeashLip"),
@@ -300,6 +318,8 @@ local function dialogLine()
     local bb = Game.GetBlackboardSystem():Get(defs.UIGameData)
     local v = bb:GetVariant(defs.UIGameData.ShowDialogLine)
     if not v then return nil end
+    --  distinguishes "nothing was written" from "written but the fields do not reach Lua"
+    lipDiag.kind = type(v) .. " text=" .. type(v.text) .. " dur=" .. type(v.duration)
     return { text = tostring(v.text or ""),
              dur = tonumber(v.duration) or 0.0,
              name = tostring(v.speakerName or ""),
@@ -344,9 +364,10 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
           confirmed = false, clock = 0, lastVo = vo, lineDur = 0 }
   lipDiag.fresh = false -- do not let a line from before the session count as ours
   fireVo(handle, vo)
-  log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s",
+  log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s  einstieg=%s",
       vo, tostring(optMute), tostring(optHideOver),
-      (lipMode == 0) and "einzelschuss" or "1 neuversuch"))
+      (lipMode == 0) and "einzelschuss" or "1 neuversuch",
+      (optEntry == 0) and "PlayVoiceOver" or "ChatterHelper"))
   log(string.format("  SCHUSS 1 t=0.000  %s", vo))
 
   if cat then
@@ -400,6 +421,7 @@ registerForEvent("onUpdate", function(dt)
   local dl = dialogLine()
   if dl == nil then
     lipDiag.readable = false
+    lipDiag.kind = "GetVariant = nil"
   else
     lipDiag.readable = true
     --  text+duration identifies a line well enough; two identical lines back to back are
@@ -562,6 +584,7 @@ registerForEvent("onDraw", function()
     ImGui.SameLine()
     ImGui.TextDisabled(string.format("| %d Zeilen | VoIsPerceptible: %s",
                        lipDiag.changes, tostring(lipDiag.perceptible)))
+    ImGui.TextDisabled("Variant: " .. tostring(lipDiag.kind or "-"))
     if lipDiag.readable then
       ImGui.Text(string.format("zuletzt: \"%s\"", lipDiag.lastText))
       ImGui.Text(string.format("  dauer %.2fs   sprecher: %s",
@@ -581,6 +604,13 @@ registerForEvent("onDraw", function()
     end
     ImGui.TextDisabled("Setzt beide Haken zurueck und feuert einmal. Beantwortet zuerst " ..
                        "die Grundfrage: wird ueberhaupt je eine Zeile gemeldet?")
+    ImGui.Separator()
+
+    ImGui.Text("Einstiegspunkt:")
+    ImGui.SameLine()
+    if ImGui.RadioButton("PlayVoiceOver", optEntry == 0) then optEntry = 0 end
+    ImGui.SameLine()
+    if ImGui.RadioButton("ChatterHelper", optEntry == 1) then optEntry = 1 end
     ImGui.Separator()
 
     optMute = ImGui.Checkbox("stummschalten", optMute)
