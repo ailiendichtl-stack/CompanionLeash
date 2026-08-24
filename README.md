@@ -134,3 +134,4 @@ staging copy, and a purge/redeploy restores the stock file.
 - [LINES.md](LINES.md) - vollstaendiger Zeilenbestand
 - [data/judy_ALL_de.md](data/judy_ALL_de.md) - alle Sprachdateien
 - [data/v_ALL_de.md](data/v_ALL_de.md)
+- [PAIRS.md](PAIRS.md)
