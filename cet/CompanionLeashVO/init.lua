@@ -13,6 +13,14 @@
 
 local MOD = "[CompanionLeashVO]"
 
+--  print() goes to CET's console overlay ONLY; the mod log file stays empty, so nothing
+--  can be handed over after a session. spdlog.info writes to
+--  bin/x64/plugins/cyber_engine_tweaks/mods/CompanionLeashVO/CompanionLeashVO.log
+local function log(msg)
+  print(MOD .. " " .. msg)
+  pcall(function() spdlog.info(MOD .. " " .. msg) end)
+end
+
 --  Workspot entity and component come from AMM, which is installed. Confirmed against
 --  AMM's own database for these animations.
 local WORKSPOT_ENT = "base\\amm_workspots\\entity\\workspot_anim.ent"
@@ -84,6 +92,10 @@ local lipMode = 0          -- 0 = single shot (default), 1 = duration-driven (ex
 local lipRotIdx = 0
 local lipRetry = 0.4       -- how long to wait for a shot to register before ONE retry
 local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended barrage
+--  Each suppression is switchable on its own. Changing mute and subtitle handling at the
+--  same time is how you end up unable to say which one produced a result.
+local optMute = true       -- DialogueVolume -> 0
+local optHideOver = true   -- Overheads -> false
 local lipDiag = { perceptible = false, lastLine = "-", changes = 0, readable = false,
                   lastText = "", lastDur = 0.0, lastName = "", fresh = false }
 local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
@@ -112,7 +124,7 @@ end
 --  Signature taken verbatim from AMM's util.lua, which is known to work.
 local function playVO(handle, vo)
   if not handle then
-    print(MOD .. " kein Ziel - schau eine NPC an und sperre sie")
+    log(" kein Ziel - schau eine NPC an und sperre sie")
     return
   end
   local ok, err = pcall(function()
@@ -122,9 +134,9 @@ local function playVO(handle, vo)
   end)
   if ok then
     lastPlayed = vo
-    print(MOD .. " VO: " .. vo)
+    log(" VO: " .. vo)
   else
-    print(MOD .. " FEHLER bei " .. vo .. ": " .. tostring(err))
+    log(" FEHLER bei " .. vo .. ": " .. tostring(err))
   end
 end
 
@@ -133,7 +145,7 @@ end
 --  "she says a line", and the test for whether any mouth movement appears at all.
 local function talk(handle, vo, cat, idle)
   if not handle then
-    print(MOD .. " kein Ziel")
+    log(" kein Ziel")
     return
   end
   local ok, err = pcall(function()
@@ -153,9 +165,9 @@ local function talk(handle, vo, cat, idle)
   end)
   if ok then
     lastPlayed = (vo or "-") .. " / face " .. tostring(cat) .. "," .. tostring(idle)
-    print(MOD .. " TALK: " .. tostring(vo) .. "  face=" .. tostring(cat) .. "," .. tostring(idle))
+    log(" TALK: " .. tostring(vo) .. "  face=" .. tostring(cat) .. "," .. tostring(idle))
   else
-    print(MOD .. " TALK fehlgeschlagen: " .. tostring(err))
+    log(" TALK fehlgeschlagen: " .. tostring(err))
   end
 end
 
@@ -165,7 +177,7 @@ end
 --  which calls ResetFacial(0.0) itself in reactionComponent.
 local function face(handle, cat, idle, name)
   if not handle then
-    print(MOD .. " kein Ziel")
+    log(" kein Ziel")
     return
   end
   local ok, err = pcall(function()
@@ -173,7 +185,7 @@ local function face(handle, cat, idle, name)
     if stim then stim:ResetFacial(0) end
   end)
   if not ok then
-    print(MOD .. " ResetFacial fehlgeschlagen: " .. tostring(err))
+    log(" ResetFacial fehlgeschlagen: " .. tostring(err))
     return
   end
   facePending = { target = handle, cat = cat, idle = idle, name = name, t = 0 }
@@ -236,7 +248,7 @@ local function lipRestore(why)
     savedOverheads = nil
   end
   if lip then
-    print(MOD .. " Lipsync beendet (" .. (why or "") .. ") - Einstellungen zurueckgesetzt")
+    log(" Lipsync beendet (" .. (why or "") .. ") - Einstellungen zurueckgesetzt")
     lip = nil
   end
 end
@@ -297,26 +309,28 @@ end
 
 local function lipStart(handle, vo, duration, interval, cat, idle)
   if not handle then
-    print(MOD .. " kein Ziel")
+    log(" kein Ziel")
     return
   end
   local dv, ov = dialogueVar(), overheadVar()
   if not dv then
-    print(MOD .. " DialogueVolume nicht erreichbar")
+    log(" DialogueVolume nicht erreichbar")
     return
   end
   lipRestore("Neustart")
 
   local ok, err = pcall(function()
-    savedVolume = dv:GetValue()
-    dv:SetValue(0)
-    if ov then
+    if optMute then
+      savedVolume = dv:GetValue()
+      dv:SetValue(0)
+    end
+    if optHideOver and ov then
       savedOverheads = ov:GetValue()
       ov:SetValue(false)
     end
   end)
   if not ok then
-    print(MOD .. " Stummschalten fehlgeschlagen: " .. tostring(err))
+    log(" Stummschalten fehlgeschlagen: " .. tostring(err))
     lipRestore("Fehler")
     return
   end
@@ -328,14 +342,17 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
           confirmed = false, clock = 0, lastVo = vo, lineDur = 0 }
   lipDiag.fresh = false -- do not let a line from before the session count as ours
   fireVo(handle, vo)
-  print(MOD .. string.format("  SCHUSS 1 t=0.000  %s", vo))
+  log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s",
+      vo, tostring(optMute), tostring(optHideOver),
+      (lipMode == 0) and "einzelschuss" or "1 neuversuch"))
+  log(string.format("  SCHUSS 1 t=0.000  %s", vo))
 
   if cat then
     local stim = handle:GetStimReactionComponent()
     if stim then pcall(function() stim:ResetFacial(0) end) end
     facePending = { target = handle, cat = cat, idle = idle, name = vo, t = 0 }
   end
-  print(MOD .. " LIPSYNC: " .. vo .. " alle " .. string.format("%.1f", interval)
+  log(" LIPSYNC: " .. vo .. " alle " .. string.format("%.1f", interval)
         .. "s fuer " .. string.format("%.1f", duration) .. "s")
 end
 
@@ -355,7 +372,7 @@ end
 --  yawed 180 degrees, then bind the NPC to it and jump to the animation.
 local function playAnim(target, animName)
   if not target then
-    print(MOD .. " kein Ziel")
+    log(" kein Ziel")
     return
   end
   stopAnim()
@@ -369,7 +386,7 @@ local function playAnim(target, animName)
     pending = { id = id, target = target, anim = animName, ticks = 0 }
   end)
   if not ok then
-    print(MOD .. " Spawn fehlgeschlagen: " .. tostring(err))
+    log(" Spawn fehlgeschlagen: " .. tostring(err))
   end
 end
 
@@ -415,8 +432,8 @@ registerForEvent("onUpdate", function(dt)
         if not lip.confirmed then
           lip.confirmed = true
           lip.lineDur = lipDiag.lastDur
-          print(MOD .. string.format("  ZEILE t=%.3f  dauer=%.2f  \"%s\"  [%s]",
-                lip.clock, lipDiag.lastDur, lipDiag.lastText, lipDiag.lastName))
+          log(string.format("  ZEILE t=%.3f  dauer=%.2f  \"%s\"  [%s]",
+              lip.clock, lipDiag.lastDur, lipDiag.lastText, lipDiag.lastName))
           --  end the window when the line ends, instead of sitting on a blind timer.
           --  A muted VO request must not be strangled for 20s by our own cap.
           if lipDiag.lastDur > 0.05 then
@@ -435,8 +452,8 @@ registerForEvent("onUpdate", function(dt)
         local vo = nextVo(lip)
         lip.lastVo = vo
         fireVo(lip.target, vo)
-        print(MOD .. string.format("  SCHUSS %d t=%.3f  %s  (Neuversuch)",
-              lip.shots, lip.clock, vo))
+        log(string.format("  SCHUSS %d t=%.3f  %s  (Neuversuch)",
+            lip.shots, lip.clock, vo))
       end
     end
   end
@@ -456,9 +473,9 @@ registerForEvent("onUpdate", function(dt)
       end)
       if ok then
         lastPlayed = "face " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")"
-        print(MOD .. " FACE: " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")")
+        log(" FACE: " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")")
       else
-        print(MOD .. " FACE fehlgeschlagen: " .. tostring(err))
+        log(" FACE fehlgeschlagen: " .. tostring(err))
       end
     end
   end
@@ -476,13 +493,13 @@ registerForEvent("onUpdate", function(dt)
     if ok then
       active = { handle = ent, target = pending.target }
       lastAnim = pending.anim
-      print(MOD .. " ANIM: " .. pending.anim)
+      log(" ANIM: " .. pending.anim)
     else
-      print(MOD .. " Animation fehlgeschlagen: " .. tostring(err))
+      log(" Animation fehlgeschlagen: " .. tostring(err))
     end
     pending = nil
   elseif pending.ticks > 120 then
-    print(MOD .. " Workspot-Entitaet erschien nicht")
+    log(" Workspot-Entitaet erschien nicht")
     pending = nil
   end
 end)
@@ -509,10 +526,10 @@ registerForEvent("onDraw", function()
   if ImGui.Button(locked and "Ziel freigeben" or "Ziel sperren") then
     if locked then
       locked = nil
-      print(MOD .. " Ziel freigegeben")
+      log(" Ziel freigegeben")
     else
       locked = currentTarget()
-      print(MOD .. " Ziel gesperrt: " .. targetName(locked))
+      log(" Ziel gesperrt: " .. targetName(locked))
     end
   end
   ImGui.SameLine()
@@ -522,8 +539,10 @@ registerForEvent("onDraw", function()
 
   if ImGui.CollapsingHeader("Lipsync-Motor") then
     local dv, ov = dialogueVar(), overheadVar()
-    ImGui.Text("DialogueVolume: " .. tostring(dv and dv:GetValue() or "?")
-               .. "   Overheads: " .. tostring(ov and ov:GetValue() or "?"))
+    local dvv, ovv = "?", "?"
+    if dv then dvv = tostring(dv:GetValue()) end
+    if ov then ovv = tostring(ov:GetValue()) end -- NOT `ov and ... or "?"`: false would print "?"
+    ImGui.Text("DialogueVolume: " .. dvv .. "   Overheads: " .. ovv)
     if savedVolume ~= nil or savedOverheads ~= nil then
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns veraendert - laeuft]")
     end
@@ -549,6 +568,14 @@ registerForEvent("onDraw", function()
     end
     ImGui.TextDisabled("Zaehlt der Zaehler genau bei einem Schuss hoch und steht Judys " ..
                        "Text da, traegt der Weg. Laeuft er von allein hoch, nicht.")
+    ImGui.Separator()
+
+    optMute = ImGui.Checkbox("stummschalten", optMute)
+    ImGui.SameLine()
+    optHideOver = ImGui.Checkbox("Untertitel unterdruecken", optHideOver)
+    ImGui.TextDisabled("Beide aus = normaler, hoerbarer Bark. Damit laesst sich pruefen, " ..
+                       "ob ueberhaupt eine Zeile gemeldet wird - und danach einzeln, " ..
+                       "welche der beiden sie verschluckt.")
     ImGui.Separator()
 
     if ImGui.RadioButton("Einzelschuss", lipMode == 0) then lipMode = 0 end
@@ -616,7 +643,7 @@ registerForEvent("onDraw", function()
     ImGui.Separator()
     if ImGui.Button("Animation stoppen") then
       stopAnim()
-      print(MOD .. " Animation gestoppt")
+      log(" Animation gestoppt")
     end
     ImGui.SameLine()
     ImGui.TextDisabled("immer stoppen, bevor die naechste startet")
@@ -639,5 +666,5 @@ registerForEvent("onShutdown", function()
 end)
 
 registerForEvent("onInit", function()
-  print(MOD .. " bereit - Overlay oeffnen, Judy anschauen, Ziel sperren")
+  log(" bereit - Overlay oeffnen, Judy anschauen, Ziel sperren")
 end)
