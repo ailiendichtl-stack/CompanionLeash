@@ -204,7 +204,9 @@ local MATRIX = {
   { label = "4b ohne voInfo",   name = "cl_ohne_voinfo",      player = false,
     hint = "wie VVF gebaut - erwartet: dasselbe" },
   { label = "4c nur Einstieg",  name = "cl_zeigt_auf_danger", player = false,
-    hint = "neuer Name, ABER vorhandener Knoten - erwartet: Achtung!" },
+    hint = "BESTAETIGT: spielt Achtung! - neue Einstiege funktionieren" },
+  { label = "4d Klon",          name = "cl_klon",             player = false,
+    hint = "Vanilla-Eintrag tief kopiert - erwartet: Ich bin froh, dass du da bist." },
   { label = "5 Unsinn",         name = "cl_gibt_es_nicht_xyz", player = false,
     hint = "zeigt den echten Rueckfall bei unbekanntem Namen" },
   { label = "6 VVF auf Judy",   name = "vfv_better_run",      player = false,
@@ -242,7 +244,12 @@ local function playBark(name)
     node.type  = NewObject("questPlayVoiceset_NodeType")
 
     local prm = NewObject("questPlayVoiceset_NodeTypeParams")
+    --  Alle Flags ausdruecklich setzen, so wie VVF es tut - nicht auf die Voreinstellung
+    --  des Structs verlassen. Das nimmt einen unkontrollierten Unterschied aus dem
+    --  Vergleich, auch wenn vorhandene Judy-Eintraege ohnehin funktionieren.
     prm.overrideVoiceoverExpression = true
+    prm.useVoicesetSystem = false
+    prm.playOnlyGrunt = false
     prm.voicesetName                = CName.new(name)
     if styleIdx >= 0 then
       prm.overrideVisualStyle = true
@@ -269,7 +276,11 @@ local function playBark(name)
     prm.puppetRef = ref
 
     node.type.params = { prm }
+    log(string.format("  EXEC name=%-22s isPlayer=%-5s stil=%s",
+        name, tostring(prm.isPlayer),
+        (styleIdx >= 0) and STYLES[styleIdx + 1] or "kein Override"))
     Game.GetQuestsSystem():ExecuteNode(node)
+    log("  EXEC zurueck: " .. name)
   end)
   lastPlayed = name
   if not ok then log("BARK " .. name .. " FEHLER: " .. tostring(err)) end
