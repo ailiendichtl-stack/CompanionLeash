@@ -163,9 +163,25 @@ Also `<szenenordner>/lipsync/en/<szenenname>/<figur>.anims` - genau wie Judys Vo
 eigenes Set als `vsets/lipsync/en/vset_judy/judy.anims` referenziert. Der physische Pfad
 funktioniert nicht; damit blieb der Mund still.
 
-Fuer eine Quest-Zeile muss das Set ihrer Herkunftsszene in
-`resouresReferences.lipsyncAnimSets` ergaenzt werden - beim Vollausbau also je ein Eintrag
-pro betroffener Szene.
+### Lipsync ist noch NICHT geloest
+
+Die Referenz allein reicht nicht. Was geprueft und widerlegt ist:
+
+| Vermutung | Ergebnis |
+|---|---|
+| Physischer Pfad als Referenz | falsch, Szenen nutzen die logische Form |
+| Set fehlt in `lipsyncAnimSets` | ergaenzt, keine Wirkung |
+| Zuordnung ueber die Position (`actorId`) | widerlegt: Set auf Index 0 - Barks behielten ihre Bewegung, der Klon bekam keine |
+| Fehlende `m_`-Animation | Vanilla traegt sie ebenfalls ein, obwohl sie im Set fehlt |
+
+Belegt ist, dass `f_39669188B9A4E000` in `mq055_01_megabuilding/judy.anims` liegt und dass
+das Set referenziert wird. Warum die Engine es nicht heranzieht, ist offen. Naechster
+Verdaechtiger waere der Actor: unsere Szene hat einen einzigen, `vset_judy` mit
+`findInContext`, waehrend mq055 seine Figuren per `spawnDespawn` fuehrt.
+
+**Kein Blocker:** Ton, richtige Zeile und Untertitel funktionieren. Und fuer die
+Mundbewegung gibt es den Stumm-Trick als Rueckfall - stumme Barks bewegen den Mund,
+waehrend die Quest-Zeile laeuft.
 
 **Nicht anfassen:** `voInfo` (VVF fuehrt 13012 Eintraege bei 205 voInfo), `locStore`
 (Editor-Beschriftungen).

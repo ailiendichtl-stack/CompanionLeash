@@ -118,15 +118,12 @@ def main():
 
     #  Ohne dieses Set spielt die Zeile, aber der Mund bewegt sich nicht - im Spiel
     #  beobachtet: Vorlage mit Lippenbewegung, Klon ohne.
-    #  In mq055 folgen die Anim-Sets der Actor-Reihenfolge: judy->judy.anims,
-    #  kerry->kerry.anims, panam->panam.anims. Judys Voiceset hat genau einen Actor
-    #  (vset_judy) und genau ein Set, und unsere Zeile hat speaker = 0 - greift also
-    #  vermutlich auf Set 0 zu. Angehaengt lag unseres auf 1 und blieb wirkungslos.
-    #  Deshalb hier VORNE einsortieren. Nebenwirkung fuer diesen Test: die 55 Barks
-    #  verlieren dadurch ihre Lippenbewegung. Genau das macht den Test eindeutig.
+    #  Widerlegt: die Zuordnung ist NICHT positionsgebunden. Mit dem mq055-Set auf Index 0
+    #  behielten die Barks ihre Lippenbewegung und der Klon bekam keine. Also wieder
+    #  anhaengen - die Referenz schadet nicht, reicht aber allein auch nicht.
     refs = root["resouresReferences"]["lipsyncAnimSets"]
     if not any(r["asyncRefLipsyncAnimSet"]["DepotPath"]["$value"] == ANIMS for r in refs):
-        refs.insert(0, {
+        refs.append({
             "$type": "scnLipsyncAnimSetSRRef",
             "asyncRefLipsyncAnimSet": {
                 "DepotPath": {"$type": "ResourcePath", "$storage": "string",
