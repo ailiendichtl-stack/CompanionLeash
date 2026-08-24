@@ -316,8 +316,15 @@ local function inspectEnum(name)
     local e = Reflection.GetEnum(name)
     if not e then log("ENUM " .. name .. ": nicht gefunden"); return end
     log("ENUM " .. name)
+    --  constants come back as userdata; .value is not the accessor
     local out = {}
-    for _, c in pairs(e:GetConstants()) do out[#out + 1] = tostring(c.value or c) end
+    for _, c in pairs(e:GetConstants()) do
+      local nm
+      pcall(function() nm = tostring(c:GetName().value) end)
+      if not nm then pcall(function() nm = tostring(c:GetName()) end) end
+      if not nm then pcall(function() nm = tostring(c.name) end) end
+      out[#out + 1] = nm or tostring(c)
+    end
     log("    " .. table.concat(out, ", "))
   end)
   if not ok then log("ENUM " .. name .. " fehlgeschlagen: " .. tostring(err)) end
@@ -338,9 +345,23 @@ local function dumpDialogKeys()
     local n = 0
     for k, val in pairs(v) do
       n = n + 1
-      log(string.format("    %-22s %-10s %s", tostring(k), type(val), tostring(val)))
+      log(string.format("    [%s] %s", tostring(k), type(val)))
+      --  array elements are the actual scnDialogLineData; list their fields via Reflection
+      --  rather than probing names one at a time
+      pcall(function()
+        local cls = Reflection.GetClassOf(ToVariant(val))
+        if not cls then return end
+        log("      Klasse: " .. tostring(cls:GetName().value))
+        for _, prop in pairs(cls:GetProperties()) do
+          local nm = tostring(prop:GetName().value)
+          local ok2, cur = pcall(function() return val[nm] end)
+          log(string.format("        %-18s %-22s %s", nm,
+              tostring(prop:GetType():GetName().value),
+              ok2 and tostring(cur) or "<nicht lesbar>"))
+        end
+      end)
     end
-    if n == 0 then log("    (leer - es wurde nichts geschrieben)") end
+    if n == 0 then log("    (leeres Array - es wurde nichts geschrieben)") end
   end)
   if not ok then log("BLACKBOARD-Dump fehlgeschlagen: " .. tostring(err)) end
 end
@@ -375,13 +396,21 @@ local function dialogLine()
     --  entSpawner and the fast-travel check do it.
     local raw = bb:GetVariant(defs.UIGameData.ShowDialogLine)
     if not raw then return nil end
-    local v = FromVariant(raw)
-    if not v then return nil end
-    lipDiag.kind = type(v) .. " text=" .. type(v.text) .. " dur=" .. type(v.duration)
-    return { text = tostring(v.text or ""),
-             dur = tonumber(v.duration) or 0.0,
-             name = tostring(v.speakerName or ""),
-             speaker = v.speaker }
+    local arr = FromVariant(raw)
+    if type(arr) ~= "table" then return nil end
+    --  ShowDialogLine holds an ARRAY of scnDialogLineData, not a single struct. Reading it
+    --  as a struct is why every field came back nil - the line was there the whole time.
+    local el = arr[#arr]
+    if el == nil then
+      lipDiag.kind = "leeres Array"
+      return nil
+    end
+    lipDiag.kind = string.format("array[%d] text=%s dur=%s",
+                   #arr, type(el.text), type(el.duration))
+    return { text = tostring(el.text or ""),
+             dur = tonumber(el.duration) or 0.0,
+             name = tostring(el.speakerName or ""),
+             speaker = el.speaker }
   end)
   if ok then return res end
   return nil -- struct not readable from Lua; the panel says so rather than guessing
@@ -661,6 +690,8 @@ registerForEvent("onDraw", function()
       --  the params field is typed gameEntityReference, not EntityReference - that is
       --  why the previous run logged "Type 'EntityReference' not found"
       inspect("gameEntityReference")
+      --  dynamicEntityUniqueName is the field that could address a spawned companion
+      inspectEnum("gameEntityReferenceType")
       inspectEnum("locVoiceoverExpression")
       inspectEnum("locVoiceoverContext")
       dumpDialogKeys()
