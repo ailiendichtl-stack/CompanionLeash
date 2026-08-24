@@ -69,19 +69,26 @@ def main():
     with_text = [r for r in files if r["text"]]
     without = [r for r in files if not r["text"]]
 
+    #  Das Dateimuster faengt auch v_scene_judy_default ein - das ist V, die in einer
+    #  Judy-Szene spricht, nicht Judy. Getrennt ausweisen statt mitzaehlen: die Zeilen sind
+    #  interessant (Vs Haelfte der Gespraeche), gehoeren aber nicht in Judys Bestand.
+    judy = [r for r in files if r["prefix"].startswith("judy")]
+    other = [r for r in files if not r["prefix"].startswith("judy")]
+
     groups = defaultdict(list)
-    for r in files:
+    for r in judy:
         groups[r["prefix"]].append(r)
 
     lines = [
         "# Judy - alle Sprachdateien",
         "",
-        "Vollstaendiger Bestand: **%d Sprachdateien** in %d Gruppen." % (len(files), len(groups)),
+        "Vollstaendiger Bestand: **%d Sprachdateien von Judy** in %d Gruppen." % (len(judy), len(groups)),
         "",
         "| | |",
         "|---|---|",
-        "| mit Untertitel | %d |" % len(with_text),
-        "| **ohne Untertitel** | **%d** |" % len(without),
+        "| mit Untertitel | %d |" % sum(1 for r in judy if r["text"]),
+        "| **ohne Untertitel** | **%d** |" % sum(1 for r in judy if not r["text"]),
+        "| dazu von **V** in Judy-Szenen | %d (unten separat) |" % len(other),
         "",
         "Ohne Untertitel heisst: die Audiodatei existiert, aber ihre stringId taucht im",
         "deutschen Untertitel-Bestand nicht auf. Der Text ist damit unbekannt - die Datei",
@@ -111,6 +118,17 @@ def main():
                 lines.append("- `%s` %s  *(kein Untertitel)*" % (r["hex"], r["gender"]))
         lines.append("")
 
+    if other:
+        lines += ["---", "",
+                  "## V in Judy-Szenen  <sub>%d Dateien</sub>" % len(other), "",
+                  "Nicht Judy. Das Dateimuster faengt diese mit ein, weil der Szenenname",
+                  "ihren Namen traegt. Als Gegenstueck der Gespraeche trotzdem nuetzlich.",
+                  ""]
+        for r in sorted(other, key=lambda x: (x["id"], x["gender"])):
+            t = r["text"] or "*(kein Untertitel)*"
+            lines.append("- `%s` %s  %s" % (r["hex"], r["gender"], t))
+        lines.append("")
+
     out_md = os.path.join(HERE, "data", "judy_ALL_de.md")
     open(out_md, "w", encoding="utf-8", newline="\n").write("\n".join(lines) + "\n")
 
@@ -119,9 +137,10 @@ def main():
                "without_text": len(without), "files": files},
               open(out_js, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
-    print("Dateien gesamt   : %d" % len(files))
-    print("mit Untertitel   : %d" % len(with_text))
-    print("ohne Untertitel  : %d" % len(without))
+    print("Judy-Dateien     : %d" % len(judy))
+    print("mit Untertitel   : %d" % sum(1 for r in judy if r["text"]))
+    print("ohne Untertitel  : %d" % sum(1 for r in judy if not r["text"]))
+    print("V in Judy-Szenen : %d (separat)" % len(other))
     print("verschiedene Texte: %d" % len({r["text"] for r in with_text}))
     print()
     print("Gruppen ohne Text:")

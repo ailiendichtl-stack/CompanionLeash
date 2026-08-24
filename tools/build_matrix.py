@@ -33,6 +33,21 @@ PICKS = {
     "Wasser / Schwimmen": [712, 722, 742],
 }
 
+#  Zeilennummern aus data/new_lines.txt - die 111 Zeilen, die erst durch den erweiterten
+#  Untertitel-Bestand sichtbar wurden. mq055 ist die Hangout-Quest und liefert die mit
+#  Abstand brauchbarsten: sie sind fuer genau diese Art Begleiter-Interaktion geschrieben.
+#  q202 fuellt endlich die Kategorie Aussicht, die vorher leer war.
+NEW_PICKS = {
+    "Ankunft / Wiedersehen": [5, 3, 111],
+    "Spieler bleibt zurueck": [2, 7, 8],
+    "Warten / Ungeduld": [79, 109],
+    "Kampf vorbei / Lob": [9, 1],
+    "Spieler verletzt / Sorge": [6, 55, 69, 74, 93, 80],
+    "Idle / Smalltalk": [10, 11, 75, 76, 13, 14],
+    "Zuneigung / Naehe": [87, 108, 105],
+    "Umgebung / Aussicht": [12, 95, 103, 107, 100],
+}
+
 #  Bark-Familien je Kategorie. Kategorien ohne Eintrag haben keine Bark - genau die sind
 #  die Kandidaten fuer Fake-Lipsync.
 FAMS = {
@@ -55,6 +70,20 @@ def load_lines():
     return {i: r for i, r in enumerate(rows, 1)}
 
 
+def load_new():
+    """Die spaeter geborgenen Zeilen, aus der nummerierten Sichtungsdatei."""
+    path = os.path.join(HERE, "data", "new_lines.txt")
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    for line in open(path, encoding="utf-8"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) < 4:
+            continue
+        out[int(parts[0])] = {"text": parts[3], "scene": parts[2]}
+    return out
+
+
 def load_barks():
     path = os.path.join(HERE, "data", "judy_lines_measured.json")
     meas = json.load(open(path, encoding="utf-8"))["unique"]
@@ -71,6 +100,7 @@ def load_barks():
 
 def main():
     lines = load_lines()
+    newl = load_new()
     fams, n_barks = load_barks()
 
     out = [
@@ -122,6 +152,7 @@ def main():
         out.append("")
 
         picks = [lines[i] for i in PICKS[cat] if i in lines]
+        picks += [newl[i] for i in NEW_PICKS.get(cat, []) if i in newl]
         if picks:
             out += ["Quest-Zeilen (gesichtet, %d):" % len(picks), ""]
             for r in sorted(picks, key=lambda r: -len(r["text"])):
