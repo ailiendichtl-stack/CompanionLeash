@@ -129,3 +129,5 @@ staging copy, and a purge/redeploy restores the stock file.
   no reference value to copy.
 - Untested on multi-companion squads; each behaviour instance holds its own state, so it
   should be fine, but it has not been verified.
+
+- [MATRIX.md](MATRIX.md) - Bark- und Zeilen-Matrix pro Situation

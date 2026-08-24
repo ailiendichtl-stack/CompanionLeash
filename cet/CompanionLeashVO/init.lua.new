@@ -1,0 +1,351 @@
+--  CompanionLeash - Bark-Panel
+--
+--  Judys Barks stehen in base/quest/secondary_characters/vsets/vset_judy.scene und werden
+--  ueber einen Quest-Voiceset-Knoten gespielt, NICHT ueber GameObject.PlayVoiceOver. Das
+--  ist der entscheidende Unterschied: PlayVoiceOver hat eine harte Sperre von ~8.2s pro
+--  NPC (gemessen: 656 Schuesse ergaben 28 Zeilen), der Quest-Knoten hat keine.
+--
+--  Der Stil "invisible" unterdrueckt den Untertitel pro Aufruf, also ohne an globalen
+--  Spieleinstellungen zu drehen, die danach zurueckgesetzt werden muessten.
+--
+--  Entfernt, weil ueberholt: die Einstiegspunkte PlayVoiceOver und ChatterHelper, die
+--  Kontext-Auswahl (alle fuenf Kontexte lieferten identische Ergebnisse) und die
+--  VoIsPerceptible-Anzeige (misst Hoerbarkeit, ist beim Stummschalten also immer falsch).
+--  Die Messungen dazu stehen in VOICE.md.
+
+local MOD = "[CompanionLeashVO]"
+
+--  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
+local function log(msg)
+  print(MOD .. " " .. msg)
+  pcall(function() spdlog.info(MOD .. " " .. msg) end)
+end
+
+--  Im Spiel vermessen. Jede Variante ist eine BESTIMMTE Zeile, kein Zufallsgriff.
+local BARKS = {
+  { fam = "battlecry_curse", lines = {
+    { n = "battlecry_curse_var_3", d = 2.89, t = "Hey, V! Mach was, verdammte Scheisse!" },
+    { n = "battlecry_curse",       d = 1.65, t = "Was zur Hoelle?" },
+    { n = "battlecry_curse_var_1", d = 1.18, t = "Fuuuck!" } } },
+  { fam = "battlecry_morale", lines = {
+    { n = "battlecry_morale_var_1", d = 2.55, t = "Jetzt bin ich richtig sauer!" },
+    { n = "battlecry_morale_var_3", d = 2.10, t = "Jetzt mach ich ernst!" },
+    { n = "battlecry_morale",       d = 1.75, t = "Hast es so gewollt!" } } },
+  { fam = "body_warning", lines = {
+    { n = "body_warning_var_1", d = 3.15, t = "Lass uns hier klar Schiff machen, sonst fliegen wir auf." },
+    { n = "body_warning_var_2", d = 2.22, t = "Versteck den Koerper, okay?" } } },
+  { fam = "bump", lines = {
+    { n = "bump_var_2", d = 2.01, t = "Komm schon, ernsthaft?" },
+    { n = "bump_var_1", d = 1.71, t = "Hey, pass auf ..." } } },
+  { fam = "camera_warning", lines = {
+    { n = "camera_warning_var_1", d = 2.13, t = "Pass auf die Kameras auf, okay?" },
+    { n = "camera_warning_var_2", d = 2.07, t = "Die haben hier alles im Blick." } } },
+  { fam = "combat_aggro_bark", lines = {
+    { n = "combat_aggro_bark_var_1", d = 1.42, t = "Echt jetzt?!" },
+    { n = "combat_aggro_bark_var_2", d = 1.34, t = "Aaah!" } } },
+  { fam = "combat_ended", lines = {
+    { n = "combat_ended_var_1", d = 2.84, t = "Oh, das wars. Wir habens geschafft." },
+    { n = "combat_ended_var_2", d = 2.83, t = "Sieh uns an. Nicht totzukriegen." } } },
+  { fam = "danger", lines = {
+    { n = "danger_var_1", d = 1.88, t = "Oh, Scheisse!" },
+    { n = "danger_var_3", d = 1.38, t = "Bin bei dir." },
+    { n = "danger",       d = 1.22, t = "Achtung!" } } },
+  { fam = "detection_warning", lines = {
+    { n = "detection_warning_var_1", d = 2.86, t = "Verschwinde da, sonst sehen sie uns!" },
+    { n = "detection_warning_var_2", d = 2.38, t = "Vorsicht, die haben was gehoert!" } } },
+  { fam = "elite_warning", lines = {
+    { n = "elite_warning_var_1", d = 2.72, t = "Wo haben die nur diese Ausruestung her?" },
+    { n = "elite_warning_var_2", d = 2.32, t = "Ordentlich ausgestattet, die Typen!" } } },
+  { fam = "enemy_warning", lines = {
+    { n = "enemy_warning_var_2", d = 2.06, t = "Sie sind hier. Bleib wachsam." },
+    { n = "enemy_warning_var_1", d = 1.41, t = "Da kommen sie!" } } },
+  { fam = "follow_me", lines = {
+    { n = "follow_me_1", d = 2.70, t = "Was ist los? Hoer auf zu troedeln." },
+    { n = "follow_me",   d = 2.26, t = "Komm schon, V, bleib bei mir." } } },
+  { fam = "greeting", lines = {
+    { n = "greeting",       d = 1.35, t = "Oh, hey!" },
+    { n = "greeting_var_2", d = 1.11, t = "Hey, V." } } },
+  { fam = "grenade_enemy", lines = {
+    { n = "grenade_enemy_var_3", d = 2.23, t = "In Deckung! Granate!" },
+    { n = "grenade_enemy_var_2", d = 1.92, t = "Achtung, Granate!" },
+    { n = "grenade_enemy_var_1", d = 1.45, t = "Granate!" } } },
+  { fam = "grenade_throw", lines = {
+    { n = "grenade_throw", d = 2.28, t = "Na, wie schmeckt dir das?!" } } },
+  { fam = "hurry_up", lines = {
+    { n = "hurry_up_var_2", d = 2.53, t = "Wir haben was vor, schon vergessen?" },
+    { n = "hurry_up_var_3", d = 2.11, t = "Konzentration, V." },
+    { n = "hurry_up_var_1", d = 1.90, t = "Na? Los jetzt!" } } },
+  { fam = "interrupt", lines = {
+    { n = "interrupt_var_1", d = 2.54, t = "Okay, wir setzen das spaeter fort." },
+    { n = "interrupt",       d = 1.85, t = "Hab ich dich gelangweilt?" } } },
+  { fam = "phone_urge", lines = {
+    { n = "phone_urge_var_2", d = 2.68, t = "Bist du da? Kannst du mich hoeren?" },
+    { n = "phone_urge_var_1", d = 1.76, t = "Aeh ... V?" } } },
+  { fam = "player_fallback", lines = {
+    { n = "player_fallback_var_2", d = 3.46, t = "V, pass besser auf! Tot nuetzt du niemandem!" },
+    { n = "player_fallback_var_1", d = 2.84, t = "Pass auf, verdammt! Schalt dein Hirn ein." },
+    { n = "player_fallback_var_3", d = 2.76, t = "Alles okay? Schnauf mal kurz durch." } } },
+  { fam = "reloading", lines = {
+    { n = "reloading_var_3", d = 2.07, t = "Warte kurz, muss nachladen." },
+    { n = "reloading_var_2", d = 2.01, t = "Deck mich, ich lade nach!" },
+    { n = "reloading_var_1", d = 1.70, t = "Ich muss nachladen." } } },
+  { fam = "return_answer", lines = {
+    { n = "return_answer_var_1", d = 2.00, t = "Worueber hatten wir geredet?" },
+    { n = "return_answer",       d = 1.40, t = "Du bist zurueck." } } },
+  { fam = "stealth_restored", lines = {
+    { n = "stealth_restored_var_1", d = 2.25, t = "Perfekt, die sehen uns nicht mehr." },
+    { n = "stealth_restored_var_2", d = 1.79, t = "Die haben wir abgeschuettelt." } } },
+  { fam = "stealth_warning_bark", lines = {
+    { n = "stealth_warning_bark_var_2", d = 1.33, t = "Vorsicht!" },
+    { n = "stealth_warning_bark_var_1", d = 1.25, t = "Sei still!" } } },
+  { fam = "urge", lines = {
+    { n = "urge_var_1", d = 1.78, t = "Was ist mit dir los?" },
+    { n = "urge",       d = 1.64, t = "Komm schon, V." } } },
+}
+
+--  Die laengsten Zeilen. Die Kette laeuft darauf, damit der Mund durchgehend bewegt wird,
+--  statt eine Ein-Sekunden-Begruessung zu wiederholen.
+local LONG = { "player_fallback_var_2", "body_warning_var_1", "battlecry_curse_var_3",
+               "detection_warning_var_1", "combat_ended_var_1", "player_fallback_var_1",
+               "combat_ended_var_2", "player_fallback_var_3", "elite_warning_var_1",
+               "follow_me_1", "phone_urge_var_2", "battlecry_morale_var_1" }
+
+--  AMMs Zuordnung. Das Feature RASTET EIN: eine zweite Mimik auf eine laufende anzuwenden
+--  bewirkt nichts, deshalb erst ResetFacial und dann verzoegert anwenden.
+local FACES = {
+  { "neutral", 0, 0 }, { "freundlich", 1, 1 }, { "froehlich", 2, 2 },
+  { "erfreut", 3, 5 }, { "besorgt", 3, 6 }, { "traurig", 4, 3 },
+  { "wuetend", 5, 4 }, { "angeekelt", 6, 7 }, { "ueberrascht", 7, 8 },
+  { "veraechtlich", 8, 9 }, { "misstrauisch", 9, 10 }, { "erschoepft", 10, 11 },
+}
+
+local STYLES, styleIdx = {}, -1
+local target, targetName = nil, "-"
+local facePending = nil
+local chain = nil
+local chainDur, chainLead = 8.0, 0.15
+local muteDialogue = false
+local savedVolume = nil
+local lastPlayed = "-"
+
+local function durOf(name)
+  for _, g in ipairs(BARKS) do
+    for _, l in ipairs(g.lines) do
+      if l.n == name then return l.d end
+    end
+  end
+  return 2.5
+end
+
+--  Originalgetreuer Nachbau des V-Voice-Framework-Aufrufs. Drei Details tragen die Sache
+--  und wurden jeweils muehsam gefunden: useVoicesetSystem/playOnlyGrunt duerfen NICHT
+--  gesetzt werden, die beiden override-Flags MUESSEN gesetzt werden, und die Params gehen
+--  NACH der Zuweisung in node.type.
+local function playBark(name)
+  if not target then log("kein Ziel"); return end
+  local ok, err = pcall(function()
+    local node = NewObject("questVoicesetManagerNodeDefinition")
+    node.type  = NewObject("questPlayVoiceset_NodeType")
+
+    local prm = NewObject("questPlayVoiceset_NodeTypeParams")
+    prm.overrideVoiceoverExpression = true
+    prm.voicesetName                = CName.new(name)
+    if styleIdx >= 0 then
+      prm.overrideVisualStyle = true
+      pcall(function()
+        prm.overridingVisualStyle = Enum.new("scnDialogLineVisualStyle", STYLES[styleIdx + 1])
+      end)
+    else
+      prm.overrideVisualStyle = false
+    end
+
+    --  Ihre Entity traegt den Tag NCA_Companion, und Tag ist einer der vier Referenztypen -
+    --  eine dynamisch gespawnte Begleiterin braucht damit keinen NodeRef.
+    local ref = NewObject("gameEntityReference")
+    prm.isPlayer = false
+    ref.type  = Enum.new("gameEntityReferenceType", "Tag")
+    ref.names = { CName.new("NCA_Companion") }
+    prm.puppetRef = ref
+
+    node.type.params = { prm }
+    Game.GetQuestsSystem():ExecuteNode(node)
+  end)
+  lastPlayed = name
+  if not ok then log("BARK " .. name .. " FEHLER: " .. tostring(err)) end
+end
+
+local function dialogueVar()
+  local ok, v = pcall(function()
+    return Game.GetSettingsSystem():GetVar("/audio/volume", "DialogueVolume")
+  end)
+  if ok then return v end
+  return nil
+end
+
+local function restoreVolume(why)
+  if savedVolume == nil then return end
+  local v = dialogueVar()
+  if v then pcall(function() v:SetValue(savedVolume) end) end
+  log("DialogueVolume zurueckgesetzt (" .. tostring(savedVolume) .. ") - " .. (why or ""))
+  savedVolume = nil
+end
+
+local function chainStop(why)
+  restoreVolume(why or "Ende")
+  if chain then
+    log(string.format("KETTE Ende (%s): %d Zeilen ueber %.1fs", why or "", chain.shots, chain.clock))
+    chain = nil
+  end
+end
+
+local function chainStart()
+  if not target then log("kein Ziel"); return end
+  chainStop("Neustart")
+  if muteDialogue then
+    local v = dialogueVar()
+    if v then
+      savedVolume = v:GetValue()
+      pcall(function() v:SetValue(0) end)
+    end
+  end
+  chain = { i = 0, clock = 0, next = 0, shots = 0, remaining = chainDur }
+  log(string.format("KETTE start: %.1fs, stumm=%s", chainDur, tostring(muteDialogue)))
+end
+
+local function setFace(cat, idle, label)
+  if not target then log("kein Ziel"); return end
+  local stim = target:GetStimReactionComponent()
+  if not stim then log("keine StimReactionComponent"); return end
+  pcall(function() stim:ResetFacial(0) end)
+  facePending = { cat = cat, idle = idle, label = label, t = 0 }
+end
+
+registerForEvent("onInit", function()
+  pcall(function()
+    local e = Reflection.GetEnum("scnDialogLineVisualStyle")
+    if not e then return end
+    for _, c in pairs(e:GetConstants()) do
+      local nm
+      pcall(function() nm = tostring(c:GetName().value) end)
+      if not nm then pcall(function() nm = tostring(c:GetName()) end) end
+      if nm then STYLES[#STYLES + 1] = nm end
+    end
+  end)
+  for i, nm in ipairs(STYLES) do
+    if nm:lower() == "invisible" then styleIdx = i - 1 end
+  end
+  log(string.format("bereit - %d Stile gelesen, invisible=%s", #STYLES, tostring(styleIdx >= 0)))
+end)
+
+registerForEvent("onUpdate", function(dt)
+  local d = dt or 0.016
+
+  if facePending then
+    facePending.t = facePending.t + d
+    if facePending.t >= 0.5 then
+      if target then
+        local ok = pcall(function()
+          local f = NewObject("handle:AnimFeature_FacialReaction")
+          f.category = facePending.cat
+          f.idle     = facePending.idle
+          target:GetAnimationControllerComponent():ApplyFeature(CName.new("FacialReaction"), f)
+        end)
+        log("MIMIK " .. facePending.label .. (ok and "" or " FEHLER"))
+      end
+      facePending = nil
+    end
+  end
+
+  if chain then
+    chain.clock = chain.clock + d
+    chain.remaining = chain.remaining - d
+    if chain.remaining <= 0 then
+      chainStop("Zeitablauf")
+    elseif chain.clock >= chain.next then
+      chain.i = (chain.i % #LONG) + 1
+      local name = LONG[chain.i]
+      --  kurz vor dem Ende uebergeben; mitten in der Zeile zu feuern schneidet sie ab
+      chain.next = chain.clock + durOf(name) - chainLead
+      chain.shots = chain.shots + 1
+      playBark(name)
+    end
+  end
+end)
+
+registerForEvent("onShutdown", function() chainStop("Shutdown") end)
+
+registerForEvent("onDraw", function()
+  ImGui.SetNextWindowSize(620, 720, ImGuiCond.FirstUseEver)
+  if not ImGui.Begin("CompanionLeash - Barks") then ImGui.End(); return end
+
+  ImGui.Text("Ziel: " .. targetName)
+  ImGui.SameLine()
+  if target then
+    ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "[gesperrt]")
+    ImGui.SameLine()
+    if ImGui.Button("freigeben") then target, targetName = nil, "-" end
+  else
+    if ImGui.Button("Ziel sperren (anschauen)") then
+      local o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+      if o then
+        target = o
+        targetName = tostring(o:GetDisplayName())
+        log("Ziel gesperrt: " .. targetName)
+      end
+    end
+  end
+  ImGui.SameLine()
+  ImGui.TextDisabled("zuletzt: " .. lastPlayed)
+  ImGui.Separator()
+
+  if ImGui.CollapsingHeader("Barks - 54 Zeilen") then
+    for _, g in ipairs(BARKS) do
+      if ImGui.TreeNode(g.fam) then
+        for _, l in ipairs(g.lines) do
+          if ImGui.Button(string.format("%.2fs##%s", l.d, l.n)) then playBark(l.n) end
+          ImGui.SameLine()
+          ImGui.Text(l.t)
+        end
+        ImGui.TreePop()
+      end
+    end
+  end
+
+  if ImGui.CollapsingHeader("Kette - durchgehende Mundbewegung") then
+    ImGui.TextWrapped("Haengt die laengsten Zeilen aneinander. Grundlage fuer " ..
+                      "Fake-Lipsync: stumme Barks bewegen den Mund, die eigene Zeile " ..
+                      "laeuft ueber den SFX-Bus.")
+    chainDur  = ImGui.SliderFloat("Dauer (s)", chainDur, 2.0, 30.0, "%.1f")
+    chainLead = ImGui.SliderFloat("Vorlauf (s)", chainLead, 0.0, 0.6, "%.2f")
+    muteDialogue = ImGui.Checkbox("Dialog stummschalten", muteDialogue)
+    if chain then
+      if ImGui.Button("STOPP") then chainStop("manuell") end
+      ImGui.SameLine()
+      ImGui.Text(string.format("noch %.1fs | %d Zeilen", chain.remaining, chain.shots))
+    else
+      if ImGui.Button("Kette starten") then chainStart() end
+    end
+    if savedVolume ~= nil then
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "Dialog ist stumm - STOPP setzt zurueck.")
+    end
+  end
+
+  if ImGui.CollapsingHeader("Mimik") then
+    for i, f in ipairs(FACES) do
+      if i % 4 ~= 1 then ImGui.SameLine() end
+      if ImGui.Button(f[1]) then setFace(f[2], f[3], f[1]) end
+    end
+  end
+
+  if ImGui.CollapsingHeader("Untertitel-Stil") then
+    ImGui.TextWrapped("invisible unterdrueckt den Untertitel pro Aufruf, ohne an globalen " ..
+                      "Spieleinstellungen zu drehen, die zurueckgesetzt werden muessten.")
+    if ImGui.RadioButton("kein Override", styleIdx == -1) then styleIdx = -1 end
+    for i, nm in ipairs(STYLES) do
+      if i % 4 ~= 1 then ImGui.SameLine() end
+      if ImGui.RadioButton(nm, styleIdx == i - 1) then styleIdx = i - 1 end
+    end
+  end
+
+  ImGui.End()
+end)
