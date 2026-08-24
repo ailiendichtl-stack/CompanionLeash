@@ -508,33 +508,25 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if ImGui.CollapsingHeader("Durchstich - eigener Voiceset-Eintrag") then
-    ImGui.TextWrapped("Prueft, ob ein selbst gebauter Eintrag zur Laufzeit aufloest, " ..
-                      "sein Audio findet und Lipsync startet. Braucht das Archiv " ..
-                      "CompanionLeash_Durchstich und einen Spielneustart.")
-    ImGui.TextDisabled("Erwartet: Judy sagt \"Ich bin froh, dass du da bist.\"")
-    --  Untertitel MUSS sichtbar sein: er kommt aus der locstringId der Zeile und ist
-    --  damit der einzige Beleg dafuer, welche Zeile das Spiel tatsaechlich aufgeloest
-    --  hat. Ohne ihn ist von aussen nicht zu unterscheiden, ob unser Eintrag falsch
-    --  aufloest oder ob NCA nebenher etwas anderes gefeuert hat.
-    if ImGui.Button("cl_test_froh (mit Untertitel)##durchstich") then
+  if ImGui.CollapsingHeader("Durchstich") then
+    ImGui.TextWrapped("Trennt zwei Ursachen: laedt unser Archiv ueberhaupt, oder werden " ..
+                      "nur neu angelegte Eintraege nicht registriert? Der Test biegt eine " ..
+                      "BESTEHENDE Zeile um und legt keinen Knoten an - die Buchfuehrung " ..
+                      "bleibt also zwangslaeufig korrekt.")
+    ImGui.TextDisabled("danger sagt normalerweise \"Achtung!\" und laeuft ohne Randomizer.")
+    ImGui.Separator()
+    --  regular statt overHead: overHead wurde im Spiel nicht angezeigt.
+    if ImGui.Button("danger##bisect") then
       speaker = 0
       for i, nm in ipairs(STYLES) do
-        if nm:lower() == "overhead" then styleIdx = i - 1 end
+        if nm:lower() == "regular" then styleIdx = i - 1 end
       end
-      playBark("cl_test_froh")
-      log("DURCHSTICH: cl_test_froh gefeuert, Stil overHead erzwungen")
+      playBark("danger")
+      log("BISEKTION: danger gefeuert, Stil regular")
     end
     ImGui.SameLine()
-    if ImGui.Button("Vergleich: follow_me##durchstich") then
-      speaker = 0
-      for i, nm in ipairs(STYLES) do
-        if nm:lower() == "overhead" then styleIdx = i - 1 end
-      end
-      playBark("follow_me")
-      log("DURCHSTICH: follow_me als Vergleich gefeuert")
-    end
-    ImGui.TextDisabled("Ziel muss gesperrt sein. Untertitel zeigt, welche Zeile wirklich lief.")
+    ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "erwartet: Ich bin froh, dass du da bist.")
+    ImGui.TextDisabled("Kommt \"Achtung!\", wird das Archiv nicht geladen.")
   end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
