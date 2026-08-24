@@ -314,6 +314,10 @@ registerForEvent("onInit", function()
     if nm:lower() == "invisible" then styleIdx = i - 1 end
   end
   log(string.format("bereit - %d Stile gelesen, invisible=%s", #STYLES, tostring(styleIdx >= 0)))
+  local dv = dialogueVar()
+  if dv and dv:GetValue() == 0 then
+    log("ACHTUNG: DialogueVolume steht auf 0 - im Panel steht ein Knopf zum Zuruecksetzen")
+  end
 end)
 
 --  Liest die zuletzt angezeigte Dialogzeile. ShowDialogLine haelt ein ARRAY von
@@ -422,6 +426,21 @@ registerForEvent("onShutdown", function() chainStop("Shutdown") end)
 registerForEvent("onDraw", function()
   ImGui.SetNextWindowSize(620, 720, ImGuiCond.FirstUseEver)
   if not ImGui.Begin("CompanionLeash - Barks") then ImGui.End(); return end
+
+  --  Endet eine Sitzung im Stumm-Fenster, bleibt die Lautstaerke auf 0 und landet so
+  --  in den UserSettings. Timer und Shutdown-Hook helfen dann nicht mehr - das hier
+  --  haengt an nichts ausser dem gelesenen Wert.
+  local dv = dialogueVar()
+  if dv and dv:GetValue() == 0 then
+    ImGui.TextColored(1.0, 0.3, 0.3, 1.0, "DIALOGLAUTSTAERKE STEHT AUF 0")
+    ImGui.TextWrapped("Vermutlich von einem Stumm-Fenster, das nicht zurueckgesetzt " ..
+                      "wurde. Solange das so steht, hoerst du keinen Dialog im Spiel.")
+    if ImGui.Button("auf 100 zuruecksetzen##volfix") then
+      pcall(function() dv:SetValue(100) end)
+      log("DialogueVolume von Hand auf 100 gesetzt")
+    end
+    ImGui.Separator()
+  end
 
   ImGui.Text("Ziel: " .. targetName)
   ImGui.SameLine()
