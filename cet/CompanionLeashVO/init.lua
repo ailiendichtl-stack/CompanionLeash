@@ -193,14 +193,11 @@ local sweep = nil
 
 --  name/ziel getrennt; hint sagt, was zu erwarten ist.
 local MATRIX = {
-  { label = "1 VVF auf V",       name = "vfv_better_run",      player = true,
-    hint = "Kontrolle: der Aufruf lebt" },
-  { label = "2 Judy bekannt",    name = "danger_var_1",        player = false,
-    hint = "Kontrolle: die Klonvorlage selbst - erwartet Achtung!" },
-  { label = "3 KLON",            name = "cl_klon_danger",      player = false,
-    hint = "erwartet: Ich bin froh, dass du da bist." },
-  { label = "4 Unsinn",          name = "cl_gibt_es_nicht_xyz", player = false,
-    hint = "Kontrolle: unbekannter Name bleibt still" },
+  { label = "1 danger_var_1",    name = "danger_var_1",        player = false,
+    hint = "EINZIGE Frage: bewegt sich der Mund? Ton passt absichtlich nicht" },
+  { label = "2 greeting_var_2",  name = "greeting_var_2",      player = false,
+    hint = "Gegenprobe: unveraenderte Bark, muss Lippen bewegen" },
+},
 }
 
 local STYLES, styleIdx = {}, -1
