@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+
+# deployment output lives in the game folder, not here

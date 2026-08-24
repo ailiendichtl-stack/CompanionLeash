@@ -1,0 +1,29 @@
+{
+  "name": "CompanionLeash",
+  "version": "0.3",
+  "description": "Follow, facing and look-at policy for Night City Allies companions.",
+  "environment": {
+    "game": "Cyberpunk 2077 2.31 (build 3.0.80.51928)",
+    "nca_vortex_source": "Night City Allies - AIO 27625 1.5.2 2026-08-23T16-06Z X32s3Eu9p",
+    "redscript_log": "r6/logs/redscript_rCURRENT.log"
+  },
+  "architecture": {
+    "policy_layer": "r6/scripts/CompanionLeash/  (own module, no NCA types, issues no commands)",
+    "bridge": "NCA FollowPlayerBehavior.Update + OnDetach  (sole owner of protected command state)",
+    "behaviour_tick_hz": 1.0,
+    "tick_source": "NCA TimeListeners -> self-rescheduling DelayCallback, TickDelay()=1.0, measured interval"
+  },
+  "patch": {
+    "target": "r6/scripts/NightCityAllies/Npc/Behavior/FollowPlayerBehavior.reds",
+    "preimage_md5": "bada75913eae77c94be9473f4cdeeeb0",
+    "postimage_md5": "fc565e6693322b5f274dec1994dbcf85",
+    "diff": "companion-leash.patch"
+  },
+  "standalone_files": {
+    "CompanionLeashCommands.reds": "9f73b145287d74ac8a241fffd500bffd",
+    "CompanionLeashPolicy.reds": "170270a18e7506d5c3927c78684a6341"
+  },
+  "tweak_files": {
+    "CompanionLeash.yaml": "30cdc450c7006af80acf29ce40e0b87a"
+  }
+}

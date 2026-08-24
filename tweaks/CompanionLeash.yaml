@@ -1,0 +1,21 @@
+# CompanionLeash - native catch-up threshold
+#
+# Replaces the custom gait layer removed in 0.3.
+#
+# AIMoveFollowTargetCommandHandler decides on its own when a following NPC escalates
+# to a sprint:
+#
+#     if movementType == Sprint  ->  always sprint
+#     else                       ->  sprint when distance > catchUpSprintSpeedDistance
+#                                    (TDB.GetFloat default 12.0, +6.0 tolerance while
+#                                     already sprinting)
+#
+# We now always command Run, so this threshold is what governs catching up. At the stock
+# 12 m she settles into an 8-10 m gap without ever triggering it, which was the original
+# "she cannot keep up" complaint. Lowering it makes her close the gap sooner - and does so
+# INSIDE the running follow command, so there is no command replacement and no cut
+# locomotion blend.
+#
+# This is the whole point: tune the native decision threshold as data, instead of swapping
+# the command out from under a working deceleration.
+IdleActions.MoveOnSplineWithCompanionParams.catchUpSprintSpeedDistance: 6.0

@@ -1,0 +1,123 @@
+module NightCityAllies.Npc.Behavior
+
+import NightCityAllies.Npc.*
+import NightCityAllies.*
+import NightCityAllies.Location.*
+import NightCityAllies.Location.Entity.*
+
+public class NCAFollowPlayerBehavior extends NCABehavior {
+    public func GetName() -> String = "FollowPlayer";
+
+    public func GetText() -> String {
+        let distance = Vector4.Distance(GetPlayer(GetGameInstance()).GetWorldPosition(), this.m_npcHandle.GetEntity().GetWorldPosition());
+        return ToString(FloorF(distance)) + "m";
+    }
+    public func GetTextColor() -> HDRColor {
+        return new HDRColor(0.75, 0.75, 0.75, 0.5);
+    }
+
+    public static func Create() -> ref<NCAFollowPlayerBehavior> {
+        let behavior = new NCAFollowPlayerBehavior();
+        return behavior;
+    }
+
+    // --- CompanionLeash bridge ---------------------------------------------------------
+    //  All decision-making lives in module CompanionLeash. This bridge is the ONLY place
+    //  that touches protected command state (HasCommand / FollowTarget / SendCommand /
+    //  CancelCommand) or queues events on the puppet, so command ownership stays entirely
+    //  inside NCA's behaviour and there is never a second writer to the AI controller.
+    //
+    //  Cadence: NCA drives this from TimeListeners - a self-rescheduling DelayCallback at
+    //  TickDelay() = 1.0 - so Update runs about ONCE PER SECOND, and deltaTime is NCA's
+    //  measured interval, not a frame time.
+    private let m_leashState: ref<CompanionLeashState>;
+    private let m_lookAtEvent: ref<LookAtAddEvent>;
+
+    public func Update(deltaTime: Float) -> Void {
+        let player = GetPlayer(GetGameInstance());
+        if !IsDefined(player) {
+            return;
+        }
+
+        let npc = this.m_npcHandle.GetEntity();
+        if !IsDefined(npc) {
+            return;
+        }
+
+        if !IsDefined(this.m_leashState) {
+            this.m_leashState = new CompanionLeashState();
+        }
+
+        CompanionLeashPolicy.LogRaw(this.m_npcHandle.GetName(), deltaTime,
+            player.GetWorldPosition(), player.GetWorldForward(), player.GetVelocity(),
+            npc.GetWorldPosition(), npc.GetWorldForward(), npc.GetVelocity(),
+            this.HasCommand(), this.m_leashState);
+
+        let decision = CompanionLeashPolicy.Evaluate(
+            player.GetWorldPosition(),
+            npc.GetWorldPosition(),
+            npc.GetWorldForward(),
+            Vector4.Length(npc.GetVelocity()),
+            this.HasCommand(),
+            deltaTime,
+            this.m_leashState);
+
+        if decision.removeLookAt {
+            CompanionLeashLookAt.Remove(npc, this.m_lookAtEvent);
+            this.m_lookAtEvent = null;
+        }
+
+        if decision.applyLookAt {
+            this.m_lookAtEvent = CompanionLeashLookAt.Build(player, decision.lookAtChest);
+            npc.QueueEvent(this.m_lookAtEvent);
+        }
+
+        if decision.cancelFollow {
+            this.CancelCommand();
+        }
+
+        if decision.issueFollow {
+            let gait: moveMovementType = moveMovementType.Run;
+            if decision.sprint {
+                gait = moveMovementType.Sprint;
+            }
+            this.FollowTarget(player, decision.desiredDistance, decision.desiredTolerance, gait, true);
+        }
+
+        if decision.issueRotate {
+            this.SendCommand(CompanionLeashCommands.BuildRotate(player), true);
+        }
+
+        CompanionLeashPolicy.Log(this.m_npcHandle.GetName(), decision, this.m_leashState,
+            Vector4.Length(npc.GetVelocity()), Vector4.Length(player.GetVelocity()));
+    }
+    // --- end CompanionLeash bridge -----------------------------------------------------
+
+    public func OnAttach() -> Void {
+        let nullArrayOfNames: array<CName>;
+        let playerRef: EntityReference = CreateEntityReference("#player", nullArrayOfNames);
+        let followerRole = new AIFollowerRole();
+        followerRole.SetFollowerRef(playerRef);
+
+        let command = new AIAssignRoleCommand();
+        command.role = followerRole;
+        this.SendCommand(command, true);
+    }
+
+    public func OnDetach() -> Void {
+        // CompanionLeash: a persistent look-at has no expiry event, so it must be dropped
+        // here or it would survive into combat and scripted scenes.
+        if IsDefined(this.m_npcHandle) {
+            CompanionLeashLookAt.Remove(this.m_npcHandle.GetEntity(), this.m_lookAtEvent);
+        }
+        this.m_lookAtEvent = null;
+        if IsDefined(this.m_leashState) {
+            this.m_leashState.lookAtActive = false;
+            this.m_leashState.rotating = false;
+        }
+
+        let command: ref<AIAssignRoleCommand> = new AIAssignRoleCommand();
+        command.role = new AINoRole();
+        this.SendCommand(command, true);
+    }
+}
