@@ -163,55 +163,49 @@ Also `<szenenordner>/lipsync/en/<szenenname>/<figur>.anims` - genau wie Judys Vo
 eigenes Set als `vsets/lipsync/en/vset_judy/judy.anims` referenziert. Der physische Pfad
 funktioniert nicht; damit blieb der Mund still.
 
-### Lipsync ist noch NICHT geloest
+### Lipsync - geloest
 
-Die Referenz allein reicht nicht. Was geprueft und widerlegt ist:
-
-| Vermutung | Ergebnis |
-|---|---|
-| Physischer Pfad als Referenz | falsch, Szenen nutzen die logische Form |
-| Set fehlt in `lipsyncAnimSets` | ergaenzt, keine Wirkung |
-| Zuordnung ueber die Position (`actorId`) | widerlegt: Set auf Index 0 - Barks behielten ihre Bewegung, der Klon bekam keine |
-| Fehlende `m_`-Animation | Vanilla traegt sie ebenfalls ein, obwohl sie im Set fehlt |
-
-**Der entscheidende Test:** an `danger_var_1` - einem funktionierenden Eintrag - wurde
-NUR der Lipsync-Name auf die fremde mq055-Animation getauscht. Knoten, Ereignis, Timing,
-Audio-ruid und Sprecher blieben unveraendert, das Set war referenziert.
-
-Ergebnis: **Ton ja, Mundbewegung nein.** Eine unveraenderte Bark daneben bewegte den Mund.
-
-Damit ist es eindeutig: **eine nachtraeglich in `lipsyncAnimSets` eingetragene Referenz
-wird zur Laufzeit nicht herangezogen.** Die Szene benutzt nur das Set, mit dem sie erstellt
-wurde. Weder Reihenfolge noch Pfadform noch der Actor sind dafuer verantwortlich - die
-Referenz selbst wirkt nicht.
-
-Der gangbare Weg waere daher, die benoetigten Animationen in **ein** Set zu bringen, also
-eine eigene `.anims`-Ressource zu bauen, die alle gewuenschten Animationen enthaelt, und
-sie als Set der Szene zu setzen. Das ist Ressourcen-Authoring und deutlich mehr Arbeit als
-alles bisherige.
-
-**Kein Blocker:** Ton, richtige Zeile und Untertitel funktionieren. Und fuer die
-Mundbewegung gibt es den Stumm-Trick als Rueckfall - stumme Barks bewegen den Mund,
-waehrend die Quest-Zeile laeuft.
-
-**Nicht anfassen:** `voInfo` (VVF fuehrt 13012 Eintraege bei 205 voInfo), `locStore`
-(Editor-Beschriftungen).
-
-### Die beiden Ids sind der Knackpunkt
+**Die Laufzeit liest `resouresReferences.lipsyncAnimSets` nicht.** Sie leitet den Pfad aus
+dem Szenenpfad ab:
 
 ```
-itemId    Judy:  1, 257, 513, 769, 1025 ...  = 0x1, 0x101, 0x201, 0x301
-          VVF:   alle 12978 enden auf 0x01
-Ereignis  alle auf 4 ausgerichtet, in Vanilla wie bei VVF
+Szene    base/quest/secondary_characters/vsets/vset_judy.scene
+Lipsync  base/localization/<lang>/lipsync/base/quest/secondary_characters/vsets/
+         vset_judy/<figur>.anims
 ```
 
-Beide als "naechste freie Zahl" zu vergeben schlaegt fehl - und zwar **still**: der
-Eintrag loest auf, spielt aber eine andere Zeile. Keine Laengenpruefung und kein
-Feldvergleich findet das, weil die Felder da sind und die Typen stimmen. Nur die Werte
-sind ungueltig.
+Belegt durch drei Tests: eine zusaetzliche Referenz blieb wirkungslos, das Ersetzen von
+Slot 0 ebenfalls - die Barks liefen weiter, obwohl ihr Set nirgends mehr eingetragen war -
+und erst das Ueberschreiben der **Datei** am abgeleiteten Pfad wirkte. Die Referenz in der
+Szene ist Editor-Metadatum; deshalb traegt sie auch `en`, waehrend die Dateien unter
+`de-de` liegen.
 
-Das erklaert auch, warum das Umbiegen einer **vorhandenen** Zeile von Anfang an
-funktionierte: deren Ids waren bereits wohlgeformt.
+Echtes Lipsync heisst also: **ein** `.anims` an diesen Pfad legen, das die vorhandenen
+Animationen **und** die zusaetzlichen enthaelt.
+
+#### Aufbau einer .anims
+
+```
+animations[]            je ein animAnimSetEntry, Name f_<hex> / m_<hex>
+animationDataChunks[]   die Daten, mehrere Animationen je Chunk
+animBuffer.dataAddress  unkIndex -> Chunk, fsetInBytes/zeInBytes -> Lage darin
+```
+
+`tools/merge_anims.py` kopiert die gewuenschten Eintraege, haengt nur die von ihnen
+benutzten Chunks an und schreibt `unkIndex` um.
+
+**HandleIds UND BufferIds neu vergeben.** Nur die Handles zu behandeln reicht nicht -
+WolvenKit fuehrt ueber die BufferIds eine Referenztabelle und bricht bei einer doppelten Id
+beim Einlesen ab.
+
+#### Im Spiel bestaetigt
+
+Ein `judy.anims` mit 56 Animationen, ausgeliefert am Konventionspfad: die Quest-Zeile
+bewegt die Lippen, die Barks ebenfalls. Der Merge beschaedigt nichts.
+
+Beobachtet wurde ein Versatz von etwa einer halben Sekunde zwischen Ton und Animation -
+erwartbar, weil der Klon noch die **Dauer der Vorlage** traegt (1545 ms) und die Zielzeile
+laenger ist. Das loest sich mit den gemessenen `.wem`-Dauern.
 
 ## Offen
 
@@ -220,8 +214,9 @@ funktionierte: deren Ids waren bereits wohlgeformt.
 * **Randomizer** - wie `scnRandomizerNode` die Varianten waehlt, falls wir Familien bauen.
 * **Sprecher-Id** - `speaker`/`addressee` stehen bei Judy beide auf 0; ob das fuer
   zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
-* **Dauer** - die Vorlage-Dauer bleibt beim Klonen stehen. Fuer eine laengere Zielzeile
-  schneidet das ab. Als naechstes aus den `.wem` messen.
+* **Dauer** - die Vorlage-Dauer bleibt beim Klonen stehen. Im Spiel aeussert sich das als
+  Versatz zwischen Ton und Mundbewegung. Aus den `.wem` messen und in `duration` und
+  `sectionDuration` eintragen.
 * **Sprachen** - die Referenz traegt `en` fest im Pfad, obwohl die Dateien je Sprache
   getrennt liegen. Vanilla macht das ueberall so, die Engine setzt die aktive Sprache also
   selbst ein. Fuer eine veroeffentlichte Mod ist damit vermutlich nichts weiter zu tun -
