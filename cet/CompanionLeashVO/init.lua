@@ -109,6 +109,12 @@ local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended ba
 --  same time is how you end up unable to say which one produced a result.
 local optMute = true       -- DialogueVolume -> 0
 local optHideOver = true   -- Overheads -> false
+--  Fallback if no visual style turns the subtitle off: /accessibility/subtitles Cinematic
+--  is the bottom-of-screen one, same mechanism as Overheads. Blunter, because it silences
+--  quest subtitles too for the window - but for a two-second bark that is survivable, and
+--  it is guaranteed to work.
+local optHideCine = false
+local savedCine = nil
 --  2 is the one that works: no 8.2s throttle, every dispatch lands. 0 and 1 stay for
 --  comparison only.
 local optEntry = 2         -- 0 = PlayVoiceOver, 1 = ChatterHelper, 2 = Quest-Voiceset
@@ -117,7 +123,11 @@ local optTag = "NCA_Companion"
 --  the default applies - which is very likely why her barks now render as normal
 --  bottom-of-screen subtitles instead of overhead ones. Selectable so it can be tested.
 local optStyle = -1        -- -1 = do not override at all
-local STYLES = { "Default", "OverHead", "Cinematic", "Radio", "GlobalTV" }
+--  These were guessed and the guess was wrong - scnDialogLineVisualStyle is native and is
+--  not in the script dump. Filled from the game at init instead. The related
+--  scnDialogLineType has an "Invisible" member, so a comparable value is what we are
+--  looking for to get rid of the subtitle entirely.
+local STYLES = {}
 
 --  The sweep found only greeting and battlecry_curse, yet combat_ended demonstrably works
 --  and her mouth moved more often than lines were counted. The voiceset system resolves a
@@ -258,6 +268,7 @@ end
 
 local function dialogueVar() return settingVar("/audio/volume", "DialogueVolume") end
 local function overheadVar() return settingVar("/accessibility/subtitles", "Overheads") end
+local function cineVar()     return settingVar("/accessibility/subtitles", "Cinematic") end
 
 local LIP_MAX = 20.0 -- hard ceiling; a stuck session must not mute the game forever
 
@@ -293,6 +304,11 @@ local function lipRestore(why)
     local var = overheadVar()
     if var then pcall(function() var:SetValue(savedOverheads) end) end
     savedOverheads = nil
+  end
+  if savedCine ~= nil then
+    local var = cineVar()
+    if var then pcall(function() var:SetValue(savedCine) end) end
+    savedCine = nil
   end
   if lip then
     if lip.confirmed then
@@ -646,6 +662,13 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
       savedOverheads = ov:GetValue()
       ov:SetValue(false)
     end
+    if optHideCine then
+      local cv = cineVar()
+      if cv then
+        savedCine = cv:GetValue()
+        cv:SetValue(false)
+      end
+    end
   end)
   if not ok then
     log(" Stummschalten fehlgeschlagen: " .. tostring(err))
@@ -971,7 +994,9 @@ registerForEvent("onDraw", function()
     local dvv, ovv = "?", "?"
     if dv then dvv = tostring(dv:GetValue()) end
     if ov then ovv = tostring(ov:GetValue()) end -- NOT `ov and ... or "?"`: false would print "?"
-    ImGui.Text("DialogueVolume: " .. dvv .. "   Overheads: " .. ovv)
+    local cv, cvv = cineVar(), "?"
+    if cv then cvv = tostring(cv:GetValue()) end
+    ImGui.Text("DialogueVolume: " .. dvv .. "   Overheads: " .. ovv .. "   Cinematic: " .. cvv)
     if savedVolume ~= nil or savedOverheads ~= nil then
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns veraendert - laeuft]")
     end
@@ -1061,13 +1086,13 @@ registerForEvent("onDraw", function()
     ImGui.TextDisabled("Kampf-Namen antworten vermutlich nur im Kampf-Kontext. Sweep " ..
                        "einmal je Kontext laufen lassen.")
     ImGui.Separator()
-    ImGui.Text("Untertitel-Stil:")
-    ImGui.SameLine()
+    ImGui.Text("Untertitel-Stil (aus dem Spiel gelesen):")
     if ImGui.RadioButton("kein Override", optStyle == -1) then optStyle = -1 end
     for i, nm in ipairs(STYLES) do
-      ImGui.SameLine()
+      if i % 4 ~= 1 then ImGui.SameLine() end
       if ImGui.RadioButton(nm, optStyle == i - 1) then optStyle = i - 1 end
     end
+    ImGui.TextDisabled("Gesucht ist der Wert, bei dem gar kein Untertitel erscheint.")
     ImGui.Separator()
 
     if ImGui.Button("Judy: greeting") then
@@ -1131,7 +1156,9 @@ registerForEvent("onDraw", function()
 
     optMute = ImGui.Checkbox("stummschalten", optMute)
     ImGui.SameLine()
-    optHideOver = ImGui.Checkbox("Untertitel unterdruecken", optHideOver)
+    optHideOver = ImGui.Checkbox("Overhead-Untertitel aus", optHideOver)
+    ImGui.SameLine()
+    optHideCine = ImGui.Checkbox("Cinematic-Untertitel aus", optHideCine)
     ImGui.TextDisabled("Beide aus = normaler, hoerbarer Bark. Damit laesst sich pruefen, " ..
                        "ob ueberhaupt eine Zeile gemeldet wird - und danach einzeln, " ..
                        "welche der beiden sie verschluckt.")
@@ -1235,6 +1262,26 @@ registerForEvent("onShutdown", function()
   lipRestore("Shutdown")
 end)
 
+--  Read the enum's real members rather than assuming them.
+local function loadStyles()
+  local ok = pcall(function()
+    local e = Reflection.GetEnum("scnDialogLineVisualStyle")
+    if not e then return end
+    for _, c in pairs(e:GetConstants()) do
+      local nm
+      pcall(function() nm = tostring(c:GetName().value) end)
+      if not nm then pcall(function() nm = tostring(c:GetName()) end) end
+      if nm then STYLES[#STYLES + 1] = nm end
+    end
+  end)
+  if #STYLES == 0 then
+    log("scnDialogLineVisualStyle nicht lesbar - Stil-Auswahl bleibt leer")
+  else
+    log("Stile: " .. table.concat(STYLES, ", "))
+  end
+end
+
 registerForEvent("onInit", function()
+  loadStyles()
   log(" bereit - Overlay oeffnen, Judy anschauen, Ziel sperren")
 end)
