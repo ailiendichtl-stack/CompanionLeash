@@ -141,6 +141,18 @@ mehrdeutig.
 Reihenfolge. Dazu je ein `scnNodeSymbol` pro Knoten und ein `scnSceneEventSymbol` pro
 Ereignis.
 
+**Lipsync-Set referenzieren.** Ohne das spielt die Zeile, aber der Mund bewegt sich nicht -
+im Spiel beobachtet. Die Animationen liegen sprachabhaengig im Sprach-Archiv, je Szene und
+Figur:
+
+```
+base/localization/<lang>/lipsync/<szenenpfad>/<figur>.anims
+```
+
+Judys Voiceset referenziert nur sein eigenes Set mit den 55 Bark-Animationen. Fuer eine
+Quest-Zeile muss das Set ihrer Herkunftsszene in `resouresReferences.lipsyncAnimSets`
+ergaenzt werden - beim Vollausbau also je ein Eintrag pro betroffener Szene.
+
 **Nicht anfassen:** `voInfo` (VVF fuehrt 13012 Eintraege bei 205 voInfo), `locStore`
 (Editor-Beschriftungen).
 
@@ -169,9 +181,9 @@ funktionierte: deren Ids waren bereits wohlgeformt.
   zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
 * **Dauer** - die Vorlage-Dauer bleibt beim Klonen stehen. Fuer eine laengere Zielzeile
   schneidet das ab. Als naechstes aus den `.wem` messen.
-* **Lipsync** - `resouresReferences.lipsyncAnimSets` verweist nur auf
-  `vsets/lipsync/en/vset_judy/judy.anims` mit den 55 Bark-Animationen. Eine Quest-Zeile
-  braucht das Anim-Set ihrer Herkunftsszene.
+* **Sprachen** - Lipsync-Sets liegen je Sprache getrennt. Der Pfad unten ist `de-de`;
+  fuer eine veroeffentlichte Mod muessten die Sets aller unterstuetzten Sprachen mit
+  hinein oder pro Sprache ein eigenes Archiv gebaut werden.
 
 ## Nachtrag aus dem Durchstich
 

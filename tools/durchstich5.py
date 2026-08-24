@@ -31,6 +31,15 @@ BUILD = os.path.join(HERE, "build", "durchstich5")
 DEPOT = "base/quest/secondary_characters/vsets"
 
 TEMPLATE = "danger_var_1"
+#  Lipsync-Animationen liegen sprachabhaengig im Sprach-Archiv, je Szene und Figur:
+#      base/localization/<lang>/lipsync/<szenenpfad>/<figur>.anims
+#  Judys Voiceset referenziert nur sein eigenes Set mit den 55 Bark-Animationen. Unsere
+#  Zeile stammt aus mq055_01_megabuilding, ihre Animation liegt also dort - geprueft:
+#  die Datei enthaelt 39669188B9A4E000.
+BS = chr(92)
+ANIMS = BS.join(["base", "localization", "de-de", "lipsync", "base", "quest",
+                 "minor_quests", "mq055", "scenes", "mq055_01_megabuilding",
+                 "judy.anims"])
 NAME = "cl_klon_danger"
 HEX = "39669188b9a4e000"
 
@@ -103,6 +112,23 @@ def main():
     root["entryPoints"].append({"$type": "scnEntryPoint", "name": _cn(NAME),
                                 "nodeId": {"$type": "scnNodeId", "id": start_id}})
     starts.append({"$type": "scnNodeId", "id": start_id})
+
+    #  Ohne dieses Set spielt die Zeile, aber der Mund bewegt sich nicht - im Spiel
+    #  beobachtet: Vorlage mit Lippenbewegung, Klon ohne.
+    refs = root["resouresReferences"]["lipsyncAnimSets"]
+    if not any(r["asyncRefLipsyncAnimSet"]["DepotPath"]["$value"] == ANIMS for r in refs):
+        refs.append({
+            "$type": "scnLipsyncAnimSetSRRef",
+            "asyncRefLipsyncAnimSet": {
+                "DepotPath": {"$type": "ResourcePath", "$storage": "string",
+                              "$value": ANIMS},
+                "Flags": "Soft"},
+            "lipsyncAnimSet": {
+                "DepotPath": {"$type": "ResourcePath", "$storage": "uint64",
+                              "$value": "0"},
+                "Flags": "Default"},
+        })
+    print("Anim-Sets: %d (%s ergaenzt)" % (len(refs), ANIMS.split(BS)[-2]))
 
     dur = ev["Data"]["duration"]
     stu = sec["Data"]["sectionDuration"]["stu"]
