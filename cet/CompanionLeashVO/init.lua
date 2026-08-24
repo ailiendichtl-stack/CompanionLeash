@@ -197,7 +197,6 @@ local MATRIX = {
     hint = "EINZIGE Frage: bewegt sich der Mund? Ton passt absichtlich nicht" },
   { label = "2 greeting_var_2",  name = "greeting_var_2",      player = false,
     hint = "Gegenprobe: unveraenderte Bark, muss Lippen bewegen" },
-},
 }
 
 local STYLES, styleIdx = {}, -1
