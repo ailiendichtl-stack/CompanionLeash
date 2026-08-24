@@ -521,3 +521,28 @@ und wertete es als Treffer. Gefiltert wird ueber
 `tostring(el.speaker:GetEntityID().hash)`; `speakerName` ist bei vielen NPCs leer und
 taugt nicht.
 
+### Stumm gemeldet - die Kette ist geschlossen
+
+Mit `mute=true`, Untertitel zugelassen:
+
+```
+=== TEST  event=greeting  mute=true  untertitel_aus=false
+  ZEILE t=0.174  dauer=1.35  "Oh, hey!"  [Judy]
+```
+
+Die Zeile wird **auch bei stummem Dialog-Bus gemeldet**, samt Dauer. Damit ist alles
+beisammen, was der Motor braucht: stumme Mundbewegung, ein Erfolgssignal und die exakte
+Laenge.
+
+Achtung: **`Overheads` muss dabei an bleiben.** Wird der Untertitel unterdrueckt, wird
+auch nichts gemeldet - die beiden Unterdrueckungen sind nicht gleichwertig. Der Text
+ueber dem Kopf laesst sich also nicht gleichzeitig verstecken und die Dauer auslesen.
+Das ist ein offener Zielkonflikt.
+
+### Verketten
+
+Weil die Dauer bekannt ist, kann der naechste Schuss an das **Ende** der laufenden Zeile
+gelegt werden statt in ihre Mitte. Mittendrin zu feuern schneidet sie ab - das war der
+urspruengliche Fehler; am Schwanz zu feuern uebergibt nur. `lipLead` = 0.15 s deckt den
+gemessenen Meldeverzug von 0.07-0.24 s ab.
+

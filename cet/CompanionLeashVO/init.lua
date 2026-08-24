@@ -94,6 +94,10 @@ local lipRotIdx = 0
 --  0.35s is past the report latency but still inside a line that landed, so a retry only
 --  ever fires when nothing came back.
 local lipRetry = 0.35
+--  How far before a line ends the next shot goes out. Firing mid-line cuts it off - that
+--  was the original bug - but firing at the tail just hands over. 0.15s covers the
+--  measured 0.07-0.24s report latency without leaving a visible gap.
+local lipLead = 0.15
 local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended barrage
 --  Each suppression is switchable on its own. Changing mute and subtitle handling at the
 --  same time is how you end up unable to say which one produced a result.
@@ -454,7 +458,7 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
   --  t starts at the interval so the first shot goes out on this very frame
   lip = { target = handle, vo = vo, interval = interval,
           remaining = duration, t = 0, shots = 1, retries = 0,
-          confirmed = false, clock = 0, lastVo = vo, lineDur = 0 }
+          confirmed = false, clock = 0, lastVo = vo, lineDur = 0, nextAt = nil }
   lipDiag.fresh = false -- do not let a line from before the session count as ours
   fireVo(handle, vo)
   log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s  einstieg=%s",
@@ -561,15 +565,35 @@ registerForEvent("onUpdate", function(dt)
           --  end the window when the line ends, instead of sitting on a blind timer.
           --  A muted VO request must not be strangled for 20s by our own cap.
           if lipDiag.lastDur > 0.05 then
-            lip.remaining = math.min(lip.remaining, lipDiag.lastDur + 0.4)
+            if lipMode == 2 then
+              --  chain: hand over just before this line ends
+              lip.nextAt = lip.clock + lipDiag.lastDur - lipLead
+            else
+              lip.remaining = math.min(lip.remaining, lipDiag.lastDur + 0.4)
+            end
           end
         end
       end
 
+      --  Chain mode: the next shot goes out at the tail of the current line, so the mouth
+      --  keeps moving across an arbitrarily long custom line. This only became possible
+      --  once the reported duration told us where the tail actually is.
+      if lipMode == 2 and lip.confirmed and lip.nextAt and lip.clock >= lip.nextAt then
+        lip.confirmed = false
+        lip.nextAt = nil
+        lip.t = 0
+        lip.shots = lip.shots + 1
+        local vo = nextVo(lip)
+        lip.lastVo = vo
+        fireVo(lip.target, vo)
+        log(string.format("  SCHUSS %d t=%.3f  %s  (Kette)", lip.shots, lip.clock, vo))
+      end
+
       --  ONE retry, and only while nothing has landed. Never re-fire after a confirmed
-      --  line: that is what cut good shots off.
+      --  line: that is what cut good shots off. In chain mode a dud may also be retried,
+      --  otherwise one dead variant ends the chain.
       if not lip.confirmed and lipMode ~= 0
-         and lip.retries < LIP_MAX_RETRY and lip.t >= lipRetry then
+         and (lipMode == 2 or lip.retries < LIP_MAX_RETRY) and lip.t >= lipRetry then
         lip.t = 0
         lip.retries = lip.retries + 1
         lip.shots = lip.shots + 1
@@ -747,7 +771,14 @@ registerForEvent("onDraw", function()
 
     if ImGui.RadioButton("Einzelschuss", lipMode == 0) then lipMode = 0 end
     ImGui.SameLine()
-    if ImGui.RadioButton("1 Neuversuch (experimentell)", lipMode == 1) then lipMode = 1 end
+    if ImGui.RadioButton("1 Neuversuch", lipMode == 1) then lipMode = 1 end
+    ImGui.SameLine()
+    if ImGui.RadioButton("Kette", lipMode == 2) then lipMode = 2 end
+    if lipMode == 2 then
+      ImGui.TextWrapped("Feuert jeweils kurz vor dem Ende der laufenden Zeile nach, " ..
+                        "damit der Mund durchlaeuft. Eine Judy-Bark dauert 1.1-1.5s.")
+      lipLead = ImGui.SliderFloat("Vorlauf (s)", lipLead, 0.0, 0.6, "%.2f")
+    end
 
     lipDuration = ImGui.SliderFloat("Fenster max (s)", lipDuration, 1.0, 20.0, "%.1f")
     if lipMode == 1 then
