@@ -587,3 +587,41 @@ taugt der Stumm-Trick nicht.
 Offen als einziger Ausweg: der Quest-Voiceset-Pfad, ein anderer Dispatcher, der die
 Bark-Sperre moeglicherweise nicht teilt.
 
+## Der Ausweg: Quest-Voiceset ohne Sperre
+
+Im Spiel bestaetigt - Zeilen um 19:34:03 / :05 / :06 / :08 / :09, **fuenf Treffer in sechs
+Sekunden, jeder Schuss zuendet.** Gegenueber 28 Zeilen aus 656 Schuessen bei
+`PlayVoiceOver`. Die 8,2-Sekunden-Sperre ist eine Eigenschaft von `PlayVoiceOver`, nicht
+des VO-Systems.
+
+### Was den Unterschied machte
+
+Der Knoten liess sich von Anfang an aus Lua bauen und absetzen - `params` war korrekt
+gefuellt, der Name korrekt gehasht - und spielte trotzdem nichts. Ursache waren drei
+Abweichungen von VVFs Code:
+
+| falsch | richtig |
+|---|---|
+| `useVoicesetSystem` / `playOnlyGrunt` gesetzt | gar nicht setzen |
+| `override*`-Flags weggelassen | `overrideVisualStyle` **und** `overrideVoiceoverExpression` setzen |
+| Params vor der Zuweisung ins Objekt | erst `node.type` zuweisen, dann hineinschreiben |
+
+### Judy adressieren
+
+Ihre Entity traegt den Tag **`NCA_Companion`** (aus `gameObject.tags`, einer
+`redTagList`). `Tag` ist eine der vier `gameEntityReferenceType`-Optionen:
+
+```lua
+ref.type  = Enum.new("gameEntityReferenceType", "Tag")
+ref.names = { CName.new("NCA_Companion") }
+prm.isPlayer = false
+```
+
+Kein NodeRef und kein `dynamicEntityUniqueName` noetig.
+
+### Namensraum
+
+`greeting` funktioniert auf Judy, `generic_5` nicht - das ist ein V-Voiceset. Fuer NPCs
+sind Voiceset-Namen derselbe Namensraum wie die Bark-Events, also bleiben unsere 55
+bekannten Zeilen aus `judy_vs_vset_judy` gueltig.
+

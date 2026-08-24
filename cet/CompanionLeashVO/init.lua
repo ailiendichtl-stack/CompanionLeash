@@ -109,7 +109,13 @@ local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended ba
 --  same time is how you end up unable to say which one produced a result.
 local optMute = true       -- DialogueVolume -> 0
 local optHideOver = true   -- Overheads -> false
-local optEntry = 0         -- 0 = GameObject.PlayVoiceOver, 1 = ChatterHelper.PlayVoiceOver
+--  2 is the one that works: no 8.2s throttle, every dispatch lands. 0 and 1 stay for
+--  comparison only.
+local optEntry = 2         -- 0 = PlayVoiceOver, 1 = ChatterHelper, 2 = Quest-Voiceset
+local optTag = "NCA_Companion"
+--  fireVo calls this but it is defined further down; without the forward declaration the
+--  local is nil at that point and the call fails at runtime.
+local playVoiceset
 local lipLogAll = true  -- log every detected line, not just those inside a session
 local lipDiag = { perceptible = false, lastLine = "-", changes = 0, readable = false,
                   lastText = "", lastDur = 0.0, lastName = "", fresh = false, kind = "-" }
@@ -279,6 +285,10 @@ end
 --  (cyberpunk/helpers/chatterHelper.script) and takes only instigator and event name, so
 --  it may route differently from the GameObject call we have been using.
 local function fireVo(handle, vo)
+  if optEntry == 2 then
+    playVoiceset(vo, 1, handle, optTag)
+    return
+  end
   if optEntry == 1 then
     local ok = pcall(function()
       Game["ChatterHelper::PlayVoiceOver;GameObjectCName"](handle, CName.new(vo))
@@ -437,7 +447,7 @@ end
 --      object before assigning it, and a handle assignment may not carry that
 --
 --  Everything is logged, including whether CreateNodeRef resolves at all from Lua.
-local function playVoiceset(voiceset, mode, handle, uniqueName)
+playVoiceset = function(voiceset, mode, handle, uniqueName)
   local ok, err = pcall(function()
     local node = NewObject("questVoicesetManagerNodeDefinition")
     node.type  = NewObject("questPlayVoiceset_NodeType")
@@ -569,7 +579,8 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
   log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s  einstieg=%s",
       vo, tostring(optMute), tostring(optHideOver),
       (lipMode == 0) and "einzelschuss" or ((lipMode == 2) and "kette" or "1 neuversuch"),
-      (optEntry == 0) and "PlayVoiceOver" or "ChatterHelper"))
+      (optEntry == 2) and "QuestVoiceset"
+        or ((optEntry == 0) and "PlayVoiceOver" or "ChatterHelper")))
   log(string.format("  SCHUSS 1 t=0.000  %s", vo))
 
   if cat then
@@ -680,8 +691,12 @@ registerForEvent("onUpdate", function(dt)
               --  is pointless when the next shot cannot land for 8.2s, so the next attempt
               --  goes exactly there. Coverage is capped at line duration / 8.2s - about
               --  35% even with her longest barks.
-              lip.nextAt = math.max(lip.clock + lipDiag.lastDur - lipLead,
-                                    lip.clock + LIP_COOLDOWN - 0.2)
+              if optEntry == 2 then
+                lip.nextAt = lip.clock + lipDiag.lastDur - lipLead
+              else
+                lip.nextAt = math.max(lip.clock + lipDiag.lastDur - lipLead,
+                                      lip.clock + LIP_COOLDOWN - 0.2)
+              end
             else
               lip.remaining = math.min(lip.remaining, lipDiag.lastDur + 0.4)
             end
@@ -705,7 +720,10 @@ registerForEvent("onUpdate", function(dt)
 
       --  A retry is only meaningful if the cooldown has expired; inside it the shot cannot
       --  land, so retrying just burns frames. This is what produced 57 shots in 15s.
-      local cooledDown = (lip.lastLanded == nil)
+      --  The 8.2s throttle is a PlayVoiceOver property. On the quest path every shot
+      --  lands, so gating on it there would discard the whole reason for using it.
+      local cooledDown = (optEntry == 2)
+                         or (lip.lastLanded == nil)
                          or (lip.clock - lip.lastLanded >= LIP_COOLDOWN)
       if not lip.confirmed and lipMode ~= 0 and cooledDown
          and (lipMode == 2 or lip.retries < LIP_MAX_RETRY) and lip.t >= lipRetry then
@@ -908,9 +926,15 @@ registerForEvent("onDraw", function()
 
     ImGui.Text("Einstiegspunkt:")
     ImGui.SameLine()
+    if ImGui.RadioButton("Quest-Voiceset", optEntry == 2) then optEntry = 2 end
+    ImGui.SameLine()
     if ImGui.RadioButton("PlayVoiceOver", optEntry == 0) then optEntry = 0 end
     ImGui.SameLine()
     if ImGui.RadioButton("ChatterHelper", optEntry == 1) then optEntry = 1 end
+    if optEntry ~= 2 then
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
+        string.format("Achtung: %.1fs Sperre pro NPC auf diesem Weg.", LIP_COOLDOWN))
+    end
     ImGui.Separator()
 
     optMute = ImGui.Checkbox("stummschalten", optMute)
