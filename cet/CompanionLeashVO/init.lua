@@ -90,9 +90,10 @@ local lipDuration = 6.0    -- panel sliders; tuned by eye, not derived from anyt
 local lipInterval = 1.0
 local lipMode = 0          -- 0 = single shot (default), 1 = duration-driven (experimental)
 local lipRotIdx = 0
-local lipRetry = 0.6       -- wait before ONE retry. Below ~0.3 the retry lands inside the
-                           -- first line and cuts it off, which is the failure we are
-                           -- trying to avoid, so the slider does not go lower.
+--  Measured: a line is reported 0.13-0.24s after the shot, and Judy's barks run 1.1-1.5s.
+--  0.35s is past the report latency but still inside a line that landed, so a retry only
+--  ever fires when nothing came back.
+local lipRetry = 0.35
 local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended barrage
 --  Each suppression is switchable on its own. Changing mute and subtitle handling at the
 --  same time is how you end up unable to say which one produced a result.
@@ -407,10 +408,15 @@ local function dialogLine()
     end
     lipDiag.kind = string.format("array[%d] text=%s dur=%s",
                    #arr, type(el.text), type(el.duration))
+    --  Overhead lines from passers-by land here too - one run caught a stranger's "...!"
+    --  and scored it as ours. The speaker's entity id is the only reliable filter;
+    --  speakerName is empty for plenty of NPCs.
+    local hash = ""
+    pcall(function() hash = tostring(el.speaker:GetEntityID().hash) end)
     return { text = tostring(el.text or ""),
              dur = tonumber(el.duration) or 0.0,
              name = tostring(el.speakerName or ""),
-             speaker = el.speaker }
+             hash = hash }
   end)
   if ok then return res end
   return nil -- struct not readable from Lua; the panel says so rather than guessing
@@ -519,6 +525,7 @@ registerForEvent("onUpdate", function(dt)
       lipDiag.lastText = dl.text
       lipDiag.lastDur = dl.dur
       lipDiag.lastName = dl.name
+      lipDiag.lastHash = dl.hash
       lipDiag.changes = lipDiag.changes + 1
       lipDiag.fresh = true
     end
@@ -539,7 +546,14 @@ registerForEvent("onUpdate", function(dt)
       --  and no audibility signal involved, since we muted that on purpose.
       if lipDiag.fresh then
         lipDiag.fresh = false
-        if not lip.confirmed then
+        local mine = true
+        pcall(function()
+          mine = lipDiag.lastHash == tostring(lip.target:GetEntityID().hash)
+        end)
+        if not mine then
+          log(string.format("  (fremde Zeile ignoriert: \"%s\" [%s])",
+              lipDiag.lastText, lipDiag.lastName))
+        elseif not lip.confirmed then
           lip.confirmed = true
           lip.lineDur = lipDiag.lastDur
           log(string.format("  ZEILE t=%.3f  dauer=%.2f  \"%s\"  [%s]",
@@ -673,7 +687,14 @@ registerForEvent("onDraw", function()
                        lipDiag.changes, tostring(lipDiag.perceptible)))
     ImGui.TextDisabled("Variant: " .. tostring(lipDiag.kind or "-"))
     if lipDiag.readable then
+      local mine = target and lipDiag.lastHash == tostring(target:GetEntityID().hash)
       ImGui.Text(string.format("zuletzt: \"%s\"", lipDiag.lastText))
+      ImGui.SameLine()
+      if mine then
+        ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "[unser Ziel]")
+      else
+        ImGui.TextDisabled("[fremd]")
+      end
       ImGui.Text(string.format("  dauer %.2fs   sprecher: %s",
                  lipDiag.lastDur, lipDiag.lastName))
     end
@@ -730,7 +751,7 @@ registerForEvent("onDraw", function()
 
     lipDuration = ImGui.SliderFloat("Fenster max (s)", lipDuration, 1.0, 20.0, "%.1f")
     if lipMode == 1 then
-      lipRetry = ImGui.SliderFloat("Wartezeit vor Neuversuch (s)", lipRetry, 0.3, 2.5, "%.2f")
+      lipRetry = ImGui.SliderFloat("Wartezeit vor Neuversuch (s)", lipRetry, 0.25, 2.5, "%.2f")
     end
     ImGui.TextDisabled("Das Fenster endet frueher, sobald eine Zeile ihre Dauer meldet.")
 

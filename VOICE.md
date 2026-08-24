@@ -463,13 +463,23 @@ Per Reflection im Spiel ausgelesen:
 | `overrideVisualStyle` | Bool |
 | `overridingVisualStyle` | `scnDialogLineVisualStyle` |
 
-Zwei Enum-Felder steuern Kontext und Gesichtsausdruck direkt am Knoten - das waere der
-eingebaute Ersatz fuer unsere separate `AnimFeature_FacialReaction`-Bastelei.
+Die beiden Enum-Felder steuern **nicht** die Mimik - das war eine Fehlannahme von mir.
+Ausgelesen:
 
-Offen: `puppetRef` ist `gameEntityReference`. Die Script-Dump-Variante `EntityReference`
-enthaelt nur `reference : NodeRef`, keine EntityID. Ob eine dynamisch gespawnte
-Begleiterin damit ueberhaupt adressierbar ist, entscheidet, ob dieser Weg fuer uns
-nutzbar ist oder nur fuer V.
+* `locVoiceoverExpression`: `Vo_Expression_Spoken`, `_Phone`, `_InnerDialog`,
+  `_Loudspeaker_Room/_Street/_City`, `_Radio`, `_GlobalTV`, `_Cb_Radio`, `_Cyberspace`,
+  `_Possessed`, `_Helmet`
+* `locVoiceoverContext`: `Vo_Context_Quest`, `_Community`, `_Combat`, `_Minor_Activity`,
+  `Default_Vo_Context`
+
+Das ist die **Klangbehandlung** (direkt gesprochen, durchs Telefon, ueber Lautsprecher),
+nicht der Gesichtsausdruck. `AnimFeature_FacialReaction` bleibt also zustaendig.
+
+`gameEntityReferenceType`: `EntityRef`, `Tag`, `SlotID`, `SceneActorContextName`.
+
+Der native `gameEntityReference` traegt mehr als die Script-Dump-Variante: neben
+`reference : NodeRef` auch `names : array<CName>`, `slotName`, `sceneActorContextName`
+und `dynamicEntityUniqueName`. Der Weg ist damit nicht auf V beschraenkt.
 
 ### Cooldown-Falle (aus dem VVF-Quelltext)
 
@@ -486,4 +496,28 @@ mehr Mods installiert sind.
 | Klasse eines Objekts | `Reflection.GetClassOf(ToVariant(obj))` |
 | Felder auflisten | `class:GetProperties()`, `prop:GetName().value` |
 | Struct/Handle bauen | `NewObject("Typ")` / `NewObject("handle:Typ")` |
+
+## Zeilenerkennung - funktioniert
+
+`UIGameData.ShowDialogLine` haelt ein **Array** von `scnDialogLineData`, kein einzelnes
+Struct. Das war die Ursache dafuer, dass jedes Feld `nil` las - nicht ein toter Pfad.
+
+```lua
+local arr = FromVariant(bb:GetVariant(defs.UIGameData.ShowDialogLine))
+local el  = arr[#arr]          -- letzte Zeile
+el.text, el.duration, el.speakerName, el.speaker, el.id, el.type
+```
+
+Gemessen im Spiel:
+
+| Groesse | Wert |
+|---|---|
+| Meldeverzug nach dem Schuss | 0.13 - 0.24 s |
+| Dauer einer Judy-Bark | 1.11 / 1.35 / 1.50 s |
+| `type` einer Bark | `scnDialogLineType : OverHead (4)` |
+
+**Fremde Zeilen landen im selben Array.** Ein Lauf fing das `"...!"` einer Passantin ein
+und wertete es als Treffer. Gefiltert wird ueber
+`tostring(el.speaker:GetEntityID().hash)`; `speakerName` ist bei vielen NPCs leer und
+taugt nicht.
 
