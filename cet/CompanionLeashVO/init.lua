@@ -265,9 +265,9 @@ local LIP_MAX = 20.0 -- hard ceiling; a stuck session must not mute the game for
 --  whole bark vocabulary is 57 files / 55 distinct lines in the voice set
 --  judy_vs_vset_judy, so this is a decent slice of it, not a lucky handful.
 local LIP_ROTATION = {
-  "greeting", "combat_ended", "elite_warning", "stealth_ended", "stealth_restored",
-  "coop_reports_kill", "coop_irritation", "camera_warning", "start_combat",
-  "enemy_warning", "hit_reaction_light", "grenade_throw",
+  "greeting_var_1", "greeting_var_2", "combat_ended", "combat_ended_var_1",
+  "stealth_restored", "stealth_restored_var_1", "elite_warning", "elite_warning_var_1",
+  "hurry_up", "hurry_up_var_1", "urge_var_1", "return_answer",
 }
 
 local function lipRestore(why)
@@ -513,22 +513,37 @@ playVoiceset = function(voiceset, mode, handle, uniqueName)
       ok and "abgesetzt" or ("FEHLER: " .. tostring(err))))
 end
 
---  Every name we have ever seen used as an NPC voice-over event. Under PlayVoiceOver a
---  sweep like this was worthless - the throttle meant most names were merely locked out
---  rather than empty, which is what produced the earlier "17 of 44" figure. On the quest
---  path each dispatch lands, so a name that stays silent really is silent.
+--  READ OUT OF THE GAME, not guessed: base/quest/secondary_characters/vsets/vset_judy.scene
+--  is Judy's voiceset, and these are the entries it actually defines - 24 families, 77
+--  individually addressable variants covering all 55 of her lines.
+--
+--  The guessed list before this scored 4 of 54, which is why the sweep looked so bleak.
+--  Half those names simply do not exist: it is stealth_restored and stealth_warning_bark,
+--  not stealth_ended; there is no sniper_warning and no coop_* at all.
+--
+--  The _var_N suffixes matter: each is a SPECIFIC line, so we can pick by length instead
+--  of taking whatever the pool hands back.
 local SWEEP = {
-  "greeting", "combat_ended", "stealth_ended", "stealth_restored", "coop_irritation",
-  "coop_reports_kill", "elite_warning", "sniper_warning", "camera_warning",
-  "turret_warning", "drone_warning", "netrunner_warning", "mech_warning",
-  "heavy_warning", "octant_warning", "enemy_warning", "start_combat", "crowd_combat",
-  "hit_reaction_light", "hit_reaction_heavy", "grenade_throw", "vehicle_bump", "bump",
-  "danger", "shove", "fear_beg", "fear_run", "battlecry_curse", "combat_target_hit",
-  "vo_any_damage_hit", "stlh_curious_grunt", "stlh_call", "stlh_death", "start_dead",
-  "following", "waiting", "heavy_reloading", "hmg_charge", "hit_grapple",
-  "pedestrian_hit", "attack_fragile_player_order", "cpo_armor_broken", "cpo_got_data",
-  "cpo_nearly_dead", "reload", "cover_me", "flanking", "regroup", "affirmative",
-  "negative", "taunt", "victory", "wounded", "help",
+  "battlecry_curse", "battlecry_curse_var_1", "battlecry_curse_var_2",
+  "battlecry_curse_var_3", "battlecry_morale", "battlecry_morale_var_1",
+  "battlecry_morale_var_2", "battlecry_morale_var_3", "body_warning", "body_warning_var_1",
+  "body_warning_var_2", "bump", "bump_var_1", "bump_var_2", "camera_warning",
+  "camera_warning_var_1", "camera_warning_var_2", "combat_aggro_bark",
+  "combat_aggro_bark_var_1", "combat_aggro_bark_var_2", "combat_ended",
+  "combat_ended_var_1", "combat_ended_var_2", "danger", "danger_var_1", "danger_var_2",
+  "danger_var_3", "detection_warning", "detection_warning_var_1",
+  "detection_warning_var_2", "elite_warning", "elite_warning_var_1", "elite_warning_var_2",
+  "enemy_warning", "enemy_warning_var_1", "enemy_warning_var_2", "follow_me",
+  "follow_me_1", "follow_me_2", "greeting", "greeting_var_1", "greeting_var_2",
+  "grenade_enemy", "grenade_enemy_var_1", "grenade_enemy_var_2", "grenade_enemy_var_3",
+  "grenade_throw", "hurry_up", "hurry_up_var_1", "hurry_up_var_2", "hurry_up_var_3",
+  "interrupt", "interrupt_var_1", "interrupt_var_2", "phone_urge", "phone_urge_var_1",
+  "phone_urge_var_2", "player_fallback", "player_fallback_var_1", "player_fallback_var_2",
+  "player_fallback_var_3", "reloading", "reloading_var_1", "reloading_var_2",
+  "reloading_var_3", "return_answer", "return_answer_var_1", "return_answer_var_2",
+  "stealth_restored", "stealth_restored_var_1", "stealth_restored_var_2",
+  "stealth_warning_bark", "stealth_warning_bark_var_1", "stealth_warning_bark_var_2",
+  "urge", "urge_var_1", "urge_var_2"
 }
 local sweep = nil  -- { i, t, lastCount }
 
