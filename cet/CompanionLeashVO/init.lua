@@ -291,6 +291,24 @@ end
 --  the game's own bark-subtitle controller uses to decide whether to show a chatter line
 --  (cyberpunk/UI/subtitles/chattersControllers.script), so it tracks a line actually
 --  playing - which is exactly the signal we were missing.
+--  questPlayVoiceset_NodeTypeParams is a native type and is not in the script dump, so
+--  its fields cannot be read offline. Reflection lists them at runtime instead of me
+--  guessing at them. Pattern taken from entSpawner/modules/utils/redConverter.lua.
+local function inspect(typeName)
+  local ok, err = pcall(function()
+    local obj = NewObject(typeName)
+    if not obj then log("INSPEKT " .. typeName .. ": NewObject = nil"); return end
+    local cls = Reflection.GetClassOf(ToVariant(obj))
+    if not cls then log("INSPEKT " .. typeName .. ": keine Klasse"); return end
+    log("INSPEKT " .. typeName)
+    for _, prop in pairs(cls:GetProperties()) do
+      log(string.format("    %-34s %s",
+          tostring(prop:GetName().value), tostring(prop:GetType():GetName().value)))
+    end
+  end)
+  if not ok then log("INSPEKT " .. typeName .. " fehlgeschlagen: " .. tostring(err)) end
+end
+
 local function voPerceptible(handle)
   if not handle then return false end
   local ok, res = pcall(function()
@@ -316,9 +334,13 @@ local function dialogLine()
   local ok, res = pcall(function()
     local defs = Game.GetAllBlackboardDefs()
     local bb = Game.GetBlackboardSystem():Get(defs.UIGameData)
-    local v = bb:GetVariant(defs.UIGameData.ShowDialogLine)
+    --  GetVariant hands back a Variant (userdata). Reading .text off it gives nil - that
+    --  was the bug, not the path. FromVariant unwraps it into the struct, the same way
+    --  entSpawner and the fast-travel check do it.
+    local raw = bb:GetVariant(defs.UIGameData.ShowDialogLine)
+    if not raw then return nil end
+    local v = FromVariant(raw)
     if not v then return nil end
-    --  distinguishes "nothing was written" from "written but the fields do not reach Lua"
     lipDiag.kind = type(v) .. " text=" .. type(v.text) .. " dur=" .. type(v.duration)
     return { text = tostring(v.text or ""),
              dur = tonumber(v.duration) or 0.0,
@@ -598,6 +620,16 @@ registerForEvent("onDraw", function()
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
         "Erkennung unmoeglich: Untertitel sind unterdrueckt.")
     end
+    if ImGui.Button("Struktur ausgeben (ins Log)") then
+      inspect("questPlayVoiceset_NodeTypeParams")
+      inspect("questVoicesetManagerNodeDefinition")
+      inspect("EntityReference")
+    end
+    ImGui.TextDisabled("Listet die Felder des Quest-Voiceset-Knotens. Der Weg, den das " ..
+                       "V Voice Framework nutzt - kein PlayVoiceOver, sondern ein " ..
+                       "Quest-Knoten ueber das QuestsSystem.")
+    ImGui.Separator()
+
     if ImGui.Button("Erkennungstest (hoerbar, mit Untertitel)") then
       optMute, optHideOver, lipMode = false, false, 0
       lipStart(target, "greeting", lipDuration, lipInterval, 3, 5)
