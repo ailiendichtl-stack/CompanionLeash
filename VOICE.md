@@ -726,3 +726,15 @@ Spiel im Fenster abstuerzt. Der Stil fasst nichts ausserhalb des eigenen Aufrufs
 Damit bleibt vom Stumm-Trick nur noch `DialogueVolume` uebrig, und das auch nur fuer das
 Fake-Lipsync, bei dem die Bark tatsaechlich stumm sein muss.
 
+### Vollstaendig: 55 von 55
+
+Der Nachtrags-Sweep ueber 103 Namen bestaetigt `grapple` - **3.94 s, "Ungh ... Aaargh ...
+Lass ... los!"**. Damit sind alle 55 Zeilen des Voicesets benannt und vermessen.
+
+Sie ist zugleich die **laengste** Zeile, laenger als `player_fallback_var_2` mit 3.46 s,
+und steht deshalb an erster Stelle der Kette.
+
+Uebersehen hatte meine Extraktion sie, weil ich einen Unterstrich im Namen voraussetzte -
+`grapple` ist einwortig. Die restlichen acht Neufunde des Nachtrags sind Zweitnamen
+bereits bekannter Zeilen (`follow_me_2`, `urge_var_2`, `danger_var_2` und so weiter).
+

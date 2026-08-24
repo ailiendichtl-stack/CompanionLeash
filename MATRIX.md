@@ -151,6 +151,15 @@ Quest-Kandidaten:
 - Das könnte schwerer als gedacht werden ... | Mhm, genau. Die Umgebung, Kumpel.  <sub>`sq030_05_lake_test`</sub>
 - Hab mir die defekten noch mal angesehen. Viel Gerausche, schwer da was zu erkennen.  <sub>`sq026_01b_roof`</sub>
 
+## Gepackt / im Griff
+
+| Bark | s | Zeile |
+|---|---|---|
+| `grapple` | 3.94 | Ungh ... Aaargh ... Lass ... los! |
+
+Ihre **laengste** Zeile - laenger als `player_fallback_var_2` (3.46s) - und die,
+die meine erste Extraktion uebersehen hat, weil sie keinen Unterstrich im Namen hat.
+
 ## Spieler verletzt / wenig HP
 
 | Bark | s | Zeile |

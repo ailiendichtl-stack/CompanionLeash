@@ -1,1279 +1,229 @@
--- =====================================================================================
---  CompanionLeash - test panel  (VO + animation)
--- =====================================================================================
---  Manual counterpart to the timed redscript spikes. Clicking removes the ambiguity a
---  scheduled test cannot: which slot a result belonged to, and whether nothing happening
---  meant "no data" or just "this variant was empty".
+--  CompanionLeash - Bark-Panel
 --
---  Lua rather than redscript on purpose: a mistake here is reported by CET and costs
---  nothing, whereas the redscript stack fails as a whole.
+--  Judys Barks stehen in base/quest/secondary_characters/vsets/vset_judy.scene und werden
+--  ueber einen Quest-Voiceset-Knoten gespielt, NICHT ueber GameObject.PlayVoiceOver. Das
+--  ist der entscheidende Unterschied: PlayVoiceOver hat eine harte Sperre von ~8.2s pro
+--  NPC (gemessen: 656 Schuesse ergaben 28 Zeilen), der Quest-Knoten hat keine.
 --
---  Usage: open the CET overlay, look at Judy, press "Ziel sperren", then click.
--- =====================================================================================
+--  Der Stil "invisible" unterdrueckt den Untertitel pro Aufruf, also ohne an globalen
+--  Spieleinstellungen zu drehen, die danach zurueckgesetzt werden muessten.
+--
+--  Entfernt, weil ueberholt: die Einstiegspunkte PlayVoiceOver und ChatterHelper, die
+--  Kontext-Auswahl (alle fuenf Kontexte lieferten identische Ergebnisse) und die
+--  VoIsPerceptible-Anzeige (misst Hoerbarkeit, ist beim Stummschalten also immer falsch).
+--  Die Messungen dazu stehen in VOICE.md.
 
 local MOD = "[CompanionLeashVO]"
 
---  print() goes to CET's console overlay ONLY; the mod log file stays empty, so nothing
---  can be handed over after a session. spdlog.info writes to
---  bin/x64/plugins/cyber_engine_tweaks/mods/CompanionLeashVO/CompanionLeashVO.log
+--  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
   print(MOD .. " " .. msg)
   pcall(function() spdlog.info(MOD .. " " .. msg) end)
 end
 
---  Workspot entity and component come from AMM, which is installed. Confirmed against
---  AMM's own database for these animations.
-local WORKSPOT_ENT = "base\\amm_workspots\\entity\\workspot_anim.ent"
-local WORKSPOT_COMP = "amm_workspot_base"
-
-local WORKING = {
-  { "greeting",                    "Hey V / Oh hey" },
-  { "stealth_restored",            "Die haben wir abgeschuettelt" },
-  { "stealth_ended",               "Da kommen sie / Achtung!" },
-  { "combat_ended",                "Oh das wars, wir habens geschafft" },
-  { "coop_irritation",             "Aaah!" },
-  { "coop_reports_kill",           "Echt jetzt!?" },
-  { "elite_warning",               "Wo haben die nur diese Ausruestung her?" },
-  { "camera_warning",              "mehrere eigene Zeilen" },
-  { "attack_fragile_player_order", "Hey V! Mach was, verdammte Scheisse!" },
-  { "battlecry_curse",             "Fuuuuck!" },
-  { "bump",                        "Was zur Hoelle?" },
-  { "combat_target_hit",           "Na, wie schmeckt dir das?" },
-  { "start_combat",                "funktioniert" },
-  { "enemy_warning",               "funktioniert" },
-  { "hit_reaction_light",          "funktioniert" },
-  { "grenade_throw",               "funktioniert" },
-  { "vehicle_bump",                "das kurze ...?" },
+--  Im Spiel vermessen. Jede Variante ist eine BESTIMMTE Zeile, kein Zufallsgriff.
+local BARKS = {
+  { fam = "battlecry_curse", lines = {
+    { n = "battlecry_curse_var_3", d = 2.89, t = "Hey, V! Mach was, verdammte Scheisse!" },
+    { n = "battlecry_curse",       d = 1.65, t = "Was zur Hoelle?" },
+    { n = "battlecry_curse_var_1", d = 1.18, t = "Fuuuck!" } } },
+  { fam = "battlecry_morale", lines = {
+    { n = "battlecry_morale_var_1", d = 2.55, t = "Jetzt bin ich richtig sauer!" },
+    { n = "battlecry_morale_var_3", d = 2.10, t = "Jetzt mach ich ernst!" },
+    { n = "battlecry_morale",       d = 1.75, t = "Hast es so gewollt!" } } },
+  { fam = "body_warning", lines = {
+    { n = "body_warning_var_1", d = 3.15, t = "Lass uns hier klar Schiff machen, sonst fliegen wir auf." },
+    { n = "body_warning_var_2", d = 2.22, t = "Versteck den Koerper, okay?" } } },
+  { fam = "bump", lines = {
+    { n = "bump_var_2", d = 2.01, t = "Komm schon, ernsthaft?" },
+    { n = "bump_var_1", d = 1.71, t = "Hey, pass auf ..." } } },
+  { fam = "camera_warning", lines = {
+    { n = "camera_warning_var_1", d = 2.13, t = "Pass auf die Kameras auf, okay?" },
+    { n = "camera_warning_var_2", d = 2.07, t = "Die haben hier alles im Blick." } } },
+  { fam = "combat_aggro_bark", lines = {
+    { n = "combat_aggro_bark_var_1", d = 1.42, t = "Echt jetzt?!" },
+    { n = "combat_aggro_bark_var_2", d = 1.34, t = "Aaah!" } } },
+  { fam = "combat_ended", lines = {
+    { n = "combat_ended_var_1", d = 2.84, t = "Oh, das wars. Wir habens geschafft." },
+    { n = "combat_ended_var_2", d = 2.83, t = "Sieh uns an. Nicht totzukriegen." } } },
+  { fam = "danger", lines = {
+    { n = "danger_var_1", d = 1.88, t = "Oh, Scheisse!" },
+    { n = "danger_var_3", d = 1.38, t = "Bin bei dir." },
+    { n = "danger",       d = 1.22, t = "Achtung!" } } },
+  { fam = "detection_warning", lines = {
+    { n = "detection_warning_var_1", d = 2.86, t = "Verschwinde da, sonst sehen sie uns!" },
+    { n = "detection_warning_var_2", d = 2.38, t = "Vorsicht, die haben was gehoert!" } } },
+  { fam = "elite_warning", lines = {
+    { n = "elite_warning_var_1", d = 2.72, t = "Wo haben die nur diese Ausruestung her?" },
+    { n = "elite_warning_var_2", d = 2.32, t = "Ordentlich ausgestattet, die Typen!" } } },
+  { fam = "enemy_warning", lines = {
+    { n = "enemy_warning_var_2", d = 2.06, t = "Sie sind hier. Bleib wachsam." },
+    { n = "enemy_warning_var_1", d = 1.41, t = "Da kommen sie!" } } },
+  { fam = "follow_me", lines = {
+    { n = "follow_me_1", d = 2.70, t = "Was ist los? Hoer auf zu troedeln." },
+    { n = "follow_me",   d = 2.26, t = "Komm schon, V, bleib bei mir." } } },
+  { fam = "grapple", lines = {
+    { n = "grapple", d = 3.94, t = "Ungh ... Aaargh ... Lass ... los!" } } },
+  { fam = "greeting", lines = {
+    { n = "greeting",       d = 1.35, t = "Oh, hey!" },
+    { n = "greeting_var_2", d = 1.11, t = "Hey, V." } } },
+  { fam = "grenade_enemy", lines = {
+    { n = "grenade_enemy_var_3", d = 2.23, t = "In Deckung! Granate!" },
+    { n = "grenade_enemy_var_2", d = 1.92, t = "Achtung, Granate!" },
+    { n = "grenade_enemy_var_1", d = 1.45, t = "Granate!" } } },
+  { fam = "grenade_throw", lines = {
+    { n = "grenade_throw", d = 2.28, t = "Na, wie schmeckt dir das?!" } } },
+  { fam = "hurry_up", lines = {
+    { n = "hurry_up_var_2", d = 2.53, t = "Wir haben was vor, schon vergessen?" },
+    { n = "hurry_up_var_3", d = 2.11, t = "Konzentration, V." },
+    { n = "hurry_up_var_1", d = 1.90, t = "Na? Los jetzt!" } } },
+  { fam = "interrupt", lines = {
+    { n = "interrupt_var_1", d = 2.54, t = "Okay, wir setzen das spaeter fort." },
+    { n = "interrupt",       d = 1.85, t = "Hab ich dich gelangweilt?" } } },
+  { fam = "phone_urge", lines = {
+    { n = "phone_urge_var_2", d = 2.68, t = "Bist du da? Kannst du mich hoeren?" },
+    { n = "phone_urge_var_1", d = 1.76, t = "Aeh ... V?" } } },
+  { fam = "player_fallback", lines = {
+    { n = "player_fallback_var_2", d = 3.46, t = "V, pass besser auf! Tot nuetzt du niemandem!" },
+    { n = "player_fallback_var_1", d = 2.84, t = "Pass auf, verdammt! Schalt dein Hirn ein." },
+    { n = "player_fallback_var_3", d = 2.76, t = "Alles okay? Schnauf mal kurz durch." } } },
+  { fam = "reloading", lines = {
+    { n = "reloading_var_3", d = 2.07, t = "Warte kurz, muss nachladen." },
+    { n = "reloading_var_2", d = 2.01, t = "Deck mich, ich lade nach!" },
+    { n = "reloading_var_1", d = 1.70, t = "Ich muss nachladen." } } },
+  { fam = "return_answer", lines = {
+    { n = "return_answer_var_1", d = 2.00, t = "Worueber hatten wir geredet?" },
+    { n = "return_answer",       d = 1.40, t = "Du bist zurueck." } } },
+  { fam = "stealth_restored", lines = {
+    { n = "stealth_restored_var_1", d = 2.25, t = "Perfekt, die sehen uns nicht mehr." },
+    { n = "stealth_restored_var_2", d = 1.79, t = "Die haben wir abgeschuettelt." } } },
+  { fam = "stealth_warning_bark", lines = {
+    { n = "stealth_warning_bark_var_2", d = 1.33, t = "Vorsicht!" },
+    { n = "stealth_warning_bark_var_1", d = 1.25, t = "Sei still!" } } },
+  { fam = "urge", lines = {
+    { n = "urge_var_1", d = 1.78, t = "Was ist mit dir los?" },
+    { n = "urge",       d = 1.64, t = "Komm schon, V." } } },
 }
 
---  THE QUESTION THIS SECTION ANSWERS
---
---  An NCA routine is a workspot, not a scene, so it does not drive lipsync - the routine
---  schema has no lipsync or facial field at all. But several of Judy's synced animations
---  are "talk" variants, recorded as part of scenes in which she is speaking. If the mouth
---  movement is baked into the animation itself, playing it moves her mouth with no scene
---  system involved.
---
---  The controls matter as much as the talk variants: if the mouth moves on BOTH, it is
---  something else (idle chatter), and the result means nothing.
-local ANIMS = {
-  { "synced__v_hug_judy__talk__01__judy",   "TALK - Umarmung, sprechend" },
-  { "synced__v_hug_judy__talk__03__judy",   "TALK - Umarmung, sprechend" },
-  { "synced__v_holds_judy__talk__02__judy", "TALK - Halten, sprechend" },
-  { "synced__v_hug_judy__01__judy",         "KONTROLLE - dieselbe Pose, nicht sprechend" },
-  { "synced__v_holds_judy__01__judy",       "KONTROLLE - Halten, nicht sprechend" },
-  { "stand__dance__02",                     "KONTROLLE - Tanz, sicher ohne Mimik" },
-  { "alt__stand__2h_on_sides__01",          "KONTROLLE - Standard-Idle" },
-}
+--  Die laengsten Zeilen. Die Kette laeuft darauf, damit der Mund durchgehend bewegt wird,
+--  statt eine Ein-Sekunden-Begruessung zu wiederholen.
+local LONG = { "grapple", "player_fallback_var_2", "body_warning_var_1", "battlecry_curse_var_3",
+               "detection_warning_var_1", "combat_ended_var_1", "player_fallback_var_1",
+               "combat_ended_var_2", "player_fallback_var_3", "elite_warning_var_1",
+               "follow_me_1", "phone_urge_var_2", "battlecry_morale_var_1" }
 
---  Facial expressions. AnimFeature_FacialReaction takes two ints, category and idle.
---  These pairs are AMM's mapping, not guesses - see AMM init.lua GetPersonalityOptions.
---  This is expression, NOT lipsync: it moves brows, eyes and mouth shape, but does not
---  form visemes for speech.
+--  AMMs Zuordnung. Das Feature RASTET EIN: eine zweite Mimik auf eine laufende anzuwenden
+--  bewirkt nichts, deshalb erst ResetFacial und dann verzoegert anwenden.
 local FACES = {
-  { "Neutral",       2, 2 }, { "Joy",           3, 5 },
-  { "Smile",         3, 6 }, { "Sad",           3, 3 },
-  { "Surprise",      3, 8 }, { "Aggressive",    3, 2 },
-  { "Anger",         3, 1 }, { "Disgust",       3, 7 },
-  { "Disappointed",  3, 4 }, { "Interested",    1, 3 },
-  { "Disinterested", 1, 6 }, { "Exertion",      1, 1 },
+  { "neutral", 0, 0 }, { "freundlich", 1, 1 }, { "froehlich", 2, 2 },
+  { "erfreut", 3, 5 }, { "besorgt", 3, 6 }, { "traurig", 4, 3 },
+  { "wuetend", 5, 4 }, { "angeekelt", 6, 7 }, { "ueberrascht", 7, 8 },
+  { "veraechtlich", 8, 9 }, { "misstrauisch", 9, 10 }, { "erschoepft", 10, 11 },
 }
 
-local showUI = false
-local locked = nil
+local STYLES, styleIdx = {}, -1
+local target, targetName = nil, "-"
+local facePending = nil
+local chain = nil
+local chainDur, chainLead = 8.0, 0.15
+local muteDialogue = false
+local savedVolume = nil
 local lastPlayed = "-"
-local lastAnim = "-"
-local heard = {}
-local pending = nil     -- waiting for the spawned workspot entity to exist
-local facePending = nil -- waiting out the ResetFacial cooldown before applying
-local lipDuration = 6.0    -- panel sliders; tuned by eye, not derived from anything
-local lipInterval = 1.0
-local lipMode = 0          -- 0 = single shot (default), 1 = duration-driven (experimental)
-local lipRotIdx = 0
---  Measured: a line is reported 0.13-0.24s after the shot, and Judy's barks run 1.1-1.5s.
---  0.35s is past the report latency but still inside a line that landed, so a retry only
---  ever fires when nothing came back.
-local lipRetry = 0.35
---  How far before a line ends the next shot goes out. Firing mid-line cuts it off - that
---  was the original bug - but firing at the tail just hands over. 0.15s covers the
---  measured 0.07-0.24s report latency without leaving a visible gap.
-local lipLead = 0.15
---  MEASURED, seven independent runs: 8.16 / 8.16 / 8.16 / 8.18 / 8.20 / 8.23 / 8.25 s
---  between two lines from the same NPC, with 30-33 shots fired in between each time and
---  not one of them landing. There is a hard per-NPC VO cooldown of ~8.2s. Firing more
---  often than this does literally nothing - 656 shots produced 28 lines, and every one of
---  those was just the first shot after the cooldown expired.
-local LIP_COOLDOWN = 8.2
-local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended barrage
---  Each suppression is switchable on its own. Changing mute and subtitle handling at the
---  same time is how you end up unable to say which one produced a result.
-local optMute = true       -- DialogueVolume -> 0
-local optHideOver = false  -- not needed any more: the invisible style handles it per call
---  Fallback if no visual style turns the subtitle off: /accessibility/subtitles Cinematic
---  is the bottom-of-screen one, same mechanism as Overheads. Blunter, because it silences
---  quest subtitles too for the window - but for a two-second bark that is survivable, and
---  it is guaranteed to work.
-local optHideCine = false  -- fallback only, if a build has no invisible style
-local savedCine = nil
---  2 is the one that works: no 8.2s throttle, every dispatch lands. 0 and 1 stay for
---  comparison only.
-local optEntry = 2         -- 0 = PlayVoiceOver, 1 = ChatterHelper, 2 = Quest-Voiceset
-local optTag = "NCA_Companion"
---  We set overrideVisualStyle = true because VVF does, but never set the style itself, so
---  the default applies - which is very likely why her barks now render as normal
---  bottom-of-screen subtitles instead of overhead ones. Selectable so it can be tested.
---  "invisible" is picked by name once the enum is read. It beats leaving the style alone
---  for a reason beyond appearance: it works PER DISPATCH. The two subtitle settings below
---  are global, have to be restored, and leave the player with subtitles off if the game
---  dies mid-window. This touches nothing outside our own call.
-local optStyle = -1        -- resolved to invisible in loadStyles()
---  These were guessed and the guess was wrong - scnDialogLineVisualStyle is native and is
---  not in the script dump. Filled from the game at init instead. The related
---  scnDialogLineType has an "Invisible" member, so a comparable value is what we are
---  looking for to get rid of the subtitle entirely.
-local STYLES = {}
 
---  The sweep found only greeting and battlecry_curse, yet combat_ended demonstrably works
---  and her mouth moved more often than lines were counted. The voiceset system resolves a
---  name against a CONTEXT, and we were standing around peacefully while asking for
---  combat_ended, stealth_* and the warnings. Enum values read from the game earlier.
-local optContext = -1      -- -1 = do not override
-local CONTEXTS = { "Vo_Context_Quest", "Vo_Context_Community", "Vo_Context_Combat",
-                   "Vo_Context_Minor_Activity", "Default_Vo_Context" }
---  fireVo calls this but it is defined further down; without the forward declaration the
---  local is nil at that point and the call fails at runtime.
-local playVoiceset
-local lipLogAll = true  -- log every detected line, not just those inside a session
-local lipDiag = { perceptible = false, lastLine = "-", changes = 0, readable = false,
-                  lastText = "", lastDur = 0.0, lastName = "", fresh = false, kind = "-" }
-local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
-local savedVolume = nil    -- non-nil means dialogue is currently muted BY US
-local savedOverheads = nil -- non-nil means overhead subtitles are suppressed BY US
-local active = nil    -- {handle, target}
-
-local function targetName(handle)
-  if not handle then return "kein Ziel" end
-  local ok, name = pcall(function() return handle:GetDisplayName() end)
-  if ok and name and name ~= "" then return tostring(name) end
-  return "NPC"
-end
-
-local function currentTarget()
-  if locked then return locked end
-  local player = Game.GetPlayer()
-  if not player then return nil end
-  local ok, obj = pcall(function()
-    return Game.GetTargetingSystem():GetLookAtObject(player, false, false)
-  end)
-  if ok then return obj end
-  return nil
-end
-
---  Signature taken verbatim from AMM's util.lua, which is known to work.
-local function playVO(handle, vo)
-  if not handle then
-    log(" kein Ziel - schau eine NPC an und sperre sie")
-    return
-  end
-  local ok, err = pcall(function()
-    Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"](
-      handle, CName.new(vo), CName.new("CompanionLeashVOPanel"),
-      0.0, handle:GetEntityID(), true)
-  end)
-  if ok then
-    lastPlayed = vo
-    log(" VO: " .. vo)
-  else
-    log(" FEHLER bei " .. vo .. ": " .. tostring(err))
-  end
-end
-
---  Mirrors AMM's Util:NPCTalk - the full combination NCA's Talk() also uses:
---  look-at, voice-over and facial reaction together. This is the closest thing to
---  "she says a line", and the test for whether any mouth movement appears at all.
-local function talk(handle, vo, cat, idle)
-  if not handle then
-    log(" kein Ziel")
-    return
-  end
-  local ok, err = pcall(function()
-    local stim = handle:GetStimReactionComponent()
-    local anim = handle:GetAnimationControllerComponent()
-    if not stim or not anim then error("Komponenten fehlen") end
-    stim:ResetFacial(0)
-    stim:ActivateReactionLookAt(Game.GetPlayer(), false, 1, true, true)
-    if vo then
-      Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"](
-        handle, CName.new(vo), CName.new("CompanionLeashPanel"),
-        0.0, handle:GetEntityID(), true)
+local function durOf(name)
+  for _, g in ipairs(BARKS) do
+    for _, l in ipairs(g.lines) do
+      if l.n == name then return l.d end
     end
-    -- deferred like face(), so a previous expression cannot block this one
-    facePending = { target = handle, cat = cat or 3, idle = idle or 5,
-                    name = tostring(vo), t = 0 }
-  end)
-  if ok then
-    lastPlayed = (vo or "-") .. " / face " .. tostring(cat) .. "," .. tostring(idle)
-    log(" TALK: " .. tostring(vo) .. "  face=" .. tostring(cat) .. "," .. tostring(idle))
-  else
-    log(" TALK fehlgeschlagen: " .. tostring(err))
   end
+  return 2.5
 end
 
---  A facial feature LATCHES: applying a second one on top of a live one does nothing,
---  which is why only the first click appeared to work. AMM's sequence is the fix -
---  ResetFacial first, wait out the cooldown, then apply. Confirmed against vanilla,
---  which calls ResetFacial(0.0) itself in reactionComponent.
-local function face(handle, cat, idle, name)
-  if not handle then
-    log(" kein Ziel")
-    return
-  end
-  local ok, err = pcall(function()
-    local stim = handle:GetStimReactionComponent()
-    if stim then stim:ResetFacial(0) end
-  end)
-  if not ok then
-    log(" ResetFacial fehlgeschlagen: " .. tostring(err))
-    return
-  end
-  facePending = { target = handle, cat = cat, idle = idle, name = name, t = 0 }
-end
-
---  LIPSYNC ENGINE
---
---  Confirmed by testing: muting the dialogue bus does NOT stop the lipsync. The mouth
---  still moves. So a silent VO event can drive the face while a custom line plays from
---  the SFX bus - Audioware registers its files under "sfx:", a separate bus.
---
---  Two problems that first pass had, and the one trick that fixes both:
---
---  1. Reliability. A VO event picks a random variant from a pool and some of Judy's are
---     empty, so a single fire sometimes produces nothing at all.
---  2. Duration. The mouth moves for as long as the EVENT lasts, not our line - a short
---     bark under a long sentence looks like bad dubbing.
---
---  Because the event is muted, re-firing it costs nothing audibly. So we fire on an
---  interval for as long as our line runs: a dud variant is covered by the next shot, and
---  the mouth keeps moving to the end. Overlap is free when nobody can hear it.
---
---  Two settings get changed for the window and both are restored on a timer, on shutdown
---  and by hand - the panel shows their live values:
---    /audio/volume DialogueVolume  -> 0      (global; every other line is silent too)
---    /accessibility/subtitles Overheads -> false
---  Overheads is the one that printed the muted text above her head. It only covers
---  overhead barks; Cinematic subtitles are a separate var and stay untouched.
-local function settingVar(path, name)
-  local ok, var = pcall(function()
-    return Game.GetSettingsSystem():GetVar(path, name)
-  end)
-  if ok then return var end
-  return nil
-end
-
-local function dialogueVar() return settingVar("/audio/volume", "DialogueVolume") end
-local function overheadVar() return settingVar("/accessibility/subtitles", "Overheads") end
-local function cineVar()     return settingVar("/accessibility/subtitles", "Cinematic") end
-
-local LIP_MAX = 20.0 -- hard ceiling; a stuck session must not mute the game forever
-
---  Judy answers to these; each was heard in game and cross-checked against the log. Her
---  whole bark vocabulary is 57 files / 55 distinct lines in the voice set
---  judy_vs_vset_judy, so this is a decent slice of it, not a lucky handful.
---  Measured in game, longest first. Every entry is a SPECIFIC line, so the chain runs
---  on 2.2-3.5s lines instead of repeating a one-second greeting.
-local LIP_ROTATION = {
-  "player_fallback_var_2",       -- 3.46s  V, pass besser auf! Tot nützt du niemandem!
-  "body_warning_var_1",          -- 3.15s  Lass uns hier klar Schiff machen, sonst flie
-  "battlecry_curse_var_3",       -- 2.89s  Hey, V! Mach was, verdammte Scheiße!
-  "detection_warning_var_1",     -- 2.86s  Verschwinde da, sonst sehen sie uns!
-  "combat_ended_var_1",          -- 2.84s  Oh, das war’s. Wir haben’s geschafft.
-  "player_fallback_var_1",       -- 2.84s  Pass auf, verdammt! Schalt dein Hirn ein.
-  "combat_ended_var_2",          -- 2.83s  Sieh uns an. Nicht totzukriegen.
-  "player_fallback_var_3",       -- 2.76s  Alles okay? Schnauf mal kurz durch.
-  "elite_warning_var_1",         -- 2.72s  Wo haben die nur diese Ausrüstung her?
-  "follow_me_1",                 -- 2.70s  Was ist los? Hör auf zu trödeln.
-  "phone_urge_var_2",            -- 2.68s  Bist du da? Kannst du mich hören?
-  "battlecry_morale_var_1",      -- 2.55s  Jetzt bin ich richtig sauer!
-  "interrupt_var_1",             -- 2.54s  Okay, wir setzen das später fort.
-  "hurry_up_var_2",              -- 2.53s  Wir haben was vor, schon vergessen?
-}
-
-local function lipRestore(why)
-  if savedVolume ~= nil then
-    local var = dialogueVar()
-    if var then pcall(function() var:SetValue(savedVolume) end) end
-    savedVolume = nil
-  end
-  if savedOverheads ~= nil then
-    local var = overheadVar()
-    if var then pcall(function() var:SetValue(savedOverheads) end) end
-    savedOverheads = nil
-  end
-  if savedCine ~= nil then
-    local var = cineVar()
-    if var then pcall(function() var:SetValue(savedCine) end) end
-    savedCine = nil
-  end
-  if lip then
-    if lip.confirmed then
-      log(string.format("  ENDE (%s) - Zeile erkannt, dauer %.2fs", why or "", lip.lineDur or 0))
-    elseif optHideOver then
-      log("  ENDE (" .. (why or "") .. ") - KEINE Zeile. AUSSAGELOS: Untertitel waren "
-          .. "unterdrueckt, es kann nichts gemeldet werden.")
-    else
-      log("  ENDE (" .. (why or "") .. ") - KEINE Zeile gemeldet.")
-    end
-    lip = nil
-  end
-end
-
---  Two native entry points exist. ChatterHelper is the game's own chatter/bark helper
---  (cyberpunk/helpers/chatterHelper.script) and takes only instigator and event name, so
---  it may route differently from the GameObject call we have been using.
-local function fireVo(handle, vo)
-  if optEntry == 2 then
-    playVoiceset(vo, 1, handle, optTag)
-    return
-  end
-  if optEntry == 1 then
-    local ok = pcall(function()
-      Game["ChatterHelper::PlayVoiceOver;GameObjectCName"](handle, CName.new(vo))
-    end)
-    if not ok then log("  ChatterHelper-Aufruf fehlgeschlagen - Signatur stimmt nicht") end
-    return
-  end
-  pcall(function()
-    Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"](
-      handle, CName.new(vo), CName.new("CompanionLeashLip"),
-      0.0, handle:GetEntityID(), true)
-  end)
-end
-
---  Always the same event. An earlier version rotated on retry, which changed two things
---  at once - whether a second shot helps, and whether the event matters.
---  In chain mode the point is variety and length, so walk the measured list; single shot
---  stays on the name that was asked for.
-local function nextVo(session)
-  if lipMode ~= 2 then return session.vo end
-  lipRotIdx = (lipRotIdx % #LIP_ROTATION) + 1
-  return LIP_ROTATION[lipRotIdx]
-end
-
---  Is a voice-over from this entity audible right now? AudioSystem.VoIsPerceptible is what
---  the game's own bark-subtitle controller uses to decide whether to show a chatter line
---  (cyberpunk/UI/subtitles/chattersControllers.script), so it tracks a line actually
---  playing - which is exactly the signal we were missing.
---  questPlayVoiceset_NodeTypeParams is a native type and is not in the script dump, so
---  its fields cannot be read offline. Reflection lists them at runtime instead of me
---  guessing at them. Pattern taken from entSpawner/modules/utils/redConverter.lua.
-local function inspect(typeName)
-  local ok, err = pcall(function()
-    local obj = NewObject(typeName)
-    if not obj then log("INSPEKT " .. typeName .. ": NewObject = nil"); return end
-    local cls = Reflection.GetClassOf(ToVariant(obj))
-    if not cls then log("INSPEKT " .. typeName .. ": keine Klasse"); return end
-    log("INSPEKT " .. typeName)
-    for _, prop in pairs(cls:GetProperties()) do
-      log(string.format("    %-34s %s",
-          tostring(prop:GetName().value), tostring(prop:GetType():GetName().value)))
-    end
-  end)
-  if not ok then log("INSPEKT " .. typeName .. " fehlgeschlagen: " .. tostring(err)) end
-end
-
---  Enums cannot be built with NewObject; Reflection lists them separately. The two
---  expression/context enums are the built-in facial control on the quest voiceset node.
-local function inspectEnum(name)
-  local ok, err = pcall(function()
-    local e = Reflection.GetEnum(name)
-    if not e then log("ENUM " .. name .. ": nicht gefunden"); return end
-    log("ENUM " .. name)
-    --  constants come back as userdata; .value is not the accessor
-    local out = {}
-    for _, c in pairs(e:GetConstants()) do
-      local nm
-      pcall(function() nm = tostring(c:GetName().value) end)
-      if not nm then pcall(function() nm = tostring(c:GetName()) end) end
-      if not nm then pcall(function() nm = tostring(c.name) end) end
-      out[#out + 1] = nm or tostring(c)
-    end
-    log("    " .. table.concat(out, ", "))
-  end)
-  if not ok then log("ENUM " .. name .. " fehlgeschlagen: " .. tostring(err)) end
-end
-
---  FromVariant now yields a table but every field read nil, so either the table is empty
---  or its keys are named differently. Listing them settles which.
-local function dumpDialogKeys()
-  local ok, err = pcall(function()
-    local defs = Game.GetAllBlackboardDefs()
-    local bb = Game.GetBlackboardSystem():Get(defs.UIGameData)
-    local raw = bb:GetVariant(defs.UIGameData.ShowDialogLine)
-    log("BLACKBOARD ShowDialogLine: raw=" .. type(raw))
-    if not raw then return end
-    local v = FromVariant(raw)
-    log("  entpackt=" .. type(v))
-    if type(v) ~= "table" then return end
-    local n = 0
-    for k, val in pairs(v) do
-      n = n + 1
-      log(string.format("    [%s] %s", tostring(k), type(val)))
-      --  array elements are the actual scnDialogLineData; list their fields via Reflection
-      --  rather than probing names one at a time
-      pcall(function()
-        local cls = Reflection.GetClassOf(ToVariant(val))
-        if not cls then return end
-        log("      Klasse: " .. tostring(cls:GetName().value))
-        for _, prop in pairs(cls:GetProperties()) do
-          local nm = tostring(prop:GetName().value)
-          local ok2, cur = pcall(function() return val[nm] end)
-          log(string.format("        %-18s %-22s %s", nm,
-              tostring(prop:GetType():GetName().value),
-              ok2 and tostring(cur) or "<nicht lesbar>"))
-        end
-      end)
-    end
-    if n == 0 then log("    (leeres Array - es wurde nichts geschrieben)") end
-  end)
-  if not ok then log("BLACKBOARD-Dump fehlgeschlagen: " .. tostring(err)) end
-end
-
---  Dumps a live object instead of a fresh one, for things we cannot construct.
-local function inspectObj(obj, label)
-  local ok, err = pcall(function()
-    if not obj then log("INSPEKT " .. label .. ": nil"); return end
-    local cls = Reflection.GetClassOf(ToVariant(obj))
-    if not cls then log("INSPEKT " .. label .. ": keine Klasse"); return end
-    log("INSPEKT " .. label .. " -> " .. tostring(cls:GetName().value))
-    --  walk up the hierarchy: GetProperties() returns only the class's OWN fields, which
-    --  is why the first dump showed nothing but NPCPuppet internals
-    local c, depth = cls, 0
-    while c and depth < 8 do
-      log("  ~ " .. tostring(c:GetName().value))
-      for _, prop in pairs(c:GetProperties()) do
-        local nm = tostring(prop:GetName().value)
-        local tn = tostring(prop:GetType():GetName().value)
-        if nm:find("ame") or nm:find("[Tt]ag") or nm:find("[Rr]ef")
-           or nm == "id" or nm:find("entityID") or nm:find("nodeRef") then
-          local ok2, cur = pcall(function() return obj[nm] end)
-          log(string.format("      %-28s %-24s %s", nm, tn,
-              ok2 and tostring(cur) or "<nicht lesbar>"))
-        end
-      end
-      local ok3, parent = pcall(function() return c:GetParent() end)
-      c = ok3 and parent or nil
-      depth = depth + 1
-    end
-    --  methods are where identity usually hides on an entity
-    pcall(function()
-      for _, fn in pairs(cls:GetFunctions()) do
-        local nm = tostring(fn:GetName().value)
-        if nm:find("[Nn]ame") or nm:find("[Tt]ag") or nm:find("NodeRef") then
-          log("      fn " .. nm)
-        end
-      end
-    end)
-  end)
-  if not ok then log("INSPEKT " .. label .. " fehlgeschlagen: " .. tostring(err)) end
-end
-
---  THE QUEST VOICESET PATH
---
---  The V Voice Framework does not call PlayVoiceOver at all; it builds a quest node and
---  runs it through QuestsSystem.ExecuteNode. That is a different dispatcher, so it may
---  not share the ~8.2s per-NPC bark cooldown that caps the PlayVoiceOver route at roughly
---  35% mouth coverage.
---
---  Mode 0 targets the player and is the control: if that produces nothing, the mechanism
---  does not work from Lua at all and nothing else here means anything. VVF only ever
---  targets the player, so pointing this at a companion is unproven either way.
---  Faithful port of VVF's VFV_PlayVoice. The array assignment and the name were both
---  verified correct in the log and it still played nothing, so the remaining suspects are
---  the differences from the proven code:
---
---    * VVF does NOT set useVoicesetSystem or playOnlyGrunt - I did
---    * VVF DOES set overrideVisualStyle and overrideVoiceoverExpression - I did not
---    * VVF assigns node.type first, then pushes params into node.type - I filled the
---      object before assigning it, and a handle assignment may not carry that
---
---  Everything is logged, including whether CreateNodeRef resolves at all from Lua.
-playVoiceset = function(voiceset, mode, handle, uniqueName)
+--  Originalgetreuer Nachbau des V-Voice-Framework-Aufrufs. Drei Details tragen die Sache
+--  und wurden jeweils muehsam gefunden: useVoicesetSystem/playOnlyGrunt duerfen NICHT
+--  gesetzt werden, die beiden override-Flags MUESSEN gesetzt werden, und die Params gehen
+--  NACH der Zuweisung in node.type.
+local function playBark(name)
+  if not target then log("kein Ziel"); return end
   local ok, err = pcall(function()
     local node = NewObject("questVoicesetManagerNodeDefinition")
     node.type  = NewObject("questPlayVoiceset_NodeType")
 
     local prm = NewObject("questPlayVoiceset_NodeTypeParams")
     prm.overrideVoiceoverExpression = true
-    if optContext >= 0 then
-      pcall(function()
-        prm.overridingVoiceoverContext =
-          Enum.new("locVoiceoverContext", CONTEXTS[optContext + 1])
-      end)
-    end
-    if optStyle >= 0 then
+    prm.voicesetName                = CName.new(name)
+    if styleIdx >= 0 then
       prm.overrideVisualStyle = true
       pcall(function()
-        prm.overridingVisualStyle =
-          Enum.new("scnDialogLineVisualStyle", STYLES[optStyle + 1])
+        prm.overridingVisualStyle = Enum.new("scnDialogLineVisualStyle", STYLES[styleIdx + 1])
       end)
     else
       prm.overrideVisualStyle = false
     end
-    prm.voicesetName                = CName.new(voiceset)
 
+    --  Ihre Entity traegt den Tag NCA_Companion, und Tag ist einer der vier Referenztypen -
+    --  eine dynamisch gespawnte Begleiterin braucht damit keinen NodeRef.
     local ref = NewObject("gameEntityReference")
-    if mode == 0 then
-      prm.isPlayer  = true
-      local nr = CreateNodeRef("#player")
-      log("    CreateNodeRef(#player) -> " .. tostring(nr))
-      ref.reference = nr
-    else
-      --  Her entity carries the tag NCA_Companion, and Tag is one of the four
-      --  gameEntityReferenceType options, so that is how she gets addressed.
-      prm.isPlayer = false
-      ref.type  = Enum.new("gameEntityReferenceType", "Tag")
-      ref.names = { CName.new(uniqueName or "NCA_Companion") }
-      log("    Tag-Referenz: " .. tostring(uniqueName or "NCA_Companion"))
-    end
+    prm.isPlayer = false
+    ref.type  = Enum.new("gameEntityReferenceType", "Tag")
+    ref.names = { CName.new("NCA_Companion") }
     prm.puppetRef = ref
 
-    --  push into the ALREADY assigned type, the way VVF does
     node.type.params = { prm }
-
-    local cnt = -1
-    pcall(function() cnt = #node.type.params end)
-    log(string.format("    node.type.params: %d", cnt))
-
     Game.GetQuestsSystem():ExecuteNode(node)
   end)
-  log(string.format("VOICESET %s modus=%d -> %s", voiceset, mode,
-      ok and "abgesetzt" or ("FEHLER: " .. tostring(err))))
+  lastPlayed = name
+  if not ok then log("BARK " .. name .. " FEHLER: " .. tostring(err)) end
 end
 
---  READ OUT OF THE GAME, not guessed: base/quest/secondary_characters/vsets/vset_judy.scene
---  is Judy's voiceset, and these are the entries it actually defines - 24 families, 77
---  individually addressable variants covering all 55 of her lines.
---
---  The guessed list before this scored 4 of 54, which is why the sweep looked so bleak.
---  Half those names simply do not exist: it is stealth_restored and stealth_warning_bark,
---  not stealth_ended; there is no sniper_warning and no coop_* at all.
---
---  The _var_N suffixes matter: each is a SPECIFIC line, so we can pick by length instead
---  of taking whatever the pool hands back.
-local SWEEP = {
-  "battlecry_curse", "battlecry_curse_var_1", "battlecry_curse_var_2",
-  "battlecry_curse_var_3", "battlecry_morale", "battlecry_morale_var_1",
-  "battlecry_morale_var_2", "battlecry_morale_var_3", "body_warning", "body_warning_var_1",
-  "body_warning_var_2", "bump", "bump_var_1", "bump_var_2", "camera_warning",
-  "camera_warning_var_1", "camera_warning_var_2", "combat_aggro_bark",
-  "combat_aggro_bark_var_1", "combat_aggro_bark_var_2", "combat_ended",
-  "combat_ended_var_1", "combat_ended_var_2", "danger", "danger_var_1", "danger_var_2",
-  "danger_var_3", "detection_warning", "detection_warning_var_1",
-  "detection_warning_var_2", "elite_warning", "elite_warning_var_1", "elite_warning_var_2",
-  "enemy_warning", "enemy_warning_var_1", "enemy_warning_var_2", "follow_me",
-  "follow_me_1", "follow_me_2", "greeting", "greeting_var_1", "greeting_var_2",
-  "grenade_enemy", "grenade_enemy_var_1", "grenade_enemy_var_2", "grenade_enemy_var_3",
-  "grenade_throw", "hurry_up", "hurry_up_var_1", "hurry_up_var_2", "hurry_up_var_3",
-  "interrupt", "interrupt_var_1", "interrupt_var_2", "phone_urge", "phone_urge_var_1",
-  "phone_urge_var_2", "player_fallback", "player_fallback_var_1", "player_fallback_var_2",
-  "player_fallback_var_3", "reloading", "reloading_var_1", "reloading_var_2",
-  "reloading_var_3", "return_answer", "return_answer_var_1", "return_answer_var_2",
-  "stealth_restored", "stealth_restored_var_1", "stealth_restored_var_2",
-  "stealth_warning_bark", "stealth_warning_bark_var_1", "stealth_warning_bark_var_2",
-  "urge", "urge_var_1", "urge_var_2",
-  --  single-word entries: my extraction required an underscore, so these were dropped.
-  --  grapple is a real one - "Ungh ... Aaargh ... Lass ... los!" is in her voice files but
-  --  had no name until now. The rest are guesses the game can settle in a minute.
-  "grapple", "careful", "cover", "incoming", "watch", "lost", "come", "deep", "everything",
-  "see", "they", "out", "now", "get", "grenade", "reload", "help", "taunt", "victory",
-  "wounded", "death", "pain", "affirmative", "negative", "regroup", "flanking"
-}
-local sweep = nil  -- { i, t, lastCount }
-
-local function voPerceptible(handle)
-  if not handle then return false end
-  local ok, res = pcall(function()
-    return Game.GetAudioSystem():VoIsPerceptible(handle:GetEntityID())
+local function dialogueVar()
+  local ok, v = pcall(function()
+    return Game.GetSettingsSystem():GetVar("/audio/volume", "DialogueVolume")
   end)
-  return ok and res == true
+  if ok then return v end
+  return nil
 end
 
---  UIGameData.ShowDialogLine carries a scnDialogLineData for every displayed line,
---  overhead barks included, and is written upstream of the Overheads setting.
---
---  Reading it as tostring() was useless - that yields a fresh address every frame, which
---  is why the counter ran away. The struct itself carries what we actually need:
---
---      id : CRUID              stable per line, so a real change token
---      text : String           which line played
---      speaker : GameObject    whether it was our target
---      duration : Float        how long the mouth will move
---
---  duration is the prize: with it we do not have to poll at all, we know when the line
---  ends and can fire the next one exactly then.
-local function dialogLine()
-  local ok, res = pcall(function()
-    local defs = Game.GetAllBlackboardDefs()
-    local bb = Game.GetBlackboardSystem():Get(defs.UIGameData)
-    --  GetVariant hands back a Variant (userdata). Reading .text off it gives nil - that
-    --  was the bug, not the path. FromVariant unwraps it into the struct, the same way
-    --  entSpawner and the fast-travel check do it.
-    local raw = bb:GetVariant(defs.UIGameData.ShowDialogLine)
-    if not raw then return nil end
-    local arr = FromVariant(raw)
-    if type(arr) ~= "table" then return nil end
-    --  ShowDialogLine holds an ARRAY of scnDialogLineData, not a single struct. Reading it
-    --  as a struct is why every field came back nil - the line was there the whole time.
-    local el = arr[#arr]
-    if el == nil then
-      lipDiag.kind = "leeres Array"
-      return nil
-    end
-    lipDiag.kind = string.format("array[%d] text=%s dur=%s",
-                   #arr, type(el.text), type(el.duration))
-    --  Overhead lines from passers-by land here too - one run caught a stranger's "...!"
-    --  and scored it as ours. The speaker's entity id is the only reliable filter;
-    --  speakerName is empty for plenty of NPCs.
-    local hash = ""
-    pcall(function() hash = tostring(el.speaker:GetEntityID().hash) end)
-    return { text = tostring(el.text or ""),
-             dur = tonumber(el.duration) or 0.0,
-             name = tostring(el.speakerName or ""),
-             hash = hash }
-  end)
-  if ok then return res end
-  return nil -- struct not readable from Lua; the panel says so rather than guessing
+local function restoreVolume(why)
+  if savedVolume == nil then return end
+  local v = dialogueVar()
+  if v then pcall(function() v:SetValue(savedVolume) end) end
+  log("DialogueVolume zurueckgesetzt (" .. tostring(savedVolume) .. ") - " .. (why or ""))
+  savedVolume = nil
 end
 
-local function lipStart(handle, vo, duration, interval, cat, idle)
-  if not handle then
-    log(" kein Ziel")
-    return
+local function chainStop(why)
+  restoreVolume(why or "Ende")
+  if chain then
+    log(string.format("KETTE Ende (%s): %d Zeilen ueber %.1fs", why or "", chain.shots, chain.clock))
+    chain = nil
   end
-  local dv, ov = dialogueVar(), overheadVar()
-  if not dv then
-    log(" DialogueVolume nicht erreichbar")
-    return
-  end
-  lipRestore("Neustart")
-
-  local ok, err = pcall(function()
-    if optMute then
-      savedVolume = dv:GetValue()
-      dv:SetValue(0)
-    end
-    if optHideOver and ov then
-      savedOverheads = ov:GetValue()
-      ov:SetValue(false)
-    end
-    if optHideCine then
-      local cv = cineVar()
-      if cv then
-        savedCine = cv:GetValue()
-        cv:SetValue(false)
-      end
-    end
-  end)
-  if not ok then
-    log(" Stummschalten fehlgeschlagen: " .. tostring(err))
-    lipRestore("Fehler")
-    return
-  end
-
-  if duration > LIP_MAX then duration = LIP_MAX end
-  --  t starts at the interval so the first shot goes out on this very frame
-  lip = { target = handle, vo = vo, interval = interval,
-          remaining = duration, t = 0, shots = 1, retries = 0,
-          confirmed = false, clock = 0, lastVo = vo, lineDur = 0, nextAt = nil }
-  lipDiag.fresh = false -- do not let a line from before the session count as ours
-  fireVo(handle, vo)
-  log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s  einstieg=%s",
-      vo, tostring(optMute), tostring(optHideOver),
-      (lipMode == 0) and "einzelschuss" or ((lipMode == 2) and "kette" or "1 neuversuch"),
-      (optEntry == 2) and "QuestVoiceset"
-        or ((optEntry == 0) and "PlayVoiceOver" or "ChatterHelper")))
-  log(string.format("  SCHUSS 1 t=0.000  %s", vo))
-
-  if cat then
-    local stim = handle:GetStimReactionComponent()
-    if stim then pcall(function() stim:ResetFacial(0) end) end
-    facePending = { target = handle, cat = cat, idle = idle, name = vo, t = 0 }
-  end
-  log(string.format("  fenster max %.1fs", duration))
 end
 
-local function stopAnim()
-  if not active then return end
+local function chainStart()
+  if not target then log("kein Ziel"); return end
+  chainStop("Neustart")
+  if muteDialogue then
+    local v = dialogueVar()
+    if v then
+      savedVolume = v:GetValue()
+      pcall(function() v:SetValue(0) end)
+    end
+  end
+  chain = { i = 0, clock = 0, next = 0, shots = 0, remaining = chainDur }
+  log(string.format("KETTE start: %.1fs, stumm=%s", chainDur, tostring(muteDialogue)))
+end
+
+local function setFace(cat, idle, label)
+  if not target then log("kein Ziel"); return end
+  local stim = target:GetStimReactionComponent()
+  if not stim then log("keine StimReactionComponent"); return end
+  pcall(function() stim:ResetFacial(0) end)
+  facePending = { cat = cat, idle = idle, label = label, t = 0 }
+end
+
+registerForEvent("onInit", function()
   pcall(function()
-    Game.GetWorkspotSystem():StopInDevice(active.target)
-    if active.handle then
-      exEntitySpawner.Despawn(active.handle)
-      active.handle:Dispose()
-    end
-  end)
-  active = nil
-end
-
---  Mirrors AMM's Poses:PlayAnimationOnTarget: spawn a workspot entity at the NPC,
---  yawed 180 degrees, then bind the NPC to it and jump to the animation.
-local function playAnim(target, animName)
-  if not target then
-    log(" kein Ziel")
-    return
-  end
-  stopAnim()
-
-  local ok, err = pcall(function()
-    local tr = target:GetWorldTransform()
-    tr:SetPosition(target:GetWorldPosition())
-    local angles = target:GetWorldOrientation():ToEulerAngles()
-    tr:SetOrientationEuler(EulerAngles.new(0, 0, angles.yaw + 180))
-    local id = exEntitySpawner.Spawn(WORKSPOT_ENT, tr, "")
-    pending = { id = id, target = target, anim = animName, ticks = 0 }
-  end)
-  if not ok then
-    log(" Spawn fehlgeschlagen: " .. tostring(err))
-  end
-end
-
-registerForEvent("onUpdate", function(dt)
-  --  Diagnostics run whether or not a session is active, so the two signals can be judged
-  --  against what is actually happening on screen.
-  local tgt = currentTarget()
-  if tgt then lipDiag.perceptible = voPerceptible(tgt) end
-
-  local dl = dialogLine()
-  if dl == nil then
-    lipDiag.readable = false
-    lipDiag.kind = "GetVariant = nil"
-  else
-    lipDiag.readable = true
-    --  text+duration identifies a line well enough; two identical lines back to back are
-    --  indistinguishable, which costs us nothing here.
-    local tok = dl.text .. "|" .. string.format("%.2f", dl.dur)
-    if tok ~= lipDiag.lastLine then
-      lipDiag.lastLine = tok
-      lipDiag.lastText = dl.text
-      lipDiag.lastDur = dl.dur
-      lipDiag.lastName = dl.name
-      lipDiag.lastHash = dl.hash
-      lipDiag.changes = lipDiag.changes + 1
-      lipDiag.fresh = true
-      if lipLogAll then
-        log(string.format("  [ZEILE] dauer=%.2f  \"%s\"  [%s]",
-            dl.dur, dl.text, dl.name))
-      end
-    end
-  end
-
-  --  Sweep: every name against every context, unattended.
-  --
-  --  Adaptive timing, because a fixed 3s per name would be 13 minutes across five
-  --  contexts. A line is reported ~0.25s after dispatch, so a hit is known early and we
-  --  only need to wait out its own duration; a miss costs the short timeout.
-  --
-  --  A forced subtitle style is essential: detection reads the subtitle data, so a style
-  --  that renders nothing makes every working line look silent. That is what produced the
-  --  two-hit run.
-  if sweep then
-    sweep.t = sweep.t + (dt or 0.016)
-
-    if sweep.pending then
-      local hit = false
-      pcall(function()
-        hit = lipDiag.changes > sweep.mark
-              and lipDiag.lastHash == tostring(tgt:GetEntityID().hash)
-      end)
-      if hit and not sweep.got then
-        sweep.got = true
-        sweep.hits = sweep.hits + 1
-        sweep.wait = math.max(0.4, (lipDiag.lastDur or 1.0) * 0.6)
-        table.insert(sweep.found, {
-          ctx = CONTEXTS[sweep.c], name = SWEEP[sweep.i],
-          dur = lipDiag.lastDur, text = lipDiag.lastText })
-        log(string.format("  TREFFER  %-26s %.2fs  \"%s\"",
-            SWEEP[sweep.i], lipDiag.lastDur, lipDiag.lastText))
-      end
-      if sweep.t >= (sweep.got and sweep.wait or 1.3) then
-        sweep.pending = false
-      end
-    end
-
-    if not sweep.pending then
-      sweep.i = sweep.i + 1
-      if sweep.i > #SWEEP then
-        log(string.format("--- Kontext %s: %d Treffer",
-            CONTEXTS[sweep.c], sweep.hits - (sweep.ctxBase or 0)))
-        sweep.ctxBase = sweep.hits
-        sweep.c = sweep.c + 1
-        sweep.i = 1
-      end
-      if sweep.c > #CONTEXTS or not tgt then
-        optContext, optStyle = sweep.savedCtx, sweep.savedStyle
-        log(string.format("=== SWEEP FERTIG: %d Treffer", sweep.hits))
-        local seen = {}
-        for _, f in ipairs(sweep.found) do
-          local key = f.name
-          if not seen[key] then
-            seen[key] = true
-            log(string.format("    %-26s %5.2fs  [%s]  \"%s\"",
-                f.name, f.dur, f.ctx:gsub("Vo_Context_", ""), f.text))
-          end
-        end
-        sweep = nil
-      else
-        optContext = sweep.c - 1
-        sweep.mark = lipDiag.changes
-        sweep.t, sweep.got, sweep.pending = 0, false, true
-        fireVo(tgt, SWEEP[sweep.i])
-      end
-    end
-  end
-
-  if lip then
-    local d = dt or 0.016
-    lip.remaining = lip.remaining - d
-    if lip.remaining <= 0 then
-      lipRestore("Zeitablauf")
-    else
-      lip.t = lip.t + d
-      lip.t = lip.t + d
-      lip.clock = (lip.clock or 0) + d
-
-      --  A fresh dialog line is the only thing we treat as proof a shot landed. Its
-      --  reported duration then tells us how long the mouth has work to do - no polling,
-      --  and no audibility signal involved, since we muted that on purpose.
-      if lipDiag.fresh then
-        lipDiag.fresh = false
-        local mine = true
-        pcall(function()
-          mine = lipDiag.lastHash == tostring(lip.target:GetEntityID().hash)
-        end)
-        if not mine then
-          log(string.format("  (fremde Zeile ignoriert: \"%s\" [%s])",
-              lipDiag.lastText, lipDiag.lastName))
-        elseif not lip.confirmed then
-          lip.confirmed = true
-          lip.lastLanded = lip.clock
-          lip.lineDur = lipDiag.lastDur
-          log(string.format("  ZEILE t=%.3f  dauer=%.2f  \"%s\"  [%s]",
-              lip.clock, lipDiag.lastDur, lipDiag.lastText, lipDiag.lastName))
-          --  end the window when the line ends, instead of sitting on a blind timer.
-          --  A muted VO request must not be strangled for 20s by our own cap.
-          if lipDiag.lastDur > 0.05 then
-            if lipMode == 2 then
-              --  The chain cannot beat the cooldown. Handing over at the tail of the line
-              --  is pointless when the next shot cannot land for 8.2s, so the next attempt
-              --  goes exactly there. Coverage is capped at line duration / 8.2s - about
-              --  35% even with her longest barks.
-              if optEntry == 2 then
-                lip.nextAt = lip.clock + lipDiag.lastDur - lipLead
-              else
-                lip.nextAt = math.max(lip.clock + lipDiag.lastDur - lipLead,
-                                      lip.clock + LIP_COOLDOWN - 0.2)
-              end
-            else
-              lip.remaining = math.min(lip.remaining, lipDiag.lastDur + 0.4)
-            end
-          end
-        end
-      end
-
-      --  Chain mode: the next shot goes out at the tail of the current line, so the mouth
-      --  keeps moving across an arbitrarily long custom line. This only became possible
-      --  once the reported duration told us where the tail actually is.
-      if lipMode == 2 and lip.confirmed and lip.nextAt and lip.clock >= lip.nextAt then
-        lip.confirmed = false
-        lip.nextAt = nil
-        lip.t = 0
-        lip.shots = lip.shots + 1
-        local vo = nextVo(lip)
-        lip.lastVo = vo
-        fireVo(lip.target, vo)
-        log(string.format("  SCHUSS %d t=%.3f  %s  (Kette)", lip.shots, lip.clock, vo))
-      end
-
-      --  A retry is only meaningful if the cooldown has expired; inside it the shot cannot
-      --  land, so retrying just burns frames. This is what produced 57 shots in 15s.
-      --  The 8.2s throttle is a PlayVoiceOver property. On the quest path every shot
-      --  lands, so gating on it there would discard the whole reason for using it.
-      local cooledDown = (optEntry == 2)
-                         or (lip.lastLanded == nil)
-                         or (lip.clock - lip.lastLanded >= LIP_COOLDOWN)
-      if not lip.confirmed and lipMode ~= 0 and cooledDown
-         and (lipMode == 2 or lip.retries < LIP_MAX_RETRY) and lip.t >= lipRetry then
-        lip.t = 0
-        lip.retries = lip.retries + 1
-        lip.shots = lip.shots + 1
-        local vo = nextVo(lip)
-        lip.lastVo = vo
-        fireVo(lip.target, vo)
-        log(string.format("  SCHUSS %d t=%.3f  %s  (Neuversuch)",
-            lip.shots, lip.clock, vo))
-      end
-    end
-  end
-
-  if facePending then
-    facePending.t = facePending.t + (dt or 0.016)
-    if facePending.t >= 0.5 then
-      local fp = facePending
-      facePending = nil
-      local ok, err = pcall(function()
-        local anim = fp.target:GetAnimationControllerComponent()
-        if not anim then error("kein AnimationController") end
-        local feat = NewObject("handle:AnimFeature_FacialReaction")
-        feat.category = fp.cat
-        feat.idle = fp.idle
-        anim:ApplyFeature(CName.new("FacialReaction"), feat)
-      end)
-      if ok then
-        lastPlayed = "face " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")"
-        log(" FACE: " .. fp.name .. " (" .. fp.cat .. "," .. fp.idle .. ")")
-      else
-        log(" FACE fehlgeschlagen: " .. tostring(err))
-      end
-    end
-  end
-
-  if not pending then return end
-  pending.ticks = pending.ticks + 1
-  local ent = Game.FindEntityByID(pending.id)
-  if ent then
-    local ok, err = pcall(function()
-      Game.GetWorkspotSystem():PlayInDeviceSimple(
-        ent, pending.target, false, CName.new(WORKSPOT_COMP),
-        CName.new("CompanionLeashTest"), nil, 0, 1, nil)
-      Game.GetWorkspotSystem():SendJumpToAnimEnt(pending.target, CName.new(pending.anim), true)
-    end)
-    if ok then
-      active = { handle = ent, target = pending.target }
-      lastAnim = pending.anim
-      log(" ANIM: " .. pending.anim)
-    else
-      log(" Animation fehlgeschlagen: " .. tostring(err))
-    end
-    pending = nil
-  elseif pending.ticks > 120 then
-    log(" Workspot-Entitaet erschien nicht")
-    pending = nil
-  end
-end)
-
-registerForEvent("onOverlayOpen",  function() showUI = true end)
-registerForEvent("onOverlayClose", function() showUI = false end)
-
-registerForEvent("onDraw", function()
-  if not showUI then return end
-
-  ImGui.SetNextWindowSize(600, 660, ImGuiCond.FirstUseEver)
-  if not ImGui.Begin("CompanionLeash - Test") then
-    ImGui.End()
-    return
-  end
-
-  local target = currentTarget()
-  ImGui.Text("Ziel: " .. targetName(target))
-  if locked then
-    ImGui.SameLine()
-    ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "[gesperrt]")
-  end
-
-  if ImGui.Button(locked and "Ziel freigeben" or "Ziel sperren") then
-    if locked then
-      locked = nil
-      log(" Ziel freigegeben")
-    else
-      locked = currentTarget()
-      log(" Ziel gesperrt: " .. targetName(locked))
-    end
-  end
-  ImGui.SameLine()
-  ImGui.Text("VO: " .. lastPlayed .. "  |  Anim: " .. lastAnim)
-
-  ImGui.Separator()
-
-  if ImGui.CollapsingHeader("Lipsync-Motor") then
-    local dv, ov = dialogueVar(), overheadVar()
-    local dvv, ovv = "?", "?"
-    if dv then dvv = tostring(dv:GetValue()) end
-    if ov then ovv = tostring(ov:GetValue()) end -- NOT `ov and ... or "?"`: false would print "?"
-    local cv, cvv = cineVar(), "?"
-    if cv then cvv = tostring(cv:GetValue()) end
-    ImGui.Text("DialogueVolume: " .. dvv .. "   Overheads: " .. ovv .. "   Cinematic: " .. cvv)
-    if savedVolume ~= nil or savedOverheads ~= nil then
-      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns veraendert - laeuft]")
-    end
-    ImGui.TextWrapped("VoIsPerceptible misst Hoerbarkeit. Wir muten absichtlich, also ist " ..
-                      "es zwangsläufig immer nein - es kann hier nichts steuern und steht " ..
-                      "nur noch zur Beobachtung da.")
-    ImGui.Separator()
-
-    ImGui.Text("Dialogzeilen-Daten:")
-    ImGui.SameLine()
-    if lipDiag.readable then
-      ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "lesbar")
-    else
-      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "NICHT lesbar")
-    end
-    ImGui.SameLine()
-    ImGui.TextDisabled(string.format("| %d Zeilen | VoIsPerceptible: %s",
-                       lipDiag.changes, tostring(lipDiag.perceptible)))
-    ImGui.TextDisabled("Variant: " .. tostring(lipDiag.kind or "-"))
-    if lipDiag.readable then
-      local mine = target and lipDiag.lastHash == tostring(target:GetEntityID().hash)
-      ImGui.Text(string.format("zuletzt: \"%s\"", lipDiag.lastText))
-      ImGui.SameLine()
-      if mine then
-        ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "[unser Ziel]")
-      else
-        ImGui.TextDisabled("[fremd]")
-      end
-      ImGui.Text(string.format("  dauer %.2fs   sprecher: %s",
-                 lipDiag.lastDur, lipDiag.lastName))
-    end
-    ImGui.TextDisabled("Zaehlt der Zaehler genau bei einem Schuss hoch und steht Judys " ..
-                       "Text da, traegt der Weg. Laeuft er von allein hoch, nicht.")
-    ImGui.Separator()
-
-    if optHideOver or optHideCine then
-      ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
-        "Erkennung unmoeglich: Untertitel sind ueber die Einstellungen unterdrueckt.")
-    end
-    if optStyle >= 0 and STYLES[optStyle + 1] and
-       STYLES[optStyle + 1]:lower() == "invisible" then
-      ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
-        "Stil invisible: kein Untertitel, ohne an Spieleinstellungen zu drehen.")
-    end
-    ImGui.TextColored(0.6, 0.8, 1.0, 1.0, "Quest-Voiceset - anderer Dispatcher")
-    ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
-      "Bestaetigt: KEINE 8.2s-Sperre. Jeder Schuss zuendet, im Sekundentakt.")
-    ImGui.TextWrapped("Auf V gemessen: Zeilen um 19:34:03/05/06/08/09 - fuenf Treffer in " ..
-                      "sechs Sekunden, gegenueber 4.3% Trefferquote bei PlayVoiceOver. " ..
-                      "Judy wird ueber ihren Tag NCA_Companion adressiert.")
-    --  "greeting" is a BARK event name. Voicesets are a different namespace - VVF uses
-    --  names like generic_5 and character_creation. Testing with a name that framework
-    --  actually ships separates "wrong name" from "mechanism does not work".
-    if ImGui.Button("V: generic_5") then playVoiceset("generic_5", 0) end
-    ImGui.SameLine()
-    if ImGui.Button("V: character_creation") then playVoiceset("character_creation", 0) end
-    ImGui.SameLine()
-    if ImGui.Button("V: greeting") then playVoiceset("greeting", 0) end
-    ImGui.SameLine()
-    if sweep then
-      ImGui.Text(string.format("Sweep: Kontext %d/%d, Name %d/%d, %d Treffer",
-                 sweep.c, #CONTEXTS, sweep.i, #SWEEP, sweep.hits))
-      ImGui.TextDisabled("Laeuft unbeaufsichtigt. Judy muss in der Naehe bleiben.")
-      if ImGui.Button("Sweep abbrechen") then sweep = nil end
-    else
-      if ImGui.Button(string.format("Alles durchmessen (%d Namen x %d Kontexte)",
-                                    #SWEEP, #CONTEXTS)) then
-        if target then
-          sweep = { c = 1, i = 0, t = 99, hits = 0, ctxBase = 0, found = {},
-                    pending = false, got = false, mark = lipDiag.changes,
-                    savedCtx = optContext, savedStyle = optStyle }
-          optStyle = 0  -- detection needs a rendered subtitle
-          log(string.format("=== SWEEP ueber %d Namen | kontext=%s | stil=%s", #SWEEP,
-            (optContext >= 0) and CONTEXTS[optContext + 1] or "keiner",
-            (optStyle >= 0) and STYLES[optStyle + 1] or "keiner"))
-        else
-          log("Sweep braucht ein gesperrtes Ziel")
-        end
-      end
-      ImGui.TextDisabled("Rund 6-8 Minuten, unbeaufsichtigt. Alle Kontexte nacheinander; " ..
-                         "am Ende steht die Liste der brauchbaren Zeilen mit Dauer im Log.")
-    end
-    ImGui.Separator()
-    ImGui.Text("Kontext:")
-    ImGui.SameLine()
-    if ImGui.RadioButton("keiner", optContext == -1) then optContext = -1 end
-    for i, nm in ipairs(CONTEXTS) do
-      ImGui.SameLine()
-      if ImGui.RadioButton(nm:gsub("Vo_Context_", ""):gsub("_Vo_Context", ""),
-                           optContext == i - 1) then optContext = i - 1 end
-    end
-    ImGui.TextDisabled("Kampf-Namen antworten vermutlich nur im Kampf-Kontext. Sweep " ..
-                       "einmal je Kontext laufen lassen.")
-    ImGui.Separator()
-    ImGui.Text("Untertitel-Stil (aus dem Spiel gelesen):")
-    if ImGui.RadioButton("kein Override", optStyle == -1) then optStyle = -1 end
-    for i, nm in ipairs(STYLES) do
-      if i % 4 ~= 1 then ImGui.SameLine() end
-      if ImGui.RadioButton(nm, optStyle == i - 1) then optStyle = i - 1 end
-    end
-    ImGui.TextDisabled("Gesucht ist der Wert, bei dem gar kein Untertitel erscheint.")
-    ImGui.Separator()
-
-    if ImGui.Button("Judy: greeting") then
-      playVoiceset("greeting", 1, target, "NCA_Companion")
-    end
-    ImGui.SameLine()
-    if ImGui.Button("Judy: generic_5") then
-      playVoiceset("generic_5", 1, target, "NCA_Companion")
-    end
-    ImGui.SameLine()
-    if ImGui.Button("Ziel-Entity ausgeben") then
-      inspectObj(target, "Ziel")
-      --  gameObject.tags is a redTagList; Tag is one of the four gameEntityReferenceType
-      --  options, so her tags are a candidate way to address her
-      pcall(function()
-        local t = target.tags
-        log("TAGS: " .. tostring(t))
-        if t and t.tags then
-          for _, tg in pairs(t.tags) do log("    " .. tostring(tg.value or tg)) end
-        end
-      end)
-    end
-    ImGui.Separator()
-
-    if ImGui.Button("Struktur ausgeben (ins Log)") then
-      inspect("questPlayVoiceset_NodeTypeParams")
-      --  the params field is typed gameEntityReference, not EntityReference - that is
-      --  why the previous run logged "Type 'EntityReference' not found"
-      inspect("gameEntityReference")
-      --  dynamicEntityUniqueName is the field that could address a spawned companion
-      inspectEnum("gameEntityReferenceType")
-      inspectEnum("locVoiceoverExpression")
-      inspectEnum("locVoiceoverContext")
-      dumpDialogKeys()
-    end
-    ImGui.TextDisabled("Listet die Felder des Quest-Voiceset-Knotens. Der Weg, den das " ..
-                       "V Voice Framework nutzt - kein PlayVoiceOver, sondern ein " ..
-                       "Quest-Knoten ueber das QuestsSystem.")
-    ImGui.Separator()
-
-    if ImGui.Button("Erkennungstest (hoerbar, mit Untertitel)") then
-      optMute, optHideOver, lipMode = false, false, 0
-      lipStart(target, "greeting", lipDuration, lipInterval, 3, 5)
-    end
-    ImGui.TextDisabled("Setzt beide Haken zurueck und feuert einmal. Beantwortet zuerst " ..
-                       "die Grundfrage: wird ueberhaupt je eine Zeile gemeldet?")
-    ImGui.Separator()
-
-    ImGui.Text("Einstiegspunkt:")
-    ImGui.SameLine()
-    if ImGui.RadioButton("Quest-Voiceset", optEntry == 2) then optEntry = 2 end
-    ImGui.SameLine()
-    if ImGui.RadioButton("PlayVoiceOver", optEntry == 0) then optEntry = 0 end
-    ImGui.SameLine()
-    if ImGui.RadioButton("ChatterHelper", optEntry == 1) then optEntry = 1 end
-    if optEntry ~= 2 then
-      ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
-        string.format("Achtung: %.1fs Sperre pro NPC auf diesem Weg.", LIP_COOLDOWN))
-    end
-    ImGui.Separator()
-
-    optMute = ImGui.Checkbox("stummschalten", optMute)
-    ImGui.SameLine()
-    optHideOver = ImGui.Checkbox("Overhead-Untertitel aus", optHideOver)
-    ImGui.SameLine()
-    optHideCine = ImGui.Checkbox("Cinematic-Untertitel aus", optHideCine)
-    ImGui.TextDisabled("Beide aus = normaler, hoerbarer Bark. Damit laesst sich pruefen, " ..
-                       "ob ueberhaupt eine Zeile gemeldet wird - und danach einzeln, " ..
-                       "welche der beiden sie verschluckt.")
-    ImGui.Separator()
-
-    if ImGui.RadioButton("Einzelschuss", lipMode == 0) then lipMode = 0 end
-    ImGui.SameLine()
-    if ImGui.RadioButton("1 Neuversuch", lipMode == 1) then lipMode = 1 end
-    ImGui.SameLine()
-    if ImGui.RadioButton("Kette", lipMode == 2) then lipMode = 2 end
-    if lipMode == 2 then
-      ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
-        string.format("Gemessener VO-Cooldown: %.1fs pro NPC.", LIP_COOLDOWN))
-      ImGui.TextWrapped("Oefter geht nicht - 656 Schuesse ergaben 28 Zeilen, alle direkt " ..
-                        "nach Ablauf der Sperre. Ihre Barks dauern 1.1-2.84s, die " ..
-                        "Abdeckung ist damit auf rund 35% gedeckelt. Durchgehendes " ..
-                        "Sprechen ist ueber diesen Weg nicht erreichbar.")
-      lipLead = ImGui.SliderFloat("Vorlauf (s)", lipLead, 0.0, 0.6, "%.2f")
-    end
-
-    lipDuration = ImGui.SliderFloat("Fenster max (s)", lipDuration, 1.0, 20.0, "%.1f")
-    if lipMode == 1 then
-      lipRetry = ImGui.SliderFloat("Wartezeit vor Neuversuch (s)", lipRetry, 0.25, 2.5, "%.2f")
-    end
-    ImGui.TextDisabled("Das Fenster endet frueher, sobald eine Zeile ihre Dauer meldet.")
-
-    if ImGui.Button("Start: greeting") then
-      lipStart(target, "greeting", lipDuration, lipInterval, 3, 5)
-    end
-    ImGui.SameLine()
-    if ImGui.Button("Start: elite_warning") then
-      lipStart(target, "elite_warning", lipDuration, lipInterval, 3, 6)
-    end
-    ImGui.SameLine()
-    if ImGui.Button("Start: combat_ended") then
-      lipStart(target, "combat_ended", lipDuration, lipInterval, 3, 6)
-    end
-
-    if ImGui.Button("STOPP / Einstellungen zuruecksetzen") then
-      lipRestore("manuell")
-    end
-    if lip then
-      ImGui.SameLine()
-      ImGui.Text(string.format("noch %.1fs | %d Schuss | %s",
-                 lip.remaining, lip.shots, tostring(lip.lastVo or "-")))
-    end
-    ImGui.TextDisabled("Deckel bei " .. string.format("%.0f", LIP_MAX) .. "s")
-  end
-
-  if ImGui.CollapsingHeader("Mimik + Talk") then
-    ImGui.TextWrapped("Talk = Blick + Stimme + Mimik zusammen, wie NCA es intern macht. " ..
-                      "WICHTIG: dabei auf den MUND schauen. Bewegt er sich, liefern die " ..
-                      "VO-Events Lipsync - das habe ich bisher nur behauptet, nie geprueft.")
-    ImGui.Separator()
-    if ImGui.Button("Talk: greeting + Joy") then talk(target, "greeting", 3, 5) end
-    ImGui.SameLine()
-    if ImGui.Button("Talk: combat_ended + Smile") then talk(target, "combat_ended", 3, 6) end
-    ImGui.SameLine()
-    if ImGui.Button("Talk: bump + Anger") then talk(target, "bump", 3, 1) end
-    ImGui.Separator()
-    ImGui.TextDisabled("nur Mimik, ohne Stimme:")
-    for i, f in ipairs(FACES) do
-      if ImGui.Button(f[1] .. "##f") then face(target, f[2], f[3], f[1]) end
-      if i % 4 ~= 0 then ImGui.SameLine() end
-    end
-    ImGui.Text("")
-  end
-
-  if ImGui.CollapsingHeader("Animation - Lipsync-Test") then
-    ImGui.TextWrapped("Frage: steckt die Mundbewegung in der Animation selbst? " ..
-                      "TALK-Varianten mit den KONTROLLEN vergleichen. Bewegt sich der " ..
-                      "Mund bei beiden, sagt das Ergebnis nichts aus.")
-    ImGui.Separator()
-    for _, a in ipairs(ANIMS) do
-      if ImGui.Button(a[1] .. "##a") then playAnim(target, a[1]) end
-      ImGui.SameLine()
-      ImGui.TextDisabled(a[2])
-    end
-    ImGui.Separator()
-    if ImGui.Button("Animation stoppen") then
-      stopAnim()
-      log(" Animation gestoppt")
-    end
-    ImGui.SameLine()
-    ImGui.TextDisabled("immer stoppen, bevor die naechste startet")
-  end
-
-  if ImGui.CollapsingHeader("Voice - bestaetigt funktionierend (" .. #WORKING .. ")") then
-    for _, e in ipairs(WORKING) do
-      if ImGui.Button(e[1] .. "##w") then playVO(target, e[1]) end
-      ImGui.SameLine()
-      ImGui.TextDisabled(e[2])
-    end
-  end
-
-  ImGui.End()
-end)
-
-registerForEvent("onShutdown", function()
-  stopAnim()
-  lipRestore("Shutdown")
-end)
-
---  Read the enum's real members rather than assuming them.
-local function loadStyles()
-  local ok = pcall(function()
     local e = Reflection.GetEnum("scnDialogLineVisualStyle")
     if not e then return end
     for _, c in pairs(e:GetConstants()) do
@@ -1283,22 +233,121 @@ local function loadStyles()
       if nm then STYLES[#STYLES + 1] = nm end
     end
   end)
-  if #STYLES == 0 then
-    log("scnDialogLineVisualStyle nicht lesbar - Stil-Auswahl bleibt leer")
-    return
-  end
-  log("Stile: " .. table.concat(STYLES, ", "))
   for i, nm in ipairs(STYLES) do
-    if nm:lower() == "invisible" then
-      optStyle = i - 1
-      log("Stil auf invisible gesetzt - Untertitel pro Aufruf aus, ohne Spieleinstellungen")
-      return
+    if nm:lower() == "invisible" then styleIdx = i - 1 end
+  end
+  log(string.format("bereit - %d Stile gelesen, invisible=%s", #STYLES, tostring(styleIdx >= 0)))
+end)
+
+registerForEvent("onUpdate", function(dt)
+  local d = dt or 0.016
+
+  if facePending then
+    facePending.t = facePending.t + d
+    if facePending.t >= 0.5 then
+      if target then
+        local ok = pcall(function()
+          local f = NewObject("handle:AnimFeature_FacialReaction")
+          f.category = facePending.cat
+          f.idle     = facePending.idle
+          target:GetAnimationControllerComponent():ApplyFeature(CName.new("FacialReaction"), f)
+        end)
+        log("MIMIK " .. facePending.label .. (ok and "" or " FEHLER"))
+      end
+      facePending = nil
     end
   end
-  log("kein 'invisible' im Enum - Untertitel muessen ueber die Einstellungen weg")
-end
 
-registerForEvent("onInit", function()
-  loadStyles()
-  log(" bereit - Overlay oeffnen, Judy anschauen, Ziel sperren")
+  if chain then
+    chain.clock = chain.clock + d
+    chain.remaining = chain.remaining - d
+    if chain.remaining <= 0 then
+      chainStop("Zeitablauf")
+    elseif chain.clock >= chain.next then
+      chain.i = (chain.i % #LONG) + 1
+      local name = LONG[chain.i]
+      --  kurz vor dem Ende uebergeben; mitten in der Zeile zu feuern schneidet sie ab
+      chain.next = chain.clock + durOf(name) - chainLead
+      chain.shots = chain.shots + 1
+      playBark(name)
+    end
+  end
+end)
+
+registerForEvent("onShutdown", function() chainStop("Shutdown") end)
+
+registerForEvent("onDraw", function()
+  ImGui.SetNextWindowSize(620, 720, ImGuiCond.FirstUseEver)
+  if not ImGui.Begin("CompanionLeash - Barks") then ImGui.End(); return end
+
+  ImGui.Text("Ziel: " .. targetName)
+  ImGui.SameLine()
+  if target then
+    ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "[gesperrt]")
+    ImGui.SameLine()
+    if ImGui.Button("freigeben") then target, targetName = nil, "-" end
+  else
+    if ImGui.Button("Ziel sperren (anschauen)") then
+      local o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+      if o then
+        target = o
+        targetName = tostring(o:GetDisplayName())
+        log("Ziel gesperrt: " .. targetName)
+      end
+    end
+  end
+  ImGui.SameLine()
+  ImGui.TextDisabled("zuletzt: " .. lastPlayed)
+  ImGui.Separator()
+
+  if ImGui.CollapsingHeader("Barks - 55 Zeilen") then
+    for _, g in ipairs(BARKS) do
+      if ImGui.TreeNode(g.fam) then
+        for _, l in ipairs(g.lines) do
+          if ImGui.Button(string.format("%.2fs##%s", l.d, l.n)) then playBark(l.n) end
+          ImGui.SameLine()
+          ImGui.Text(l.t)
+        end
+        ImGui.TreePop()
+      end
+    end
+  end
+
+  if ImGui.CollapsingHeader("Kette - durchgehende Mundbewegung") then
+    ImGui.TextWrapped("Haengt die laengsten Zeilen aneinander. Grundlage fuer " ..
+                      "Fake-Lipsync: stumme Barks bewegen den Mund, die eigene Zeile " ..
+                      "laeuft ueber den SFX-Bus.")
+    chainDur  = ImGui.SliderFloat("Dauer (s)", chainDur, 2.0, 30.0, "%.1f")
+    chainLead = ImGui.SliderFloat("Vorlauf (s)", chainLead, 0.0, 0.6, "%.2f")
+    muteDialogue = ImGui.Checkbox("Dialog stummschalten", muteDialogue)
+    if chain then
+      if ImGui.Button("STOPP") then chainStop("manuell") end
+      ImGui.SameLine()
+      ImGui.Text(string.format("noch %.1fs | %d Zeilen", chain.remaining, chain.shots))
+    else
+      if ImGui.Button("Kette starten") then chainStart() end
+    end
+    if savedVolume ~= nil then
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "Dialog ist stumm - STOPP setzt zurueck.")
+    end
+  end
+
+  if ImGui.CollapsingHeader("Mimik") then
+    for i, f in ipairs(FACES) do
+      if i % 4 ~= 1 then ImGui.SameLine() end
+      if ImGui.Button(f[1]) then setFace(f[2], f[3], f[1]) end
+    end
+  end
+
+  if ImGui.CollapsingHeader("Untertitel-Stil") then
+    ImGui.TextWrapped("invisible unterdrueckt den Untertitel pro Aufruf, ohne an globalen " ..
+                      "Spieleinstellungen zu drehen, die zurueckgesetzt werden muessten.")
+    if ImGui.RadioButton("kein Override", styleIdx == -1) then styleIdx = -1 end
+    for i, nm in ipairs(STYLES) do
+      if i % 4 ~= 1 then ImGui.SameLine() end
+      if ImGui.RadioButton(nm, styleIdx == i - 1) then styleIdx = i - 1 end
+    end
+  end
+
+  ImGui.End()
 end)
