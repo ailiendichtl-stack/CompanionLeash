@@ -56,7 +56,11 @@ def main():
     line_src = next(l for l in lines if l["itemId"]["id"] == line_src_id)
 
     node_max = max(n.get("Data", n)["nodeId"]["id"] for n in graph)
-    item_id = max(l["itemId"]["id"] for l in lines) + 1
+    #  itemId ist KEINE fortlaufende Zahl, sondern strukturiert: alle 55 Vanilla-Ids und
+    #  alle 12978 VVF-Ids haben die Form (n << 8) | 1. Meine "naechste freie Zahl" ergab
+    #  0x3602 statt 0x3701 und brach damit das Muster - genau deshalb scheiterten neue
+    #  ZEILEN, waehrend umgebogene vorhandene funktionierten.
+    item_id = ((max(l["itemId"]["id"] for l in lines) >> 8) + 1 << 8) | 1
     h = max(int(x) for x in _all_handles(d))
     sec_id, start_id = node_max + 1, node_max + 2
 
@@ -72,7 +76,9 @@ def main():
     sec["Data"]["nodeId"]["id"] = sec_id
     ev = sec["Data"]["events"][0]
     ev["HandleId"] = str(h + 2)
-    new_event_id = str(int(ev["Data"]["id"]["id"]) + 7777)
+    #  Ereignis-Ids sind auf 4 ausgerichtet - in Vanilla wie bei VVF. +7777 ergab 97 in
+    #  den unteren Bits und war damit ebenfalls ungueltig.
+    new_event_id = str(int(ev["Data"]["id"]["id"]) + 0x1000)
     ev["Data"]["id"]["id"] = new_event_id
     ev["Data"]["screenplayLineId"]["id"] = item_id
     #  duration und sectionDuration bleiben, wie sie in der Vorlage stehen.
@@ -107,6 +113,10 @@ def main():
     print("Timing  : unveraendert aus der Vorlage - dur %d, section %d (+%d)"
           % (dur, stu, stu - dur))
     print("ruid    : %s" % line["locstringId"]["ruid"])
+    print("itemId  : %d = %s  (Muster (n<<8)|1: %s)"
+          % (item_id, hex(item_id), "ja" if item_id & 0xFF == 1 else "NEIN"))
+    print("EreignId: %s  (auf 4 ausgerichtet: %s)"
+          % (hex(int(new_event_id)), "ja" if int(new_event_id) % 4 == 0 else "NEIN"))
     print("Einstiege %d = startNodes %d | Knoten %d = Symbole %d"
           % (len(root["entryPoints"]), len(starts), len(graph),
              len(ds["sceneNodesDebugSymbols"])))
