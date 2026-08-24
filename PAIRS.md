@@ -11,6 +11,12 @@ Die Zuordnung ist Handarbeit. Automatisch geht sie nicht: sortiert man eine Szen
 nach stringId, liegen die Zeilen nach Aufnahme-Charge beieinander, nicht nach
 Dialogfolge.
 
+**Wir sind nicht an vorgefundene Nachbarschaften gebunden.** Jede V-Zeile laesst sich mit
+jeder Judy-Zeile kombinieren, solange der Wortwechsel zur Beziehung passt - so wie die
+Messenger-Mods eigene Gespraeche schreiben, statt Vorhandenes nachzustellen. Die 20 unten
+sind ein Anfang, keine Obergrenze: aus 160 V-Zeilen und 55 Judy-Zeilen lassen sich sehr
+viel mehr sinnvolle Paare bilden, auch drei- und vierteilige.
+
 ## Gespraech unterbrochen  <sub>4.7s</sub>
 
 | Wer | Voiceset | s | Zeile |

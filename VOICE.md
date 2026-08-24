@@ -781,3 +781,33 @@ _inspect`, `scene_thanks`, `scene_insult`, `hint_check`, `yelling_happy`,
 Die Dauern sind **nicht gemessen** - bei Judy hat das der Panel-Sweep geliefert, fuer V
 steht das noch aus.
 
+## Der Weg zu Judys Quest-Zeilen: Voiceset erweitern
+
+Das V Voice Framework macht genau das, was wir fuer Judys 1104 Quest-Zeilen brauchen - und
+es ist im Spiel erprobt.
+
+Sein Archiv enthaelt **eine einzige Datei**: `base/quest/primary_characters/vsets/
+vset_v.scene`. Es **ersetzt** also Vs Voiceset-Szene durch eine erweiterte Fassung.
+
+| | Vanilla | VVF |
+|---|---|---|
+| Groesse | 283 KB | 10251 KB |
+| Strings | 1323 | 16772 |
+| eigene Eintraege | 0 | **12807** (`vfv_*`) |
+
+Dazu 3,2 MB Redscript mit 13006 Aufrufen der Form
+`this.VFV_PlayVoice(n"vfv_whatve_you_got_stock")`.
+
+**Damit ist bewiesen, dass sich Voicesets um beliebige Eintraege erweitern lassen**, die auf
+vorhandenes Quest-Audio zeigen - und Voicesets tragen Lipsync ueber `lipsyncAnimSet`. Fuer
+Judy hiesse das: `vset_judy.scene` um Eintraege fuer ihre Quest-Zeilen erweitern, und die
+1104 Zeilen waeren mit Lipsync spielbar. Der Stumm-Trick waere dann nur noch Reserve.
+
+Kein Konflikt mit VVF: der Mod fasst `vset_v.scene` an, wir wuerden `vset_judy.scene`
+anfassen. Wollten wir Vs Voiceset erweitern, muessten wir uns mit VVF abstimmen.
+
+Offen: wie die `vfv_`-Eintraege ihr Audio referenzieren. Die Mod-Szene enthaelt nur 344
+stringIds gegenueber 334 im Original - die 12807 Eintraege tragen ihre Audio-Referenz also
+anders, nicht ueber je eine eigene stringId. Das ist der naechste zu klaerende Punkt, bevor
+wir dasselbe fuer Judy bauen.
+
