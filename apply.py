@@ -7,12 +7,32 @@ def md5(p):
     return hashlib.md5(open(p, "rb").read()).hexdigest()
 
 def game_root():
-    # CLI arg wins; otherwise assume this folder sits in the game root.
-    root = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(HERE)
+    #  Resolution order:
+    #    1. explicit CLI argument
+    #    2. game-root.txt next to this script (machine-specific, not committed)
+    #    3. the parent folder - only correct while the project sits inside the game
+    #
+    #  The source of truth deliberately lives OUTSIDE the game directory so it survives
+    #  Steam file verification, game updates and reinstalls. That means the game path has
+    #  to be configured rather than inferred.
+    cfg = os.path.join(HERE, "game-root.txt")
+    if len(sys.argv) > 1:
+        root = sys.argv[1]
+    elif os.path.exists(cfg):
+        root = open(cfg, encoding="utf-8").read().strip()
+    else:
+        root = os.path.dirname(HERE)
+
     if not os.path.exists(os.path.join(root, "bin", "x64", "Cyberpunk2077.exe")):
+        q = chr(34)
         print("Not a Cyberpunk 2077 install: " + root)
-        print("Pass the game root explicitly:  python " + os.path.basename(sys.argv[0]) + " <game-root>")
+        print("Pass the game root once and it will be remembered:")
+        print("  python " + os.path.basename(sys.argv[0]) + " " + q + "D:/SteamLibrary/steamapps/common/Cyberpunk 2077" + q)
         return None
+
+    if not os.path.exists(cfg):
+        open(cfg, "w", encoding="utf-8").write(root)
+        print("Remembered game root in game-root.txt")
     return root
 
 def paths(root):

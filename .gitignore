@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 
 # deployment output lives in the game folder, not here
+
+# machine-specific game path, written on first run
+game-root.txt
