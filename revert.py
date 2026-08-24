@@ -39,12 +39,13 @@ def paths(root):
     target = os.path.join(root, *MAN["patch"]["target"].split("/"))
     scripts = os.path.join(root, "r6", "scripts", "CompanionLeash")
     tweaks  = os.path.join(root, "r6", "tweaks")
-    return target, scripts, tweaks
+    cet     = os.path.join(root, "bin", "x64", "plugins", "cyber_engine_tweaks", "mods")
+    return target, scripts, tweaks, cet
 
 def main():
     root = game_root()
     if root is None: return 1
-    target, scripts, tweaks = paths(root)
+    target, scripts, tweaks, cet = paths(root)
 
     post = MAN["patch"]["postimage_md5"]
     pre  = MAN["patch"]["preimage_md5"]
@@ -67,6 +68,12 @@ def main():
         if os.path.exists(f):
             os.remove(f)
             print("Removed r6/tweaks/" + name)
+
+    for rel in MAN.get("cet_files", {}):
+        d = os.path.join(cet, rel.split("/")[0])
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+            print("Removed CET mod " + rel.split("/")[0])
 
     if os.path.isdir(scripts):
         shutil.rmtree(scripts)

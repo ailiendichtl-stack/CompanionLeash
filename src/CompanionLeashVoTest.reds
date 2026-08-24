@@ -18,7 +18,9 @@
 // =====================================================================================
 
 public class CompanionLeashVoTest {
-    public static func Enabled()  -> Bool = true;
+    //  OFF: the CET panel (cet/CompanionLeashVO) has taken over manual testing.
+    //  Set to true to run the timed sweep again.
+    public static func Enabled()  -> Bool = false;
     // Seconds between attempts. Long enough to tell one line from the next by ear.
     public static func Interval() -> Float = 4.0;
     public static func Count()    -> Int32 = 20;

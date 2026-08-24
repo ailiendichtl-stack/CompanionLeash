@@ -39,12 +39,13 @@ def paths(root):
     target = os.path.join(root, *MAN["patch"]["target"].split("/"))
     scripts = os.path.join(root, "r6", "scripts", "CompanionLeash")
     tweaks  = os.path.join(root, "r6", "tweaks")
-    return target, scripts, tweaks
+    cet     = os.path.join(root, "bin", "x64", "plugins", "cyber_engine_tweaks", "mods")
+    return target, scripts, tweaks, cet
 
 def main():
     root = game_root()
     if root is None: return 1
-    target, scripts, tweaks = paths(root)
+    target, scripts, tweaks, cet = paths(root)
 
     if not os.path.exists(target):
         print("Night City Allies not installed - target missing:")
@@ -78,6 +79,11 @@ def main():
 
     for name in MAN.get("tweak_files", {}):
         shutil.copyfile(os.path.join(HERE, "tweaks", name), os.path.join(tweaks, name))
+
+    for rel in MAN.get("cet_files", {}):
+        dest = os.path.join(cet, *rel.split("/"))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copyfile(os.path.join(HERE, "cet", *rel.split("/")), dest)
 
     if cur == pre:
         shutil.copyfile(os.path.join(HERE, "FollowPlayerBehavior.PATCHED.reds"), target)

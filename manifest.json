@@ -22,9 +22,12 @@
   "standalone_files": {
     "CompanionLeashCommands.reds": "9f73b145287d74ac8a241fffd500bffd",
     "CompanionLeashPolicy.reds": "30f7785b29c740bcb093bdfedc2ea247",
-    "CompanionLeashVoTest.reds": "4c22e1ea960000b11fbf900cae85c6ff"
+    "CompanionLeashVoTest.reds": "26df92941687ce05b54ed5f2948066a5"
   },
   "tweak_files": {
     "CompanionLeash.yaml": "30cdc450c7006af80acf29ce40e0b87a"
+  },
+  "cet_files": {
+    "CompanionLeashVO/init.lua": "63de9e319f8e02eede28b2584b2b7310"
   }
 }
