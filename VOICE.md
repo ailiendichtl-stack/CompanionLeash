@@ -165,6 +165,63 @@ error or retry into a stutter.
 **Design consequence:** prefer events with distinct lines, and treat the generic-pool
 events as interchangeable filler rather than meaningful signals.
 
+---
+
+## Beyond events: a custom line archive
+
+The 17 working events are a fixed, small set chosen by CDPR. The ~8,000 recorded lines are
+not reachable through them. A separate route exists, and every piece of it is verified:
+
+### The pipeline
+
+    1. TEXT      tools/voice_inventory.py            DONE
+                 8,367 German lines, each with a stable stringId
+
+    2. AUDIO     WolvenKit                            external tool
+                 voice lives in lang_de_voice.archive: 90,253 files, 4.7 GB,
+                 stored as opus packs. Paths are FNV-1a64 hashes, so locating a
+                 specific line needs WolvenKit's hash database - guessing path
+                 patterns does not work and was tried.
+
+    3. PLAYBACK  Audioware                            already installed, API verified
+                 declare wav files in r6/audioware/<bank>/<bank>.yml, then:
+
+                 GameInstance.GetAudioSystemExt(game)
+                     .Play(n"lineName", judyEntityID, n"emitter", scnDialogLineType.Regular)
+
+                 Play() takes an entityID and a scnDialogLineType, so the line is
+                 positioned on her and carries subtitle support. PlayOnEmitter and
+                 PlayOverThePhone exist too - the latter is interesting for holocalls.
+
+    4. TRIGGER   CompanionLeash policy layer          existing
+
+The "Go on a Date (Judy) - Language support Dialogues" mod already ships wav files through
+Audioware this way, so the approach is proven in this exact install.
+
+### What it costs, honestly
+
+Step 2 is the real work and it is manual: identify the line, extract it, convert to wav,
+name it, add it to a bank. That is per-line effort, not a batch job, because choosing
+*which* lines are worth having is a judgement call - the inventory has 8,367 of them and
+most are welded to a specific story moment.
+
+Two limits worth knowing before committing to it:
+
+- **No lip sync.** Audioware plays audio; it does not drive the facial rig. Standing next
+  to her, a line without matching mouth movement is noticeable. The built-in VO events do
+  not have this problem.
+- **Context.** A line recorded for one scene often refers to that scene. The inventory
+  makes this checkable in advance, which is exactly what it is for.
+
+### Sensible split
+
+Use the **17 events** for reactive, frequent behaviour: greeting, stealth, combat, bump.
+They are free, lip-synced, and already contextual.
+
+Use a **custom bank** for a small number of deliberately chosen lines where the event
+system has nothing to offer. Quality over quantity - a handful of well-placed lines beats
+a large library that fires at the wrong moment.
+
 ## Technical notes
 
 The extractor reads the RDAR archive format directly, resolves paths by FNV-1a64 hash,

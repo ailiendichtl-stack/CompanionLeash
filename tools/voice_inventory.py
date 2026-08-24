@@ -77,28 +77,70 @@ class Archive:
         return out
 
 
-def cr2w_strings(d):
-    """CR2W strings are varint length-prefixed: bit7 marks a string, bit6 a
-    continuation byte, the low 6 bits are the length."""
-    out, i = [], 0
-    while i < len(d):
-        b = d[i]
-        if b & 0x80:
-            if b & 0x40 and i + 1 < len(d):
-                ln, hdr = (b & 0x3F) | (d[i + 1] << 6), 2
-            else:
-                ln, hdr = b & 0x3F, 1
-            if 1 < ln < 4000 and i + hdr + ln <= len(d):
-                try:
-                    s = d[i + hdr:i + hdr + ln].decode("utf-8")
-                except UnicodeDecodeError:
-                    i += 1
-                    continue
-                if s.isprintable():
-                    out.append(s)
-                    i += hdr + ln
-                    continue
-        i += 1
+def _u16(d, i): return int.from_bytes(d[i:i + 2], "little")
+def _u32(d, i): return int.from_bytes(d[i:i + 4], "little")
+
+
+def _string_at(val):
+    """CR2W strings are varint length-prefixed: bit 7 marks a string, bit 6 marks a
+    continuation byte, the low 6 bits carry the length. Reading only one length byte
+    truncates every line past 63 characters and corrupts multi-byte characters at the cut."""
+    if not val or not (val[0] & 0x80):
+        return None
+    if val[0] & 0x40 and len(val) > 1:
+        ln, hdr = (val[0] & 0x3F) | (val[1] << 6), 2
+    else:
+        ln, hdr = val[0] & 0x3F, 1
+    if hdr + ln > len(val):
+        return None
+    try:
+        return val[hdr:hdr + ln].decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def cr2w_entries(d):
+    """Yield (stringId, [texts]) for every subtitle record.
+
+    Field layout, confirmed by hexdump:
+        nameIdx(2) typeIdx(2) size(4) value      size counts itself: len(value) = size - 4
+
+    Walking sequentially from offset 0 does not work - the CR2W header and name table
+    are not fields, so the walk desynchronises immediately and never recovers. Instead
+    anchor on the shape of a record: an 8-byte value field (the Uint64 stringId)
+    immediately followed by a string field. That is independent of the per-file name
+    table indices, which differ between subtitle files.
+    """
+    out, i, n = [], 0, len(d)
+    while i + 16 <= n:
+        if _u32(d, i + 4) != 12:                      # stringId field is always size 12
+            i += 1
+            continue
+        j = i + 16          # header(8) + value(size-4) = size + 4, and size is 12 here
+        size2 = _u32(d, j + 4)
+        if not (4 < size2 < 4000) or j + 4 + size2 > n:
+            i += 1
+            continue
+        first = _string_at(d[j + 8:j + 4 + size2])
+        if first is None or not first.strip():
+            i += 1
+            continue
+
+        sid = int.from_bytes(d[i + 8:i + 16], "little")
+        texts, k = [first], j + 4 + size2
+        # further string fields belong to the same record (female / male variant)
+        while k + 8 <= n and _u16(d, k) != 0:
+            sz = _u32(d, k + 4)
+            if not (4 < sz < 4000) or k + 4 + sz > n:
+                break
+            t = _string_at(d[k + 8:k + 4 + sz])
+            if t is None:
+                break
+            if t.strip():
+                texts.append(t)
+            k += 4 + sz
+        out.append((sid, texts))
+        i = k
     return out
 
 
@@ -149,15 +191,17 @@ def main():
         blob = arc.read(p)
         if not blob:
             continue
-        lines = [s for s in cr2w_strings(blob) if s not in SCHEMA]
-        seen, uniq = set(), []
-        for s in lines:
-            if s not in seen:
-                seen.add(s)
-                uniq.append(s)
-        if uniq:
-            result[p] = uniq
-            total += len(uniq)
+        entries = []
+        for sid, texts in cr2w_entries(blob):
+            uniq = []
+            for t in texts:
+                if t not in SCHEMA and t not in uniq:
+                    uniq.append(t)
+            if uniq:
+                entries.append({"id": str(sid), "text": uniq})
+        if entries:
+            result[p] = entries
+            total += len(entries)
 
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
     out = os.path.join(HERE, "data", "voicelines_%s.json" % lang)
@@ -168,7 +212,7 @@ def main():
     print("language      : %s" % tag)
     print("filter        : %s" % filt)
     print("subtitle files: %d of %d referenced" % (len(result), len(paths)))
-    print("distinct lines: %d" % total)
+    print("keyed entries : %d" % total)
     print("written       : data/voicelines_%s.json" % lang)
     print()
     for p in sorted(result, key=lambda k: -len(result[k]))[:15]:
