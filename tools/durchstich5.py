@@ -31,15 +31,18 @@ BUILD = os.path.join(HERE, "build", "durchstich5")
 DEPOT = "base/quest/secondary_characters/vsets"
 
 TEMPLATE = "danger_var_1"
-#  Lipsync-Animationen liegen sprachabhaengig im Sprach-Archiv, je Szene und Figur:
-#      base/localization/<lang>/lipsync/<szenenpfad>/<figur>.anims
-#  Judys Voiceset referenziert nur sein eigenes Set mit den 55 Bark-Animationen. Unsere
-#  Zeile stammt aus mq055_01_megabuilding, ihre Animation liegt also dort - geprueft:
-#  die Datei enthaelt 39669188B9A4E000.
+#  Die Datei liegt unter base/localization/de-de/lipsync/<szenenpfad>/<figur>.anims -
+#  referenziert wird sie aber NICHT so. Szenen benutzen eine logische Form, in der die
+#  Engine Sprache und Lokalisierungspfad selbst einsetzt. Aus der mq055-Szene abgelesen:
+#
+#      base\quest\minor_quests\mq055\scenes\lipsync\en\mq055_01_megabuilding\judy.anims
+#
+#  also <szenenordner>\lipsync\en\<szenenname>\<figur>.anims - genau wie Judys Voiceset
+#  sein eigenes Set als vsets\lipsync\enset_judy\judy.anims referenziert.
+#  Der physische Pfad funktioniert nicht: damit blieb der Mund still.
 BS = chr(92)
-ANIMS = BS.join(["base", "localization", "de-de", "lipsync", "base", "quest",
-                 "minor_quests", "mq055", "scenes", "mq055_01_megabuilding",
-                 "judy.anims"])
+ANIMS = BS.join(["base", "quest", "minor_quests", "mq055", "scenes", "lipsync", "en",
+                 "mq055_01_megabuilding", "judy.anims"])
 NAME = "cl_klon_danger"
 HEX = "39669188b9a4e000"
 

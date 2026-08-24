@@ -149,9 +149,23 @@ Figur:
 base/localization/<lang>/lipsync/<szenenpfad>/<figur>.anims
 ```
 
-Judys Voiceset referenziert nur sein eigenes Set mit den 55 Bark-Animationen. Fuer eine
-Quest-Zeile muss das Set ihrer Herkunftsszene in `resouresReferences.lipsyncAnimSets`
-ergaenzt werden - beim Vollausbau also je ein Eintrag pro betroffener Szene.
+**Referenziert wird aber NICHT dieser Pfad.** Szenen benutzen eine logische Form, in der
+die Engine Sprache und Lokalisierungspfad selbst einsetzt. Aus der mq055-Szene abgelesen:
+
+```
+gespeichert:   base/localization/de-de/lipsync/base/quest/minor_quests/mq055/scenes/
+                                              mq055_01_megabuilding/judy.anims
+referenziert:  base/quest/minor_quests/mq055/scenes/lipsync/en/
+                                              mq055_01_megabuilding/judy.anims
+```
+
+Also `<szenenordner>/lipsync/en/<szenenname>/<figur>.anims` - genau wie Judys Voiceset sein
+eigenes Set als `vsets/lipsync/en/vset_judy/judy.anims` referenziert. Der physische Pfad
+funktioniert nicht; damit blieb der Mund still.
+
+Fuer eine Quest-Zeile muss das Set ihrer Herkunftsszene in
+`resouresReferences.lipsyncAnimSets` ergaenzt werden - beim Vollausbau also je ein Eintrag
+pro betroffener Szene.
 
 **Nicht anfassen:** `voInfo` (VVF fuehrt 13012 Eintraege bei 205 voInfo), `locStore`
 (Editor-Beschriftungen).
@@ -181,9 +195,10 @@ funktionierte: deren Ids waren bereits wohlgeformt.
   zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
 * **Dauer** - die Vorlage-Dauer bleibt beim Klonen stehen. Fuer eine laengere Zielzeile
   schneidet das ab. Als naechstes aus den `.wem` messen.
-* **Sprachen** - Lipsync-Sets liegen je Sprache getrennt. Der Pfad unten ist `de-de`;
-  fuer eine veroeffentlichte Mod muessten die Sets aller unterstuetzten Sprachen mit
-  hinein oder pro Sprache ein eigenes Archiv gebaut werden.
+* **Sprachen** - die Referenz traegt `en` fest im Pfad, obwohl die Dateien je Sprache
+  getrennt liegen. Vanilla macht das ueberall so, die Engine setzt die aktive Sprache also
+  selbst ein. Fuer eine veroeffentlichte Mod ist damit vermutlich nichts weiter zu tun -
+  ungeprueft, aber Vanilla verhaelt sich so.
 
 ## Nachtrag aus dem Durchstich
 
