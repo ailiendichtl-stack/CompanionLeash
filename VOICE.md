@@ -546,3 +546,44 @@ gelegt werden statt in ihre Mitte. Mittendrin zu feuern schneidet sie ab - das w
 urspruengliche Fehler; am Schwanz zu feuern uebergibt nur. `lipLead` = 0.15 s deckt den
 gemessenen Meldeverzug von 0.07-0.24 s ab.
 
+## Der VO-Cooldown: ~8,2 s pro NPC
+
+Aus dem Log gerechnet, sieben unabhaengige Messungen im selben Lauf-Satz:
+
+| Abstand zweier Judy-Zeilen | Schuesse dazwischen |
+|---|---|
+| 8.16 / 8.16 / 8.16 / 8.18 / 8.20 / 8.23 / 8.25 s | 30 - 33 |
+
+**656 Schuesse ergaben 28 Judy-Zeilen (4,3 %).** Jeder Treffer war der erste Schuss nach
+Ablauf der Sperre; die 30+ dazwischen waren wirkungslos. Es gibt eine harte
+VO-Sperre pro NPC von rund 8,2 Sekunden.
+
+Das erklaert rueckwirkend **alles**, was uns seit Beginn beschaeftigt hat:
+
+* "manchmal passiert nichts" - innerhalb der Sperre
+* Rotation half nicht - die Sperre gilt pro NPC, nicht pro Event
+* Intervall half nicht - dito
+* "musste mehrfach klicken" - geklickt, bis die Sperre ablief
+
+### Korrektur
+
+Ich hatte aus `AISubActionPlayVoiceOver_Record_Implementation` geschlossen, der Cooldown
+sitze ausschliesslich beim Aufrufer (`AIActionHelper.StartCooldown`) und direkte Aufrufe
+umgingen ihn. Das galt nur fuer den Cooldown der AI-Subaction. Es gibt zusaetzlich eine
+native Sperre, die auch direkte `PlayVoiceOver`-Aufrufe trifft.
+
+### Konsequenz
+
+Gemessene Bark-Dauern: 1.11, 1.35, 1.42, 1.50, 2.32, 2.83, 2.84 s (Schnitt 2.12).
+
+Maximale Abdeckung = laengste Bark / Sperre = 2.84 / 8.2 = **35 %**. Durchgehende
+Mundbewegung ueber VO-Events ist damit **ausgeschlossen**, nicht nur schwierig. Ein
+Schuss liefert 1-3 s Lippenbewegung, und das ist die Obergrenze dessen, was dieser Weg
+hergibt.
+
+Nutzbar bleibt: **ein** Bark pro Ereignis, als kurze Reaktion. Fuer eigene lange Zeilen
+taugt der Stumm-Trick nicht.
+
+Offen als einziger Ausweg: der Quest-Voiceset-Pfad, ein anderer Dispatcher, der die
+Bark-Sperre moeglicherweise nicht teilt.
+

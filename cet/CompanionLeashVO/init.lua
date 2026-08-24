@@ -98,6 +98,12 @@ local lipRetry = 0.35
 --  was the original bug - but firing at the tail just hands over. 0.15s covers the
 --  measured 0.07-0.24s report latency without leaving a visible gap.
 local lipLead = 0.15
+--  MEASURED, seven independent runs: 8.16 / 8.16 / 8.16 / 8.18 / 8.20 / 8.23 / 8.25 s
+--  between two lines from the same NPC, with 30-33 shots fired in between each time and
+--  not one of them landing. There is a hard per-NPC VO cooldown of ~8.2s. Firing more
+--  often than this does literally nothing - 656 shots produced 28 lines, and every one of
+--  those was just the first shot after the cooldown expired.
+local LIP_COOLDOWN = 8.2
 local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended barrage
 --  Each suppression is switchable on its own. Changing mute and subtitle handling at the
 --  same time is how you end up unable to say which one produced a result.
@@ -463,7 +469,7 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
   fireVo(handle, vo)
   log(string.format("=== TEST  event=%s  mute=%s  untertitel_aus=%s  modus=%s  einstieg=%s",
       vo, tostring(optMute), tostring(optHideOver),
-      (lipMode == 0) and "einzelschuss" or "1 neuversuch",
+      (lipMode == 0) and "einzelschuss" or ((lipMode == 2) and "kette" or "1 neuversuch"),
       (optEntry == 0) and "PlayVoiceOver" or "ChatterHelper"))
   log(string.format("  SCHUSS 1 t=0.000  %s", vo))
 
@@ -559,6 +565,7 @@ registerForEvent("onUpdate", function(dt)
               lipDiag.lastText, lipDiag.lastName))
         elseif not lip.confirmed then
           lip.confirmed = true
+          lip.lastLanded = lip.clock
           lip.lineDur = lipDiag.lastDur
           log(string.format("  ZEILE t=%.3f  dauer=%.2f  \"%s\"  [%s]",
               lip.clock, lipDiag.lastDur, lipDiag.lastText, lipDiag.lastName))
@@ -566,8 +573,12 @@ registerForEvent("onUpdate", function(dt)
           --  A muted VO request must not be strangled for 20s by our own cap.
           if lipDiag.lastDur > 0.05 then
             if lipMode == 2 then
-              --  chain: hand over just before this line ends
-              lip.nextAt = lip.clock + lipDiag.lastDur - lipLead
+              --  The chain cannot beat the cooldown. Handing over at the tail of the line
+              --  is pointless when the next shot cannot land for 8.2s, so the next attempt
+              --  goes exactly there. Coverage is capped at line duration / 8.2s - about
+              --  35% even with her longest barks.
+              lip.nextAt = math.max(lip.clock + lipDiag.lastDur - lipLead,
+                                    lip.clock + LIP_COOLDOWN - 0.2)
             else
               lip.remaining = math.min(lip.remaining, lipDiag.lastDur + 0.4)
             end
@@ -589,10 +600,11 @@ registerForEvent("onUpdate", function(dt)
         log(string.format("  SCHUSS %d t=%.3f  %s  (Kette)", lip.shots, lip.clock, vo))
       end
 
-      --  ONE retry, and only while nothing has landed. Never re-fire after a confirmed
-      --  line: that is what cut good shots off. In chain mode a dud may also be retried,
-      --  otherwise one dead variant ends the chain.
-      if not lip.confirmed and lipMode ~= 0
+      --  A retry is only meaningful if the cooldown has expired; inside it the shot cannot
+      --  land, so retrying just burns frames. This is what produced 57 shots in 15s.
+      local cooledDown = (lip.lastLanded == nil)
+                         or (lip.clock - lip.lastLanded >= LIP_COOLDOWN)
+      if not lip.confirmed and lipMode ~= 0 and cooledDown
          and (lipMode == 2 or lip.retries < LIP_MAX_RETRY) and lip.t >= lipRetry then
         lip.t = 0
         lip.retries = lip.retries + 1
@@ -775,8 +787,12 @@ registerForEvent("onDraw", function()
     ImGui.SameLine()
     if ImGui.RadioButton("Kette", lipMode == 2) then lipMode = 2 end
     if lipMode == 2 then
-      ImGui.TextWrapped("Feuert jeweils kurz vor dem Ende der laufenden Zeile nach, " ..
-                        "damit der Mund durchlaeuft. Eine Judy-Bark dauert 1.1-1.5s.")
+      ImGui.TextColored(1.0, 0.5, 0.3, 1.0,
+        string.format("Gemessener VO-Cooldown: %.1fs pro NPC.", LIP_COOLDOWN))
+      ImGui.TextWrapped("Oefter geht nicht - 656 Schuesse ergaben 28 Zeilen, alle direkt " ..
+                        "nach Ablauf der Sperre. Ihre Barks dauern 1.1-2.84s, die " ..
+                        "Abdeckung ist damit auf rund 35% gedeckelt. Durchgehendes " ..
+                        "Sprechen ist ueber diesen Weg nicht erreichbar.")
       lipLead = ImGui.SliderFloat("Vorlauf (s)", lipLead, 0.0, 0.6, "%.2f")
     end
 
