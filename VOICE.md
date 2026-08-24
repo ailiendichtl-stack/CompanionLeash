@@ -124,15 +124,32 @@ false negatives at scale. The manual panel is the authoritative source below.
 "Echt jetzt!?" reactions. No distinct lines of their own. Usable as filler, not worth
 wiring to a specific situation when `elite_warning` or `camera_warning` say something real.
 
-### Still open
+### Confirmed silent
 
-Not yet exercised by hand: `danger`, `stlh_curious_grunt`, `stlh_call`, `stlh_death`,
-`start_dead`, `crowd_combat`, `shove`, `fear_beg`, `fear_run`, `hit_reaction_heavy`,
-`hit_grapple`, `vo_any_damage_hit`, `heavy_reloading`, `hmg_charge`, `pedestrian_hit`,
-`cpo_armor_broken`, `cpo_got_data`, `cpo_nearly_dead`, `following`, `waiting`.
+Clicked by hand, repeatedly, and never produced audio:
 
-Given how the timed sweep misjudged the others, these should be assumed **untested**
-rather than silent.
+`danger`, `stlh_curious_grunt`, `stlh_call`, `stlh_death`, `start_dead`, `crowd_combat`,
+`shove`, `fear_beg`, `fear_run`, `hit_reaction_heavy`, `hit_grapple`, `vo_any_damage_hit`,
+`heavy_reloading`, `hmg_charge`, `pedestrian_hit`, `cpo_armor_broken`, `cpo_got_data`,
+`cpo_nearly_dead`, `following`, `waiting`.
+
+The `cpo_*` family is genuinely empty for her, despite `coop_*` paying off — the two
+prefixes are not the halves of one set.
+
+### Final tally
+
+    17  distinct, usable lines
+     6  generic pool only ("Aaah!" / "Echt jetzt!?")
+    20  silent
+     1  open: sniper_warning
+    --
+    44  names in the vanilla catalogue
+
+`sniper_warning` is the one loose end. The timed sweep attributed the gear lines to it by
+cycle position, but manual testing showed `elite_warning` carries those reliably. Since
+`sniper_warning` sits in the panel's *confirmed* section it was never re-clicked, so it is
+unknown whether it has lines of its own or the original attribution was simply wrong.
+One click settles it.
 
 ### Structure worth knowing
 
