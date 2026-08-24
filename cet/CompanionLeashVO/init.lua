@@ -513,20 +513,20 @@ registerForEvent("onDraw", function()
                       "nur neu angelegte Eintraege nicht registriert? Der Test biegt eine " ..
                       "BESTEHENDE Zeile um und legt keinen Knoten an - die Buchfuehrung " ..
                       "bleibt also zwangslaeufig korrekt.")
-    ImGui.TextDisabled("danger sagt normalerweise \"Achtung!\" und laeuft ohne Randomizer.")
+    ImGui.TextDisabled("Neuer Eintrag, mit startNodes und voInfo registriert.")
     ImGui.Separator()
     --  regular statt overHead: overHead wurde im Spiel nicht angezeigt.
-    if ImGui.Button("danger##bisect") then
+    if ImGui.Button("cl_test_froh##bisect") then
       speaker = 0
       for i, nm in ipairs(STYLES) do
         if nm:lower() == "regular" then styleIdx = i - 1 end
       end
-      playBark("danger")
-      log("BISEKTION: danger gefeuert, Stil regular")
+      playBark("cl_test_froh")
+      log("DURCHSTICH: cl_test_froh gefeuert, Stil regular")
     end
     ImGui.SameLine()
     ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "erwartet: Ich bin froh, dass du da bist.")
-    ImGui.TextDisabled("Kommt \"Achtung!\", wird das Archiv nicht geladen.")
+    ImGui.TextDisabled("Kommt nichts, ist der Einstieg weiter nicht registriert.")
   end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then

@@ -161,6 +161,19 @@ def main():
         "nodeId": {"$type": "scnNodeId", "id": start_id},
     })
 
+    #  6. startNodes und voInfo. Beide sind PARALLEL zu entryPoints - Judy hat 65/65/65,
+    #     Vs Vanilla 201/201/201, und startNodes[i] traegt genau die nodeId von
+    #     entryPoints[i]. Genau das hat beim ersten Anlauf gefehlt: der Start-Knoten lag im
+    #     Graphen, war aber nirgends als Einstieg registriert und damit nicht erreichbar.
+    root["sceneGraph"]["Data"]["startNodes"].append({"$type": "scnNodeId", "id": start_id})
+    root["voInfo"].append({
+        "$type": "scnSceneVOInfo",
+        "duration": (DURATION_MS + 1) / 1000.0,
+        "id": len(root["voInfo"]),
+        "inVoTrigger": _cname(NAME),
+        "outVoTrigger": _cname(NAME),
+    })
+
     os.makedirs(os.path.join(BUILD, DEPOT), exist_ok=True)
     out_json = os.path.join(BUILD, DEPOT, "vset_judy.scene.json")
     json.dump(d, open(out_json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -171,9 +184,14 @@ def main():
     print("Dauer        : %d ms (geschaetzt)" % DURATION_MS)
     print("itemId       : %d   nodeIds: %d/%d   Handles: %d/%d/%d"
           % (item_id, sec_id, start_id, h_sec, h_evt, h_start))
+    sn = root["sceneGraph"]["Data"]["startNodes"]
     print("Knoten %d = Knotensymbole %d | Ereignissymbole %d = Zeilen %d"
           % (len(graph), len(ds["sceneNodesDebugSymbols"]),
              len(ds["sceneEventsDebugSymbols"]), len(lines)))
+    print("Einstiege %d = startNodes %d = voInfo %d %s"
+          % (len(root["entryPoints"]), len(sn), len(root["voInfo"]),
+             "" if len(root["entryPoints"]) == len(sn) == len(root["voInfo"])
+             else "  !! MUSS GLEICH SEIN"))
     print()
 
     r = subprocess.run([CLI, "convert", "deserialize", out_json], capture_output=True,
