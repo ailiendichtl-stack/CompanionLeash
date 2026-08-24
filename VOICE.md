@@ -351,13 +351,48 @@ Mund bleibt bis zum Ende in Bewegung. Ueberlappung ist gratis, wenn sie niemand 
 `Overheads` betrifft ausschliesslich Bark-Untertitel ueber NPC-Koepfen. `Cinematic` ist eine
 eigene Variable und bleibt unangetastet.
 
-`DialogueVolume` ist dagegen **global**: waehrend des Fensters ist jede andere Dialogzeile
-im Spiel ebenfalls stumm. Bei einem Zwei-Sekunden-Bark meist folgenlos, bei einer laufenden
-Quest-Szene nicht. Vor einem echten Einsatz gehoert eine Pruefung davor, ob gerade ein
-Dialog laeuft.
+`DialogueVolume` ist laut Optionsnamen global. In der Praxis blieben andere NPCs waehrend
+des Fensters hoerbar und nur Judy war stumm - im Spiel getestet. Warum, ist offen; moeglich,
+dass Companion-VO und Crowd-Barks auf verschiedenen Bussen liegen. Die Annahme "alles wird
+stumm" hat sich jedenfalls nicht bestaetigt.
 
 Zugriff zur Laufzeit ueber `Game.GetSettingsSystem():GetVar(pfad, name)` und `:SetValue()` -
 dasselbe Muster wie AMMs `External/GameSettings.lua`.
 
 Beide Werte werden per Timer, beim Shutdown und per Knopf zurueckgesetzt, mit hartem Deckel
 bei 20 s. Eine haengende Sitzung darf den Spieler nicht stumm zuruecklassen.
+
+### Offen: die Aussetzer
+
+Der Trick greift nicht zuverlaessig - mal bewegt sich der Mund, mal nicht. Nachfeuern im
+Intervall half nicht spuerbar, was gegen die "leere Variante"-Erklaerung spricht: dann
+haette der naechste Schuss sie abfangen muessen.
+
+Zwei Mechanismen kommen infrage, mit **gegensaetzlichen** Konsequenzen:
+
+| Mechanismus | Folge | Fix |
+|---|---|---|
+| Jeder neue Trigger bricht den laufenden ab | Nachfeuern macht es *schlimmer* | genau ein Schuss |
+| Cooldown pro Event | dasselbe Event kurz hintereinander wird verworfen | nie zweimal dasselbe Event |
+
+Beides ist als Modus im Panel umschaltbar (Einzelschuss / Rotation), inklusive Logzeile pro
+Schuss. Ein Vergleich entscheidet, welcher Mechanismus wirkt - geraten wird nicht.
+
+Die Rotation nutzt zwoelf bestaetigte Events. Judys gesamter Bark-Wortschatz sind 57 Dateien
+mit 55 verschiedenen Zeilen im VoiceSet `judy_vs_vset_judy`.
+
+### Der saubere Weg, falls der Trick nicht traegt
+
+`LizziesBDs/Audio.reds` zeigt das kanonische Muster fuer eigene vertonte Zeilen: per
+`CallbackSystem` auf `Resource/Loaded` haengen und
+
+* `base/localization/volanguagedatamap.json` um eigene `voiceovermap.json`-Chunks je Sprache
+  erweitern (stringId -> .wem),
+* `base/sound/event/eventsmetadata.json` um eigene Eintraege erweitern
+  (`audioAudioEventArray`, je Event `redId` als CName und `wwiseId`).
+
+Normale Audio-Events sind damit deterministisch. Die Zufaelligkeit sitzt erst in der
+VO-Schicht darueber, die ueber den `voiceTag` des Characters aufloest - `voiceTag` ist ein
+TweakDB-Flat auf Character-Records.
+
+Ob eine so registrierte Zeile Lipsync bekommt, ist ungetestet.

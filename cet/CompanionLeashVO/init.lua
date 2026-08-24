@@ -80,6 +80,8 @@ local pending = nil     -- waiting for the spawned workspot entity to exist
 local facePending = nil -- waiting out the ResetFacial cooldown before applying
 local lipDuration = 6.0    -- panel sliders; tuned by eye, not derived from anything
 local lipInterval = 1.0
+local lipMode = 1          -- 0 = single shot, 1 = rotate events. See LIPSYNC ENGINE.
+local lipRotIdx = 0
 local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
 local savedVolume = nil    -- non-nil means dialogue is currently muted BY US
 local savedOverheads = nil -- non-nil means overhead subtitles are suppressed BY US
@@ -209,6 +211,15 @@ local function overheadVar() return settingVar("/accessibility/subtitles", "Over
 
 local LIP_MAX = 20.0 -- hard ceiling; a stuck session must not mute the game forever
 
+--  Judy answers to these; each was heard in game and cross-checked against the log. Her
+--  whole bark vocabulary is 57 files / 55 distinct lines in the voice set
+--  judy_vs_vset_judy, so this is a decent slice of it, not a lucky handful.
+local LIP_ROTATION = {
+  "greeting", "combat_ended", "elite_warning", "stealth_ended", "stealth_restored",
+  "coop_reports_kill", "coop_irritation", "camera_warning", "start_combat",
+  "enemy_warning", "hit_reaction_light", "grenade_throw",
+}
+
 local function lipRestore(why)
   if savedVolume ~= nil then
     local var = dialogueVar()
@@ -232,6 +243,14 @@ local function fireVo(handle, vo)
       handle, CName.new(vo), CName.new("CompanionLeashLip"),
       0.0, handle:GetEntityID(), true)
   end)
+end
+
+--  Which event the next shot uses. In rotate mode never the same one twice in a row, so a
+--  per-event cooldown - if that is what is dropping shots - can never bite.
+local function nextVo(session)
+  if lipMode == 0 then return session.vo end
+  lipRotIdx = (lipRotIdx % #LIP_ROTATION) + 1
+  return LIP_ROTATION[lipRotIdx]
 end
 
 local function lipStart(handle, vo, duration, interval, cat, idle)
@@ -316,10 +335,13 @@ registerForEvent("onUpdate", function(dt)
       lipRestore("Zeitablauf")
     else
       lip.t = lip.t + d
-      if lip.t >= lip.interval then
+      if lip.t >= lip.interval and (lipMode ~= 0 or lip.shots == 0) then
         lip.t = 0
         lip.shots = lip.shots + 1
-        fireVo(lip.target, lip.vo)
+        local vo = nextVo(lip)
+        lip.lastVo = vo
+        fireVo(lip.target, vo)
+        print(MOD .. string.format("   Schuss %d: %s", lip.shots, vo))
       end
     end
   end
@@ -410,13 +432,24 @@ registerForEvent("onDraw", function()
     if savedVolume ~= nil or savedOverheads ~= nil then
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns veraendert - laeuft]")
     end
-    ImGui.TextWrapped("Feuert ein stummes VO-Event im Intervall nach, solange die Zeile " ..
-                      "laeuft. Deckt tote Varianten ab und haelt den Mund bis zum Ende in " ..
-                      "Bewegung. Intervall runter, wenn es stockt; hoch, wenn es zuckt.")
+    ImGui.TextWrapped("Zwei Erklaerungen fuer die Aussetzer, mit gegensaetzlichen Fixes. " ..
+                      "Ein Vergleich der beiden Modi sagt uns, welche stimmt.")
+    ImGui.Bullet()
+    ImGui.TextWrapped("Einzelschuss: falls jeder neue Trigger den laufenden abbricht, " ..
+                      "ist genau ein Schuss das Maximum, was geht.")
+    ImGui.Bullet()
+    ImGui.TextWrapped("Rotation: falls ein Cooldown pro Event greift, hilft nur, nie " ..
+                      "zweimal dasselbe Event zu nehmen. Nachfeuern mit wechselndem Event.")
     ImGui.Separator()
 
+    if ImGui.RadioButton("Einzelschuss", lipMode == 0) then lipMode = 0 end
+    ImGui.SameLine()
+    if ImGui.RadioButton("Rotation", lipMode == 1) then lipMode = 1 end
+
     lipDuration = ImGui.SliderFloat("Dauer (s)", lipDuration, 1.0, 20.0, "%.1f")
-    lipInterval = ImGui.SliderFloat("Intervall (s)", lipInterval, 0.2, 3.0, "%.2f")
+    if lipMode == 1 then
+      lipInterval = ImGui.SliderFloat("Intervall (s)", lipInterval, 0.2, 3.0, "%.2f")
+    end
 
     if ImGui.Button("Start: greeting") then
       lipStart(target, "greeting", lipDuration, lipInterval, 3, 5)
@@ -435,7 +468,8 @@ registerForEvent("onDraw", function()
     end
     if lip then
       ImGui.SameLine()
-      ImGui.Text(string.format("noch %.1fs, %d Schuss", lip.remaining, lip.shots))
+      ImGui.Text(string.format("noch %.1fs | %d Schuss | %s",
+                 lip.remaining, lip.shots, tostring(lip.lastVo or "-")))
     end
     ImGui.TextDisabled("Deckel bei " .. string.format("%.0f", LIP_MAX) .. "s")
   end
