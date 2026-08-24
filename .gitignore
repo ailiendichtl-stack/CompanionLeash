@@ -10,3 +10,5 @@ data/
 
 # WolvenKit, ~470 MB Werkzeug - nicht ins Repo
 tools/wolvenkit/
+
+tools/cp-scripts/

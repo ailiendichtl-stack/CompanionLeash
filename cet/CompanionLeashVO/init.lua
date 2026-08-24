@@ -80,8 +80,10 @@ local pending = nil     -- waiting for the spawned workspot entity to exist
 local facePending = nil -- waiting out the ResetFacial cooldown before applying
 local lipDuration = 6.0    -- panel sliders; tuned by eye, not derived from anything
 local lipInterval = 1.0
-local lipMode = 1          -- 0 = single shot, 1 = rotate events. See LIPSYNC ENGINE.
+local lipMode = 1          -- 0 = single shot, 1 = closed loop. See LIPSYNC ENGINE.
 local lipRotIdx = 0
+local lipRetry = 0.4       -- how long to wait for a shot to register before retrying
+local lipDiag = { perceptible = false, lastLine = "-", changes = 0 }
 local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
 local savedVolume = nil    -- non-nil means dialogue is currently muted BY US
 local savedOverheads = nil -- non-nil means overhead subtitles are suppressed BY US
@@ -245,12 +247,35 @@ local function fireVo(handle, vo)
   end)
 end
 
---  Which event the next shot uses. In rotate mode never the same one twice in a row, so a
---  per-event cooldown - if that is what is dropping shots - can never bite.
 local function nextVo(session)
   if lipMode == 0 then return session.vo end
   lipRotIdx = (lipRotIdx % #LIP_ROTATION) + 1
   return LIP_ROTATION[lipRotIdx]
+end
+
+--  Is a voice-over from this entity audible right now? AudioSystem.VoIsPerceptible is what
+--  the game's own bark-subtitle controller uses to decide whether to show a chatter line
+--  (cyberpunk/UI/subtitles/chattersControllers.script), so it tracks a line actually
+--  playing - which is exactly the signal we were missing.
+local function voPerceptible(handle)
+  if not handle then return false end
+  local ok, res = pcall(function()
+    return Game.GetAudioSystem():VoIsPerceptible(handle:GetEntityID())
+  end)
+  return ok and res == true
+end
+
+--  Second, independent signal: UIGameData.ShowDialogLine is written for every displayed
+--  line, overhead barks included. Written upstream of the Overheads setting, so
+--  suppressing the subtitle does not suppress this.
+local function dialogLineToken()
+  local ok, res = pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb = Game.GetBlackboardSystem():Get(defs.UIGameData)
+    return tostring(bb:GetVariant(defs.UIGameData.ShowDialogLine))
+  end)
+  if ok then return res end
+  return nil
 end
 
 local function lipStart(handle, vo, duration, interval, cat, idle)
@@ -282,7 +307,7 @@ local function lipStart(handle, vo, duration, interval, cat, idle)
   if duration > LIP_MAX then duration = LIP_MAX end
   --  t starts at the interval so the first shot goes out on this very frame
   lip = { target = handle, vo = vo, interval = interval,
-          remaining = duration, t = interval, shots = 0 }
+          remaining = duration, t = interval, shots = 0, confirmed = false }
 
   if cat then
     local stim = handle:GetStimReactionComponent()
@@ -328,6 +353,18 @@ local function playAnim(target, animName)
 end
 
 registerForEvent("onUpdate", function(dt)
+  --  Diagnostics run whether or not a session is active, so the two signals can be judged
+  --  against what is actually happening on screen.
+  local tgt = currentTarget()
+  if tgt then
+    lipDiag.perceptible = voPerceptible(tgt)
+    local tok = dialogLineToken()
+    if tok and tok ~= lipDiag.lastLine then
+      lipDiag.lastLine = tok
+      lipDiag.changes = lipDiag.changes + 1
+    end
+  end
+
   if lip then
     local d = dt or 0.016
     lip.remaining = lip.remaining - d
@@ -335,13 +372,28 @@ registerForEvent("onUpdate", function(dt)
       lipRestore("Zeitablauf")
     else
       lip.t = lip.t + d
-      if lip.t >= lip.interval and (lipMode ~= 0 or lip.shots == 0) then
+      local speaking = voPerceptible(lip.target)
+      lip.t = lip.t + d
+      if speaking then
+        --  a line is running: leave it alone. Firing now would cut it off, which is what
+        --  made the interval version worse rather than better.
+        if not lip.confirmed then
+          lip.confirmed = true
+          print(MOD .. string.format("   Schuss %d hat gezuendet (%s)",
+                lip.shots, tostring(lip.lastVo)))
+        end
         lip.t = 0
-        lip.shots = lip.shots + 1
-        local vo = nextVo(lip)
-        lip.lastVo = vo
-        fireVo(lip.target, vo)
-        print(MOD .. string.format("   Schuss %d: %s", lip.shots, vo))
+      elseif lipMode ~= 0 or lip.shots == 0 then
+        --  silent: either the shot was a dud or the line finished. Either way, fire.
+        if lip.shots == 0 or lip.t >= lipRetry then
+          lip.t = 0
+          lip.confirmed = false
+          lip.shots = lip.shots + 1
+          local vo = nextVo(lip)
+          lip.lastVo = vo
+          fireVo(lip.target, vo)
+          print(MOD .. string.format("   Schuss %d: %s", lip.shots, vo))
+        end
       end
     end
   end
@@ -432,23 +484,31 @@ registerForEvent("onDraw", function()
     if savedVolume ~= nil or savedOverheads ~= nil then
       ImGui.TextColored(1.0, 0.5, 0.3, 1.0, "[von uns veraendert - laeuft]")
     end
-    ImGui.TextWrapped("Zwei Erklaerungen fuer die Aussetzer, mit gegensaetzlichen Fixes. " ..
-                      "Ein Vergleich der beiden Modi sagt uns, welche stimmt.")
-    ImGui.Bullet()
-    ImGui.TextWrapped("Einzelschuss: falls jeder neue Trigger den laufenden abbricht, " ..
-                      "ist genau ein Schuss das Maximum, was geht.")
-    ImGui.Bullet()
-    ImGui.TextWrapped("Rotation: falls ein Cooldown pro Event greift, hilft nur, nie " ..
-                      "zweimal dasselbe Event zu nehmen. Nachfeuern mit wechselndem Event.")
+    ImGui.TextWrapped("Blind nachfeuern war falsch: es hat laufende Zeilen abgeschnitten. " ..
+                      "Jetzt fragen wir das Spiel, ob sie gerade spricht, und feuern nur " ..
+                      "in die Stille - deckt tote Schuesse ab, ohne gute zu zerstoeren.")
+    ImGui.Separator()
+
+    ImGui.Text("Spricht gerade:")
+    ImGui.SameLine()
+    if lipDiag.perceptible then
+      ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "JA")
+    else
+      ImGui.TextColored(0.6, 0.6, 0.6, 1.0, "nein")
+    end
+    ImGui.SameLine()
+    ImGui.TextDisabled(string.format("| Dialogzeilen erkannt: %d", lipDiag.changes))
+    ImGui.TextDisabled("Wenn 'Spricht gerade' beim Reden nie auf JA geht, taugt das " ..
+                       "Signal nicht und wir nehmen den Zeilen-Zaehler.")
     ImGui.Separator()
 
     if ImGui.RadioButton("Einzelschuss", lipMode == 0) then lipMode = 0 end
     ImGui.SameLine()
-    if ImGui.RadioButton("Rotation", lipMode == 1) then lipMode = 1 end
+    if ImGui.RadioButton("Geschlossene Schleife", lipMode == 1) then lipMode = 1 end
 
     lipDuration = ImGui.SliderFloat("Dauer (s)", lipDuration, 1.0, 20.0, "%.1f")
     if lipMode == 1 then
-      lipInterval = ImGui.SliderFloat("Intervall (s)", lipInterval, 0.2, 3.0, "%.2f")
+      lipRetry = ImGui.SliderFloat("Wartezeit vor Neuversuch (s)", lipRetry, 0.1, 1.5, "%.2f")
     end
 
     if ImGui.Button("Start: greeting") then
