@@ -228,3 +228,59 @@ time; bridge lines cost the most.
 
 Phase 1 replaces what I previously called Phase 0. The dual poses need no spike because
 every mechanism they use is already running in NCA today — only the content is missing.
+
+---
+
+# Scope ab 0.4
+
+Gestuft, in dieser Reihenfolge. Szenen kommen zuletzt, wenn der Rest solide laeuft.
+
+## 1. Barks
+
+Erledigt, was die Bestandsaufnahme angeht: 55 Zeilen aus `vset_judy.scene`, benannt,
+vermessen, ueber den Quest-Voiceset-Knoten ohne Cooldown abrufbar. Offen ist nur die
+Verdrahtung an die vorhandenen CompanionLeash-Ausloeser.
+
+Naheliegende Zuordnungen aus der gemessenen Liste:
+
+| Ausloeser | Zeile |
+|---|---|
+| Spieler haengt zurueck | `follow_me_1` "Was ist los? Hoer auf zu troedeln." |
+| Ankunft beim Spieler | `return_answer` "Du bist zurueck." |
+| Anrempeln (Crowding-Abbruch) | `bump_var_1` "Hey, pass auf ..." |
+| Stealth wiederhergestellt | `stealth_restored_var_1` "Perfekt, die sehen uns nicht mehr." |
+| Kampf vorbei | `combat_ended_var_1` "Oh, das war's. Wir haben's geschafft." |
+| Spieler bei wenig HP | `player_fallback_var_3` "Alles okay? Schnauf mal kurz durch." |
+
+## 2. Fake-Lipsync fuer Quest-Zeilen
+
+Die 1104 Quest-Zeilen sind ueber Voicesets nicht erreichbar, ihr **Audio** aber sehr wohl -
+per Audioware auf dem SFX-Bus. Was fehlt, ist die Mundbewegung, und die liefern die Barks:
+
+* Quest-Zeile ueber Audioware abspielen (SFX-Bus, hoerbar)
+* parallel stumme Barks ueber den Quest-Knoten (Dialog-Bus auf 0) fuer den Mund
+* Untertitel der Quest-Zeile per `PropagateSubtitle`
+
+**Die gemessenen Dauern machen das erst praktikabel.** Fuer eine Quest-Zeile der Laenge L
+lassen sich Barks so kombinieren, dass ihre Summe L trifft - ein Rucksackproblem mit 54
+Bausteinen zwischen 1.11 s und 3.46 s, Schnitt 2.06 s.
+
+Und weil die Dauern **offline** bekannt sind, braucht es zur Laufzeit keine Erkennung mehr.
+Das loest den Zielkonflikt, der uns lange aufgehalten hat: die Untertitel der Barks duerfen
+vollstaendig unterdrueckt werden, sichtbar ist nur die Quest-Zeile.
+
+Grenze, die zu pruefen ist: Mundbewegung und Silben passen nicht zueinander. Bei einer
+Zwei-Sekunden-Reaktion faellt das kaum auf, bei einem langen Satz vermutlich schon.
+
+## 3. Hocken und einfache Idle-Animationen
+
+Erst ein **weitgehend zufaelliger Pool** mit wenigen Indikatoren, spaeter Umgebungsfaktoren.
+Bewusst nicht andersherum: ein Pool laesst sich sofort testen, die Faktoren kommen dazu,
+wenn er steht.
+
+## 4. Spaeter: Szenen
+
+Eigene Szenen mit aufwendigeren Animationen und den komplexen Quest-Zeilen. `vset_judy.scene`
+zeigt die Struktur - Lipsync haengt an `lipsyncAnimSet` mit `femaleLipsyncAnimationName`.
+Kein Raetsel mehr, aber Szenen-Authoring in WolvenKit und ein eigenes Projekt.
+
