@@ -110,6 +110,7 @@ local LIP_MAX_RETRY = 1    -- a dud gets one more chance, never an open-ended ba
 local optMute = true       -- DialogueVolume -> 0
 local optHideOver = true   -- Overheads -> false
 local optEntry = 0         -- 0 = GameObject.PlayVoiceOver, 1 = ChatterHelper.PlayVoiceOver
+local lipLogAll = true  -- log every detected line, not just those inside a session
 local lipDiag = { perceptible = false, lastLine = "-", changes = 0, readable = false,
                   lastText = "", lastDur = 0.0, lastName = "", fresh = false, kind = "-" }
 local lip = nil            -- active lipsync session, see LIPSYNC ENGINE
@@ -384,16 +385,34 @@ local function inspectObj(obj, label)
     local cls = Reflection.GetClassOf(ToVariant(obj))
     if not cls then log("INSPEKT " .. label .. ": keine Klasse"); return end
     log("INSPEKT " .. label .. " -> " .. tostring(cls:GetName().value))
-    for _, prop in pairs(cls:GetProperties()) do
-      local nm = tostring(prop:GetName().value)
-      local tn = tostring(prop:GetType():GetName().value)
-      --  only the identifying ones; a puppet has hundreds of fields
-      if nm:find("ame") or nm:find("ag") or nm:find("ef") or nm:find("[Ii]d") then
-        local ok2, cur = pcall(function() return obj[nm] end)
-        log(string.format("    %-28s %-24s %s", nm, tn,
-            ok2 and tostring(cur) or "<nicht lesbar>"))
+    --  walk up the hierarchy: GetProperties() returns only the class's OWN fields, which
+    --  is why the first dump showed nothing but NPCPuppet internals
+    local c, depth = cls, 0
+    while c and depth < 8 do
+      log("  ~ " .. tostring(c:GetName().value))
+      for _, prop in pairs(c:GetProperties()) do
+        local nm = tostring(prop:GetName().value)
+        local tn = tostring(prop:GetType():GetName().value)
+        if nm:find("ame") or nm:find("[Tt]ag") or nm:find("[Rr]ef")
+           or nm == "id" or nm:find("entityID") or nm:find("nodeRef") then
+          local ok2, cur = pcall(function() return obj[nm] end)
+          log(string.format("      %-28s %-24s %s", nm, tn,
+              ok2 and tostring(cur) or "<nicht lesbar>"))
+        end
       end
+      local ok3, parent = pcall(function() return c:GetParent() end)
+      c = ok3 and parent or nil
+      depth = depth + 1
     end
+    --  methods are where identity usually hides on an entity
+    pcall(function()
+      for _, fn in pairs(cls:GetFunctions()) do
+        local nm = tostring(fn:GetName().value)
+        if nm:find("[Nn]ame") or nm:find("[Tt]ag") or nm:find("NodeRef") then
+          log("      fn " .. nm)
+        end
+      end
+    end)
   end)
   if not ok then log("INSPEKT " .. label .. " fehlgeschlagen: " .. tostring(err)) end
 end
@@ -599,6 +618,10 @@ registerForEvent("onUpdate", function(dt)
       lipDiag.lastHash = dl.hash
       lipDiag.changes = lipDiag.changes + 1
       lipDiag.fresh = true
+      if lipLogAll then
+        log(string.format("  [ZEILE] dauer=%.2f  \"%s\"  [%s]",
+            dl.dur, dl.text, dl.name))
+      end
     end
   end
 
