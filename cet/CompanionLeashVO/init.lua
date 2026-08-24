@@ -191,6 +191,24 @@ local VSET_V = {
 local speaker = 0
 local sweep = nil
 
+--  name/ziel getrennt; hint sagt, was zu erwarten ist.
+local MATRIX = {
+  { label = "1 VVF auf V",      name = "vfv_better_run",      player = true,
+    hint = "erwartet: V spricht - beweist, dass neue Eintraege tragen" },
+  { label = "2 VVF auf V (2)",  name = "vfv_talk_later",      player = true,
+    hint = "erwartet: V spricht" },
+  { label = "3 Judy bekannt",   name = "follow_me",           player = false,
+    hint = "erwartet: Judy spricht - Gegenprobe, dass der Pfad lebt" },
+  { label = "4 Judy neu",       name = "cl_test_froh",        player = false,
+    hint = "erwartet: Ich bin froh, dass du da bist." },
+  { label = "5 Unsinn",         name = "cl_gibt_es_nicht_xyz", player = false,
+    hint = "zeigt den echten Rueckfall bei unbekanntem Namen" },
+  { label = "6 VVF auf Judy",   name = "vfv_better_run",      player = false,
+    hint = "Negativkontrolle - sollte NICHT spielen" },
+  { label = "7 Judy-Name auf V", name = "cl_test_froh",       player = true,
+    hint = "Negativkontrolle - sollte NICHT spielen" },
+}
+
 local STYLES, styleIdx = {}, -1
 local target, targetName = nil, "-"
 local facePending = nil
@@ -508,72 +526,39 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if ImGui.CollapsingHeader("Durchstich") then
-    ImGui.TextWrapped("Trennt zwei Ursachen: laedt unser Archiv ueberhaupt, oder werden " ..
-                      "nur neu angelegte Eintraege nicht registriert? Der Test biegt eine " ..
-                      "BESTEHENDE Zeile um und legt keinen Knoten an - die Buchfuehrung " ..
-                      "bleibt also zwangslaeufig korrekt.")
-    ImGui.TextDisabled("Neuer Eintrag, mit startNodes und voInfo registriert.")
+  if ImGui.CollapsingHeader("Testmatrix", ImGuiTreeNodeFlags.DefaultOpen) then
+    ImGui.TextWrapped("Name und Ziel werden getrennt uebergeben. Ein VVF-Name auf Judy " ..
+                      "waere kein aussagekraeftiger Fehlschlag - der Dispatcher waehlt " ..
+                      "das Voiceset am Puppet, und VVFs Eintraege liegen in vset_v.scene.")
     ImGui.Separator()
-    --  regular statt overHead: overHead wurde im Spiel nicht angezeigt.
-    if ImGui.Button("cl_test_froh##bisect") then
-      speaker = 0
-      for i, nm in ipairs(STYLES) do
-        if nm:lower() == "regular" then styleIdx = i - 1 end
+
+    for _, t in ipairs(MATRIX) do
+      if ImGui.Button(t.label .. "##mx") then
+        speaker = t.player and 1 or 0
+        for i, nm in ipairs(STYLES) do
+          if nm:lower() == "regular" then styleIdx = i - 1 end
+        end
+        --  Vor dem Aufruf protokollieren, damit ausgeschlossen ist, dass der Knopf trotz
+        --  Beschriftung einen alten Namen oder das falsche Ziel uebergibt.
+        local eid = "-"
+        pcall(function()
+          if t.player then
+            eid = tostring(Game.GetPlayer():GetEntityID().hash)
+          elseif target then
+            eid = tostring(target:GetEntityID().hash)
+          end
+        end)
+        log(string.format("MATRIX  name=%-22s ziel=%-5s isPlayer=%-5s entity=%s",
+            t.name, t.player and "V" or "Judy", tostring(t.player), eid))
+        if not t.player and not target then
+          log("        !! kein Ziel gesperrt - Aufruf uebersprungen")
+        else
+          playBark(t.name)
+        end
       end
-      playBark("cl_test_froh")
-      log("DURCHSTICH: cl_test_froh gefeuert, Stil regular")
+      ImGui.SameLine()
+      ImGui.TextDisabled(t.hint)
     end
-    ImGui.SameLine()
-    ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "erwartet: Ich bin froh, dass du da bist.")
-    ImGui.Separator()
-    --  Kontrollversuch mit einem Namen, den es garantiert nicht gibt. Faellt der auf
-    --  dieselbe Zeile wie cl_test_froh, dann loest unser Name gar nicht auf und der
-    --  Dispatcher hat schlicht einen Rueckfallwert - das waere eine ganz andere Ursache
-    --  als eine falsch gebundene Zeile.
-    if ImGui.Button("Unsinnsname##ctl") then
-      speaker = 0
-      for i, nm in ipairs(STYLES) do
-        if nm:lower() == "regular" then styleIdx = i - 1 end
-      end
-      playBark("cl_gibt_es_nicht_xyz")
-      log("KONTROLLE: cl_gibt_es_nicht_xyz gefeuert")
-    end
-    ImGui.SameLine()
-    if ImGui.Button("greeting##ctl") then
-      speaker = 0
-      for i, nm in ipairs(STYLES) do
-        if nm:lower() == "regular" then styleIdx = i - 1 end
-      end
-      playBark("greeting")
-      log("KONTROLLE: greeting gefeuert")
-    end
-    ImGui.TextDisabled("Sagt der Unsinnsname dasselbe wie cl_test_froh, wird unser Name " ..
-                       "nicht aufgeloest. Sagt greeting korrekt Hallo, lebt der Rest.")
-    ImGui.Separator()
-    ImGui.TextColored(0.6, 0.8, 1.0, 1.0, "Referenztest gegen V Voice Framework")
-    ImGui.TextWrapped("VVF legt 12807 eigene Eintraege an und feuert sie mit exakt " ..
-                      "unserem Aufruf - eine Funktion, kein eigener Resolver. Wenn einer " ..
-                      "seiner Namen hier laeuft, tragen neu angelegte Eintraege " ..
-                      "grundsaetzlich und der Fehler liegt in unserem Szenenbau.")
-    if ImGui.Button("vfv_better_run (V)##vvf") then
-      speaker = 1
-      for i, nm in ipairs(STYLES) do
-        if nm:lower() == "regular" then styleIdx = i - 1 end
-      end
-      playBark("vfv_better_run")
-      log("REFERENZ: vfv_better_run auf V gefeuert")
-    end
-    ImGui.SameLine()
-    if ImGui.Button("vfv_talk_later (V)##vvf") then
-      speaker = 1
-      for i, nm in ipairs(STYLES) do
-        if nm:lower() == "regular" then styleIdx = i - 1 end
-      end
-      playBark("vfv_talk_later")
-      log("REFERENZ: vfv_talk_later auf V gefeuert")
-    end
-    ImGui.TextDisabled("Braucht das Archiv VVF_Referenztest. V spricht, kein Ziel noetig.")
   end
 
   if ImGui.CollapsingHeader("Barks - 55 Zeilen") then

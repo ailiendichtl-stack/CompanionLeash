@@ -112,3 +112,48 @@ wir **Vs** Voiceset erweitern, muessten wir uns mit VVF abstimmen oder auf desse
 * **Sprecher-Id** - `speaker`/`addressee` stehen bei Judy beide auf 0; ob das fuer
   zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
 * Ein **Durchstich mit einer einzigen Zeile** sollte vor dem Massenbau stehen.
+
+## Nachtrag aus dem Durchstich
+
+### Sechs Teile, nicht vier
+
+Neben Zeile, Section-Knoten, Start-Knoten und Einstiegspunkt braucht ein Eintrag zwei
+Registrierungen, die **parallel zu `entryPoints`** gefuehrt werden:
+
+```
+sceneGraph.Data.startNodes[i]   traegt die nodeId von entryPoints[i]
+voInfo[i].outVoTrigger          traegt den Namen von entryPoints[i]
+```
+
+Judy: 65/65/65. Vs Vanilla: 201/201/201. Fehlt eine davon, liegt der Start-Knoten zwar im
+Graphen, ist aber nirgends als Einstieg registriert.
+
+Dazu die Debug-Symbole, je eines pro Knoten und pro Dialogzeilen-Ereignis. Ob die Engine
+sie zur Laufzeit braucht, ist offen - sie sind als Debug-Metadaten benannt, und der
+Durchstich lief auch mit stimmigen Symbolen nicht. Als Hygiene trotzdem richtig.
+
+### Lipsync-Anim-Sets sind szenengebunden
+
+`resouresReferences.lipsyncAnimSets` enthaelt bei Judy **einen** Eintrag:
+
+```
+base/quest/secondary_characters/vsets/lipsync/en/vset_judy/judy.anims
+```
+
+Darin liegen nur die Animationen der 55 Barks. Eine Quest-Zeile aus `mq055` verweist auf
+eine Animation, die in `mq055`s eigenem Set liegt - also nicht in diesem. Fuer den
+Vollausbau muessten die betroffenen Sets mit referenziert werden.
+
+**Kein Blocker fuers Abspielen:** der Umbau der `danger`-Zeile lieferte Audio, obwohl die
+Animation nicht im Set liegt. Es kostet Lippenbewegung, nicht die Zeile.
+
+### Was der Durchstich bewiesen hat
+
+Der Umbau einer **bestehenden** Zeile auf eine fremde `ruid` funktioniert. Damit sind
+belegt: das Archiv laedt, `ruid` findet die richtige `.wem`, die Lipsync-Namen sind gueltig,
+Audio laeuft ueber eine Voiceset-Section.
+
+Offen ist ausschliesslich, ob ein **neu angelegter** Einstiegspunkt erreichbar ist. Die
+Kette dorthin ist feldgenau identisch zu einem funktionierenden Vanilla-Eintrag - Index,
+nodeId, Sockets, Section, Ereignis, Zeile, alle Typen gleich.
+
