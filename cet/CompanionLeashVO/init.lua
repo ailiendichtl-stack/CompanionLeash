@@ -193,10 +193,12 @@ local sweep = nil
 
 --  name/ziel getrennt; hint sagt, was zu erwarten ist.
 local MATRIX = {
-  { label = "1 danger_var_1",    name = "danger_var_1",        player = false,
-    hint = "EINZIGE Frage: bewegt sich der Mund? Ton passt absichtlich nicht" },
-  { label = "2 greeting_var_2",  name = "greeting_var_2",      player = false,
-    hint = "sollte die Lippenbewegung VERLIEREN - Teil des Ergebnisses" },
+  { label = "1 Quest-Zeile",     name = "cl_klon_danger",      player = false,
+    hint = "Ich bin froh, dass du da bist. - jetzt mit Lipsync?" },
+  { label = "2 Bark",            name = "greeting_var_2",      player = false,
+    hint = "muss weiterhin Lippen bewegen - der Merge darf nichts kaputt machen" },
+  { label = "3 Bark",            name = "danger_var_1",        player = false,
+    hint = "zweite Gegenprobe" },
 }
 
 local STYLES, styleIdx = {}, -1
