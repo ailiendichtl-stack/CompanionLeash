@@ -193,12 +193,14 @@ local sweep = nil
 
 --  name/ziel getrennt; hint sagt, was zu erwarten ist.
 local MATRIX = {
-  { label = "1 Quest-Zeile",     name = "cl_klon_danger",      player = false,
-    hint = "Ich bin froh, dass du da bist. - jetzt mit Lipsync?" },
-  { label = "2 Bark",            name = "greeting_var_2",      player = false,
-    hint = "muss weiterhin Lippen bewegen - der Merge darf nichts kaputt machen" },
-  { label = "3 Bark",            name = "danger_var_1",        player = false,
-    hint = "zweite Gegenprobe" },
+  { label = "1 froh (2922ms)",   name = "cl_froh",             player = false,
+    hint = "Ich bin froh, dass du da bist.  [mq055]" },
+  { label = "2 kurz (2502ms)",   name = "cl_kurz",             player = false,
+    hint = "Da haben sich zwei gefunden.  [q105]" },
+  { label = "3 lang (5005ms)",   name = "cl_lang",             player = false,
+    hint = "Das wars schon. Glueckwunsch ...  [sq030]" },
+  { label = "4 Bark",            name = "danger_var_1",        player = false,
+    hint = "Vanilla-Bark als Vergleich - hat sie denselben Versatz?" },
 }
 
 local STYLES, styleIdx = {}, -1
