@@ -31,6 +31,11 @@ BUILD = os.path.join(HERE, "build", "durchstich5")
 DEPOT = "base/quest/secondary_characters/vsets"
 
 TEMPLATE = "danger_var_1"
+#  Die echte Dauer steht in der Herkunftsszene, im scnDialogLineEvent der Zeile - exakt der
+#  Wert, den das Spiel selbst benutzt. Keine Messung, keine Schaetzung noetig.
+#  Mit der Vorlage-Dauer (1545 ms) lief der Ton der Animation um rund eine halbe Sekunde
+#  voraus; richtig sind 2922 ms.
+DURATION_MS = 2922
 #  Die Datei liegt unter base/localization/de-de/lipsync/<szenenpfad>/<figur>.anims -
 #  referenziert wird sie aber NICHT so. Szenen benutzen eine logische Form, in der die
 #  Engine Sprache und Lokalisierungspfad selbst einsetzt. Aus der mq055-Szene abgelesen:
@@ -93,7 +98,10 @@ def main():
     new_event_id = str(int(ev["Data"]["id"]["id"]) + 0x1000)
     ev["Data"]["id"]["id"] = new_event_id
     ev["Data"]["screenplayLineId"]["id"] = item_id
-    #  duration und sectionDuration bleiben, wie sie in der Vorlage stehen.
+    #  Dauer aus der Herkunftsszene; sectionDuration behaelt den Versatz der Vorlage.
+    offset = sec["Data"]["sectionDuration"]["stu"] - ev["Data"]["duration"]
+    ev["Data"]["duration"] = DURATION_MS
+    sec["Data"]["sectionDuration"]["stu"] = DURATION_MS + offset
     graph.append(sec)
 
     st = copy.deepcopy(w_start)

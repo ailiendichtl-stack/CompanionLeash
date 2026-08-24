@@ -16,3 +16,8 @@ infos_delete_later_gitignore/
 data/vvf/
 data/scene_json/
 build/
+data/scenes/
+data/scenes_main/
+data/lipsync/
+data/mq055/
+data/extract2/
