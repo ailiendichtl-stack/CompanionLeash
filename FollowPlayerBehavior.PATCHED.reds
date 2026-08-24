@@ -53,6 +53,9 @@ public class NCAFollowPlayerBehavior extends NCABehavior {
             npc.GetWorldPosition(), npc.GetWorldForward(), npc.GetVelocity(),
             this.HasCommand(), this.m_leashState);
 
+        // VO spike - remove with CompanionLeashVoTest.reds
+        CompanionLeashVoTest.Tick(npc, this.m_npcHandle.GetName(), deltaTime, this.m_leashState);
+
         let decision = CompanionLeashPolicy.Evaluate(
             player.GetWorldPosition(),
             npc.GetWorldPosition(),

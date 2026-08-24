@@ -16,12 +16,13 @@
   "patch": {
     "target": "r6/scripts/NightCityAllies/Npc/Behavior/FollowPlayerBehavior.reds",
     "preimage_md5": "bada75913eae77c94be9473f4cdeeeb0",
-    "postimage_md5": "fc565e6693322b5f274dec1994dbcf85",
+    "postimage_md5": "3d6d672818df96a84b1f311ff69185a7",
     "diff": "companion-leash.patch"
   },
   "standalone_files": {
     "CompanionLeashCommands.reds": "9f73b145287d74ac8a241fffd500bffd",
-    "CompanionLeashPolicy.reds": "170270a18e7506d5c3927c78684a6341"
+    "CompanionLeashPolicy.reds": "30f7785b29c740bcb093bdfedc2ea247",
+    "CompanionLeashVoTest.reds": "4c22e1ea960000b11fbf900cae85c6ff"
   },
   "tweak_files": {
     "CompanionLeash.yaml": "30cdc450c7006af80acf29ce40e0b87a"

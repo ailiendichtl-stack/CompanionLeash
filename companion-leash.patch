@@ -1,6 +1,6 @@
---- FollowPlayerBehavior.ORIGINAL.reds	2026-08-24 03:45:07.246738900 +0400
-+++ FollowPlayerBehavior.PATCHED.reds	2026-08-24 14:41:00.623013500 +0400
-@@ -21,8 +21,77 @@
+--- FollowPlayerBehavior.ORIGINAL.reds	2026-08-24 14:58:52.130487300 +0400
++++ FollowPlayerBehavior.PATCHED.reds	2026-08-24 15:09:25.959050900 +0400
+@@ -21,8 +21,80 @@
          return behavior;
      }
  
@@ -35,6 +35,9 @@
 +            player.GetWorldPosition(), player.GetWorldForward(), player.GetVelocity(),
 +            npc.GetWorldPosition(), npc.GetWorldForward(), npc.GetVelocity(),
 +            this.HasCommand(), this.m_leashState);
++
++        // VO spike - remove with CompanionLeashVoTest.reds
++        CompanionLeashVoTest.Tick(npc, this.m_npcHandle.GetName(), deltaTime, this.m_leashState);
 +
 +        let decision = CompanionLeashPolicy.Evaluate(
 +            player.GetWorldPosition(),
@@ -78,7 +81,7 @@
  
      public func OnAttach() -> Void {
          let nullArrayOfNames: array<CName>;
-@@ -36,6 +105,17 @@
+@@ -36,6 +108,17 @@
      }
  
      public func OnDetach() -> Void {

@@ -82,6 +82,69 @@ If generic events turn out to be empty for her, the fallback is scene-bound: tri
 existing quest dialogue through the quest system rather than the VO system. That is
 considerably more involved, which is exactly why the spike comes first.
 
+
+---
+
+## Result: the generic VO surface, fully mapped
+
+All 44 event names attested in vanilla scripts were played on Judy in-game and listened to
+across three rounds. A missing VO fails silently, so this could only be settled by ear;
+the log recorded what was attempted, the listener recorded what sounded.
+
+**11 of 44 work.** Every one of them carries multiple varied German lines.
+
+| Event | German line heard | Natural trigger |
+|---|---|---|
+| `greeting` | "Hey V" / "Oh hey" | catching up, arrival |
+| `stealth_restored` | "Die haben wir abgeschüttelt" / "Perfekt, die sehen uns nicht mehr" | detection broken |
+| `stealth_ended` | "Da kommen sie" / "Sie sind hier, bleib wachsam" / "Achtung!" | spotted |
+| `combat_ended` | "Oh das wars, wir habens geschafft" / "Sieh uns an. Nicht tot zu kriegen." | fight over |
+| `coop_irritation` | "Aaah!" | annoyed |
+| `coop_reports_kill` | "Echt jetzt!?" | she got a kill |
+| `sniper_warning` | "Wo haben die nur diese Ausrüstung her?" / "Ordentlich ausgestattet die Typen." | well-equipped enemy spotted |
+| `attack_fragile_player_order` | "Hey V! Mach was, verdammte Scheiße!" | urging V to act |
+| `battlecry_curse` | "Fuuuuck!" | combat |
+| `bump` | "Was zur Hölle?" | **player walks into her** |
+| `combat_target_hit` | "Na, wie schmeckt dir das?" | she hit an enemy |
+
+**Silent (33):** `danger`, `stlh_curious_grunt`, `stlh_call`, `stlh_death`, `enemy_warning`,
+`start_combat`, `start_dead`, `crowd_combat`, `shove`, `fear_beg`, `fear_run`,
+`hit_reaction_heavy`, `hit_reaction_light`, `hit_grapple`, `vo_any_damage_hit`,
+`grenade_throw`, `heavy_reloading`, `hmg_charge`, `pedestrian_hit`, `vehicle_bump`,
+`octant_warning`, and every `*_warning` except sniper, plus the entire `cpo_*` family.
+
+The pattern is coherent: she answers **companion and stealth** events, and stays silent on
+enemy-NPC combat chatter. `cpo_*` looked promising after `coop_*` paid off, but is empty.
+
+### How the mapping was derived, and its one weakness
+
+Sounds were matched to events by two independent signals: semantic fit of the German line
+to the event name, and position within the logged cycle. Both agree.
+
+The weak point is per-index attribution rather than the working set. Individual variants
+are sometimes silent — one round-1 group produced two lines where three were expected — so
+a given slot can appear empty on one pass. The **set** of working events is solid; if a
+line turns out to sit on a neighbouring event, it will be obvious the first time it fires
+in the wrong context, and it costs nothing to move.
+
+Also observed: "Sieh uns an, nicht tot zu kriegen" surfaced under both `stealth_restored`
+and `combat_ended`, so events appear to share a line pool.
+
+### What this unlocks
+
+Seven of the eleven map directly onto triggers CompanionLeash already computes:
+
+    greeting          -> arrival, after a catch-up
+    bump              -> the Crowding cancel we already detect
+    stealth_ended     -> PlayerStateMachine detection change
+    stealth_restored  -> ditto, the other direction
+    combat_ended      -> EventBus.OnCombatEnd
+    coop_reports_kill -> EventBus.OnCompanionDealDamage
+    sniper_warning    -> threat spotted
+
+No new detection work is needed for those — the events already exist in the policy or in
+NCA's EventBus. What remains is a cooldown table so lines cannot chain or repeat.
+
 ## Technical notes
 
 The extractor reads the RDAR archive format directly, resolves paths by FNV-1a64 hash,

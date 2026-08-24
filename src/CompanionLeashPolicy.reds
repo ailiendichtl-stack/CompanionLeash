@@ -103,6 +103,9 @@ public class CompanionLeashState {
     public let rawTimer: Float;
     // Which look-at variant is currently applied.
     public let lookAtMoving: Bool;
+    // VO spike only - remove with CompanionLeashVoTest.reds.
+    public let voTimer: Float;
+    public let voIndex: Int32;
     // Observability: how long the live follow command has existed, the previous tick's
     // npc speed, and which gait is currently commanded (0 none, 1 Run, 2 Sprint).
     public let commandAge: Float;
