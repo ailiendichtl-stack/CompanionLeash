@@ -427,44 +427,51 @@ end
 --  Mode 0 targets the player and is the control: if that produces nothing, the mechanism
 --  does not work from Lua at all and nothing else here means anything. VVF only ever
 --  targets the player, so pointing this at a companion is unproven either way.
+--  Faithful port of VVF's VFV_PlayVoice. The array assignment and the name were both
+--  verified correct in the log and it still played nothing, so the remaining suspects are
+--  the differences from the proven code:
+--
+--    * VVF does NOT set useVoicesetSystem or playOnlyGrunt - I did
+--    * VVF DOES set overrideVisualStyle and overrideVoiceoverExpression - I did not
+--    * VVF assigns node.type first, then pushes params into node.type - I filled the
+--      object before assigning it, and a handle assignment may not carry that
+--
+--  Everything is logged, including whether CreateNodeRef resolves at all from Lua.
 local function playVoiceset(voiceset, mode, handle, uniqueName)
   local ok, err = pcall(function()
     local node = NewObject("questVoicesetManagerNodeDefinition")
-    local nt   = NewObject("questPlayVoiceset_NodeType")
-    local prm  = NewObject("questPlayVoiceset_NodeTypeParams")
+    node.type  = NewObject("questPlayVoiceset_NodeType")
 
-    prm.voicesetName      = CName.new(voiceset)
-    prm.useVoicesetSystem = true
-    prm.playOnlyGrunt     = false
+    local prm = NewObject("questPlayVoiceset_NodeTypeParams")
+    prm.overrideVisualStyle         = true
+    prm.overrideVoiceoverExpression = true
+    prm.voicesetName                = CName.new(voiceset)
 
+    local ref = NewObject("gameEntityReference")
     if mode == 0 then
-      prm.isPlayer = true
-      local ref = NewObject("gameEntityReference")
-      ref.reference = CreateNodeRef("#player")
-      prm.puppetRef = ref
+      prm.isPlayer  = true
+      local nr = CreateNodeRef("#player")
+      log("    CreateNodeRef(#player) -> " .. tostring(nr))
+      ref.reference = nr
     else
       prm.isPlayer = false
-      local ref = NewObject("gameEntityReference")
-      ref.dynamicEntityUniqueName = CName.new(uniqueName or "")
-      prm.puppetRef = ref
+      if uniqueName and uniqueName ~= "" then
+        ref.dynamicEntityUniqueName = CName.new(uniqueName)
+      end
     end
+    prm.puppetRef = ref
 
-    nt.params = { prm }
-    --  Assigning a Lua table into a RED array can silently do nothing. Read it back: if
-    --  this is 0, the node went out empty and the name is irrelevant.
+    --  push into the ALREADY assigned type, the way VVF does
+    node.type.params = { prm }
+
     local cnt = -1
-    pcall(function() cnt = #nt.params end)
-    log(string.format("    params nach Zuweisung: %d", cnt))
-    if cnt > 0 then
-      pcall(function()
-        log("    voicesetName im Array: " .. tostring(nt.params[1].voicesetName))
-      end)
-    end
-    node.type = nt
+    pcall(function() cnt = #node.type.params end)
+    log(string.format("    node.type.params: %d", cnt))
+
     Game.GetQuestsSystem():ExecuteNode(node)
   end)
-  log(string.format("VOICESET %s modus=%d name=%s -> %s", voiceset, mode,
-      tostring(uniqueName or "-"), ok and "abgesetzt" or ("FEHLER: " .. tostring(err))))
+  log(string.format("VOICESET %s modus=%d -> %s", voiceset, mode,
+      ok and "abgesetzt" or ("FEHLER: " .. tostring(err))))
 end
 
 local function voPerceptible(handle)
