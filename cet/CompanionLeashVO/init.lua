@@ -244,12 +244,11 @@ local function playBark(name)
     node.type  = NewObject("questPlayVoiceset_NodeType")
 
     local prm = NewObject("questPlayVoiceset_NodeTypeParams")
-    --  Alle Flags ausdruecklich setzen, so wie VVF es tut - nicht auf die Voreinstellung
-    --  des Structs verlassen. Das nimmt einen unkontrollierten Unterschied aus dem
-    --  Vergleich, auch wenn vorhandene Judy-Eintraege ohnehin funktionieren.
+    --  NUR die Felder setzen, die VVF setzt. useVoicesetSystem und playOnlyGrunt bleiben
+    --  auf der Voreinstellung des Structs: sie ausdruecklich zu setzen war schon beim
+    --  ersten Anlauf einer der Gruende, warum der Knoten gar nichts tat - und
+    --  useVoicesetSystem = false beim Test eines Voicesets ist ohnehin verkehrt herum.
     prm.overrideVoiceoverExpression = true
-    prm.useVoicesetSystem = false
-    prm.playOnlyGrunt = false
     prm.voicesetName                = CName.new(name)
     if styleIdx >= 0 then
       prm.overrideVisualStyle = true
