@@ -701,35 +701,65 @@ registerForEvent("onUpdate", function(dt)
     end
   end
 
-  --  Sweep: fire each candidate name, wait out the longest observed line, then record
-  --  whether anything came back FROM OUR TARGET. Judy's longest bark measured 2.84s, so
-  --  3.0s between names is enough; passers-by run much longer and are filtered by hash.
+  --  Sweep: every name against every context, unattended.
+  --
+  --  Adaptive timing, because a fixed 3s per name would be 13 minutes across five
+  --  contexts. A line is reported ~0.25s after dispatch, so a hit is known early and we
+  --  only need to wait out its own duration; a miss costs the short timeout.
+  --
+  --  A forced subtitle style is essential: detection reads the subtitle data, so a style
+  --  that renders nothing makes every working line look silent. That is what produced the
+  --  two-hit run.
   if sweep then
     sweep.t = sweep.t + (dt or 0.016)
-    if sweep.t >= 3.0 then
-      if sweep.i > 0 then
-        local name = SWEEP[sweep.i]
-        local hit = false
-        pcall(function()
-          hit = lipDiag.changes > sweep.mark
-                and lipDiag.lastHash == tostring(tgt:GetEntityID().hash)
-        end)
-        if hit then
-          sweep.hits = sweep.hits + 1
-          log(string.format("  TREFFER  %-28s %.2fs  \"%s\"",
-              name, lipDiag.lastDur, lipDiag.lastText))
-        else
-          log(string.format("  still    %s", name))
-        end
+
+    if sweep.pending then
+      local hit = false
+      pcall(function()
+        hit = lipDiag.changes > sweep.mark
+              and lipDiag.lastHash == tostring(tgt:GetEntityID().hash)
+      end)
+      if hit and not sweep.got then
+        sweep.got = true
+        sweep.hits = sweep.hits + 1
+        sweep.wait = math.max(0.4, (lipDiag.lastDur or 1.0) * 0.6)
+        table.insert(sweep.found, {
+          ctx = CONTEXTS[sweep.c], name = SWEEP[sweep.i],
+          dur = lipDiag.lastDur, text = lipDiag.lastText })
+        log(string.format("  TREFFER  %-26s %.2fs  \"%s\"",
+            SWEEP[sweep.i], lipDiag.lastDur, lipDiag.lastText))
       end
+      if sweep.t >= (sweep.got and sweep.wait or 1.3) then
+        sweep.pending = false
+      end
+    end
+
+    if not sweep.pending then
       sweep.i = sweep.i + 1
-      if sweep.i > #SWEEP or not tgt then
-        log(string.format("=== SWEEP FERTIG: %d von %d Namen antworten",
-            sweep.hits, #SWEEP))
+      if sweep.i > #SWEEP then
+        log(string.format("--- Kontext %s: %d Treffer",
+            CONTEXTS[sweep.c], sweep.hits - (sweep.ctxBase or 0)))
+        sweep.ctxBase = sweep.hits
+        sweep.c = sweep.c + 1
+        sweep.i = 1
+      end
+      if sweep.c > #CONTEXTS or not tgt then
+        optContext, optStyle = sweep.savedCtx, sweep.savedStyle
+        log(string.format("=== SWEEP FERTIG: %d Treffer", sweep.hits))
+        local seen = {}
+        for _, f in ipairs(sweep.found) do
+          local key = f.name
+          if not seen[key] then
+            seen[key] = true
+            log(string.format("    %-26s %5.2fs  [%s]  \"%s\"",
+                f.name, f.dur, f.ctx:gsub("Vo_Context_", ""), f.text))
+          end
+        end
         sweep = nil
       else
+        optContext = sweep.c - 1
         sweep.mark = lipDiag.changes
-        sweep.t = 0
+        sweep.t, sweep.got, sweep.pending = 0, false, true
         fireVo(tgt, SWEEP[sweep.i])
       end
     end
@@ -959,13 +989,18 @@ registerForEvent("onDraw", function()
     if ImGui.Button("V: greeting") then playVoiceset("greeting", 0) end
     ImGui.SameLine()
     if sweep then
-      ImGui.Text(string.format("Sweep laeuft: %d/%d, %d Treffer",
-                 sweep.i, #SWEEP, sweep.hits))
+      ImGui.Text(string.format("Sweep: Kontext %d/%d, Name %d/%d, %d Treffer",
+                 sweep.c, #CONTEXTS, sweep.i, #SWEEP, sweep.hits))
+      ImGui.TextDisabled("Laeuft unbeaufsichtigt. Judy muss in der Naehe bleiben.")
       if ImGui.Button("Sweep abbrechen") then sweep = nil end
     else
-      if ImGui.Button(string.format("Alle %d Namen durchmessen", #SWEEP)) then
+      if ImGui.Button(string.format("Alles durchmessen (%d Namen x %d Kontexte)",
+                                    #SWEEP, #CONTEXTS)) then
         if target then
-          sweep = { i = 0, t = 99, hits = 0, mark = lipDiag.changes }
+          sweep = { c = 1, i = 0, t = 99, hits = 0, ctxBase = 0, found = {},
+                    pending = false, got = false, mark = lipDiag.changes,
+                    savedCtx = optContext, savedStyle = optStyle }
+          optStyle = 0  -- detection needs a rendered subtitle
           log(string.format("=== SWEEP ueber %d Namen | kontext=%s | stil=%s", #SWEEP,
             (optContext >= 0) and CONTEXTS[optContext + 1] or "keiner",
             (optStyle >= 0) and STYLES[optStyle + 1] or "keiner"))
@@ -973,8 +1008,8 @@ registerForEvent("onDraw", function()
           log("Sweep braucht ein gesperrtes Ziel")
         end
       end
-      ImGui.TextDisabled("Rund 3 Minuten. Schreibt pro Name Treffer/still mit Text und " ..
-                         "Dauer ins Log - damit wissen wir, welche langen Zeilen es gibt.")
+      ImGui.TextDisabled("Rund 6-8 Minuten, unbeaufsichtigt. Alle Kontexte nacheinander; " ..
+                         "am Ende steht die Liste der brauchbaren Zeilen mit Dauer im Log.")
     end
     ImGui.Separator()
     ImGui.Text("Kontext:")
