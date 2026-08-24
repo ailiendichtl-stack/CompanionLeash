@@ -560,7 +560,13 @@ local SWEEP = {
   "reloading_var_3", "return_answer", "return_answer_var_1", "return_answer_var_2",
   "stealth_restored", "stealth_restored_var_1", "stealth_restored_var_2",
   "stealth_warning_bark", "stealth_warning_bark_var_1", "stealth_warning_bark_var_2",
-  "urge", "urge_var_1", "urge_var_2"
+  "urge", "urge_var_1", "urge_var_2",
+  --  single-word entries: my extraction required an underscore, so these were dropped.
+  --  grapple is a real one - "Ungh ... Aaargh ... Lass ... los!" is in her voice files but
+  --  had no name until now. The rest are guesses the game can settle in a minute.
+  "grapple", "careful", "cover", "incoming", "watch", "lost", "come", "deep", "everything",
+  "see", "they", "out", "now", "get", "grenade", "reload", "help", "taunt", "victory",
+  "wounded", "death", "pain", "affirmative", "negative", "regroup", "flanking"
 }
 local sweep = nil  -- { i, t, lastCount }
 
