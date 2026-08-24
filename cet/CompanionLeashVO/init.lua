@@ -472,12 +472,12 @@ registerForEvent("onDraw", function()
     if sweep then
       ImGui.Text(string.format("laeuft: %d/%d, %d Treffer",
                  sweep.i, #sweep.list, sweep.hits))
-      if ImGui.Button("abbrechen") then
+      if ImGui.Button("abbrechen##vsweep") then
         styleIdx = sweep.savedStyle
         sweep = nil
       end
     else
-      if ImGui.Button("Vs Voiceset durchmessen") then
+      if ImGui.Button("Messung starten##vsweep") then
         speaker = 1
         sweep = { list = VSET_V, i = 0, t = 99, hits = 0, pending = false,
                   got = false, before = "", savedStyle = styleIdx }
