@@ -1,23 +1,23 @@
 -- =====================================================================================
---  CompanionLeash - VO test panel
+--  CompanionLeash - test panel  (VO + animation)
 -- =====================================================================================
---  Manual counterpart to the redscript spike. The automated test cycled through events
---  on a timer, which left two ambiguities: which slot a sound belonged to, and whether a
---  silent slot meant "no recording" or just "this variant happened to be empty".
+--  Manual counterpart to the timed redscript spikes. Clicking removes the ambiguity a
+--  scheduled test cannot: which slot a result belonged to, and whether nothing happening
+--  meant "no data" or just "this variant was empty".
 --
---  Clicking a button removes both. You hear it or you do not, immediately, and you can
---  press the same one repeatedly to shake out variants.
+--  Lua rather than redscript on purpose: a mistake here is reported by CET and costs
+--  nothing, whereas the redscript stack fails as a whole.
 --
---  Lua rather than redscript on purpose: no compile risk to the redscript stack at all.
---  If this file has a syntax error, CET reports it and everything else keeps working.
---
---  Usage: open the CET overlay, look at Judy, press "Ziel sperren", then click events.
+--  Usage: open the CET overlay, look at Judy, press "Ziel sperren", then click.
 -- =====================================================================================
 
 local MOD = "[CompanionLeashVO]"
 
---  Confirmed by ear across three automated rounds. Listed so the panel doubles as a
---  reference, and so re-testing them is one click if a mapping ever looks wrong.
+--  Workspot entity and component come from AMM, which is installed. Confirmed against
+--  AMM's own database for these animations.
+local WORKSPOT_ENT = "base\\amm_workspots\\entity\\workspot_anim.ent"
+local WORKSPOT_COMP = "amm_workspot_base"
+
 local WORKING = {
   { "greeting",                    "Hey V / Oh hey" },
   { "stealth_restored",            "Die haben wir abgeschuettelt" },
@@ -25,31 +25,46 @@ local WORKING = {
   { "combat_ended",                "Oh das wars, wir habens geschafft" },
   { "coop_irritation",             "Aaah!" },
   { "coop_reports_kill",           "Echt jetzt!?" },
-  { "sniper_warning",              "Wo haben die nur diese Ausruestung her?" },
+  { "elite_warning",               "Wo haben die nur diese Ausruestung her?" },
+  { "camera_warning",              "mehrere eigene Zeilen" },
   { "attack_fragile_player_order", "Hey V! Mach was, verdammte Scheisse!" },
   { "battlecry_curse",             "Fuuuuck!" },
   { "bump",                        "Was zur Hoelle?" },
   { "combat_target_hit",           "Na, wie schmeckt dir das?" },
+  { "start_combat",                "funktioniert" },
+  { "enemy_warning",               "funktioniert" },
+  { "hit_reaction_light",          "funktioniert" },
+  { "grenade_throw",               "funktioniert" },
+  { "vehicle_bump",                "das kurze ...?" },
 }
 
---  Silent in the automated rounds. This is the list worth re-checking by hand: a timed
---  test can miss an event whose variants were empty on that pass.
-local SILENT = {
-  "danger", "stlh_curious_grunt", "stlh_call", "stlh_death",
-  "enemy_warning", "start_combat", "start_dead", "crowd_combat",
-  "shove", "fear_beg", "fear_run", "hit_reaction_heavy",
-  "hit_reaction_light", "hit_grapple", "vo_any_damage_hit", "grenade_throw",
-  "heavy_reloading", "hmg_charge", "pedestrian_hit", "vehicle_bump",
-  "octant_warning", "turret_warning", "camera_warning", "drones_warning",
-  "netrunner_warning", "mech_warning", "elite_warning", "heavy_warning",
-  "cpo_armor_broken", "cpo_got_data", "cpo_nearly_dead",
-  "following", "waiting",
+--  THE QUESTION THIS SECTION ANSWERS
+--
+--  An NCA routine is a workspot, not a scene, so it does not drive lipsync - the routine
+--  schema has no lipsync or facial field at all. But several of Judy's synced animations
+--  are "talk" variants, recorded as part of scenes in which she is speaking. If the mouth
+--  movement is baked into the animation itself, playing it moves her mouth with no scene
+--  system involved.
+--
+--  The controls matter as much as the talk variants: if the mouth moves on BOTH, it is
+--  something else (idle chatter), and the result means nothing.
+local ANIMS = {
+  { "synced__v_hug_judy__talk__01__judy",   "TALK - Umarmung, sprechend" },
+  { "synced__v_hug_judy__talk__03__judy",   "TALK - Umarmung, sprechend" },
+  { "synced__v_holds_judy__talk__02__judy", "TALK - Halten, sprechend" },
+  { "synced__v_hug_judy__01__judy",         "KONTROLLE - dieselbe Pose, nicht sprechend" },
+  { "synced__v_holds_judy__01__judy",       "KONTROLLE - Halten, nicht sprechend" },
+  { "stand__dance__02",                     "KONTROLLE - Tanz, sicher ohne Mimik" },
+  { "alt__stand__2h_on_sides__01",          "KONTROLLE - Standard-Idle" },
 }
 
 local showUI = false
 local locked = nil
 local lastPlayed = "-"
+local lastAnim = "-"
 local heard = {}
+local pending = nil   -- waiting for the spawned workspot entity to exist
+local active = nil    -- {handle, target}
 
 local function targetName(handle)
   if not handle then return "kein Ziel" end
@@ -69,8 +84,7 @@ local function currentTarget()
   return nil
 end
 
---  Signature taken verbatim from AMM's util.lua, which is known to work:
---  Game["gameObject::PlayVoiceOver;GameObjectCNameCNameFloatEntityIDBool"]
+--  Signature taken verbatim from AMM's util.lua, which is known to work.
 local function playVO(handle, vo)
   if not handle then
     print(MOD .. " kein Ziel - schau eine NPC an und sperre sie")
@@ -83,11 +97,70 @@ local function playVO(handle, vo)
   end)
   if ok then
     lastPlayed = vo
-    print(MOD .. " played: " .. vo)
+    print(MOD .. " VO: " .. vo)
   else
     print(MOD .. " FEHLER bei " .. vo .. ": " .. tostring(err))
   end
 end
+
+local function stopAnim()
+  if not active then return end
+  pcall(function()
+    Game.GetWorkspotSystem():StopInDevice(active.target)
+    if active.handle then
+      exEntitySpawner.Despawn(active.handle)
+      active.handle:Dispose()
+    end
+  end)
+  active = nil
+end
+
+--  Mirrors AMM's Poses:PlayAnimationOnTarget: spawn a workspot entity at the NPC,
+--  yawed 180 degrees, then bind the NPC to it and jump to the animation.
+local function playAnim(target, animName)
+  if not target then
+    print(MOD .. " kein Ziel")
+    return
+  end
+  stopAnim()
+
+  local ok, err = pcall(function()
+    local tr = target:GetWorldTransform()
+    tr:SetPosition(target:GetWorldPosition())
+    local angles = target:GetWorldOrientation():ToEulerAngles()
+    tr:SetOrientationEuler(EulerAngles.new(0, 0, angles.yaw + 180))
+    local id = exEntitySpawner.Spawn(WORKSPOT_ENT, tr, "")
+    pending = { id = id, target = target, anim = animName, ticks = 0 }
+  end)
+  if not ok then
+    print(MOD .. " Spawn fehlgeschlagen: " .. tostring(err))
+  end
+end
+
+registerForEvent("onUpdate", function()
+  if not pending then return end
+  pending.ticks = pending.ticks + 1
+  local ent = Game.FindEntityByID(pending.id)
+  if ent then
+    local ok, err = pcall(function()
+      Game.GetWorkspotSystem():PlayInDeviceSimple(
+        ent, pending.target, false, CName.new(WORKSPOT_COMP),
+        CName.new("CompanionLeashTest"), nil, 0, 1, nil)
+      Game.GetWorkspotSystem():SendJumpToAnimEnt(pending.target, CName.new(pending.anim), true)
+    end)
+    if ok then
+      active = { handle = ent, target = pending.target }
+      lastAnim = pending.anim
+      print(MOD .. " ANIM: " .. pending.anim)
+    else
+      print(MOD .. " Animation fehlgeschlagen: " .. tostring(err))
+    end
+    pending = nil
+  elseif pending.ticks > 120 then
+    print(MOD .. " Workspot-Entitaet erschien nicht")
+    pending = nil
+  end
+end)
 
 registerForEvent("onOverlayOpen",  function() showUI = true end)
 registerForEvent("onOverlayClose", function() showUI = false end)
@@ -95,8 +168,8 @@ registerForEvent("onOverlayClose", function() showUI = false end)
 registerForEvent("onDraw", function()
   if not showUI then return end
 
-  ImGui.SetNextWindowSize(560, 620, ImGuiCond.FirstUseEver)
-  if not ImGui.Begin("CompanionLeash - VO Test") then
+  ImGui.SetNextWindowSize(600, 660, ImGuiCond.FirstUseEver)
+  if not ImGui.Begin("CompanionLeash - Test") then
     ImGui.End()
     return
   end
@@ -118,14 +191,30 @@ registerForEvent("onDraw", function()
     end
   end
   ImGui.SameLine()
-  ImGui.Text("zuletzt: " .. lastPlayed)
+  ImGui.Text("VO: " .. lastPlayed .. "  |  Anim: " .. lastAnim)
 
   ImGui.Separator()
-  ImGui.TextWrapped("Sperre Judy als Ziel, dann klicke Events. Haken setzen bei allem, " ..
-                    "was klingt - die Liste unten wird beim Beenden ins Log geschrieben.")
-  ImGui.Separator()
 
-  if ImGui.CollapsingHeader("Bestaetigt funktionierend (" .. #WORKING .. ")") then
+  if ImGui.CollapsingHeader("Animation - Lipsync-Test") then
+    ImGui.TextWrapped("Frage: steckt die Mundbewegung in der Animation selbst? " ..
+                      "TALK-Varianten mit den KONTROLLEN vergleichen. Bewegt sich der " ..
+                      "Mund bei beiden, sagt das Ergebnis nichts aus.")
+    ImGui.Separator()
+    for _, a in ipairs(ANIMS) do
+      if ImGui.Button(a[1] .. "##a") then playAnim(target, a[1]) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(a[2])
+    end
+    ImGui.Separator()
+    if ImGui.Button("Animation stoppen") then
+      stopAnim()
+      print(MOD .. " Animation gestoppt")
+    end
+    ImGui.SameLine()
+    ImGui.TextDisabled("immer stoppen, bevor die naechste startet")
+  end
+
+  if ImGui.CollapsingHeader("Voice - bestaetigt funktionierend (" .. #WORKING .. ")") then
     for _, e in ipairs(WORKING) do
       if ImGui.Button(e[1] .. "##w") then playVO(target, e[1]) end
       ImGui.SameLine()
@@ -133,35 +222,13 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if ImGui.CollapsingHeader("Bisher still - bitte pruefen (" .. #SILENT .. ")") then
-    ImGui.TextWrapped("Mehrfach klicken lohnt sich: einzelne Varianten koennen leer sein.")
-    ImGui.Separator()
-    for i, name in ipairs(SILENT) do
-      if ImGui.Button(name .. "##s") then playVO(target, name) end
-      ImGui.SameLine()
-      local was = heard[name] and true or false
-      local newv, changed = ImGui.Checkbox("gehoert##" .. name, was)
-      if changed then
-        heard[name] = newv or nil
-        print(MOD .. " markiert: " .. name .. " = " .. tostring(newv))
-      end
-      if i % 2 == 1 then ImGui.SameLine() end
-    end
-  end
-
-  ImGui.Separator()
-  if ImGui.Button("Markierte ins Log schreiben") then
-    local any = false
-    for name, _ in pairs(heard) do
-      print(MOD .. " HEARD " .. name)
-      any = true
-    end
-    if not any then print(MOD .. " nichts markiert") end
-  end
-
   ImGui.End()
 end)
 
+registerForEvent("onShutdown", function()
+  stopAnim()
+end)
+
 registerForEvent("onInit", function()
-  print(MOD .. " bereit - CET-Overlay oeffnen, Judy anschauen, Ziel sperren")
+  print(MOD .. " bereit - Overlay oeffnen, Judy anschauen, Ziel sperren")
 end)
