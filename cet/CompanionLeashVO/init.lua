@@ -199,13 +199,15 @@ local MATRIX = {
     hint = "erwartet: V spricht" },
   { label = "3 Judy bekannt",   name = "follow_me",           player = false,
     hint = "erwartet: Judy spricht - Gegenprobe, dass der Pfad lebt" },
-  { label = "4 Judy neu",       name = "cl_test_froh",        player = false,
-    hint = "erwartet: Ich bin froh, dass du da bist." },
+  { label = "4a mit voInfo",    name = "cl_mit_voinfo",       player = false,
+    hint = "wie bisher gebaut - erwartet: Ich bin froh, dass du da bist." },
+  { label = "4b ohne voInfo",   name = "cl_ohne_voinfo",      player = false,
+    hint = "wie VVF gebaut - erwartet: dasselbe" },
   { label = "5 Unsinn",         name = "cl_gibt_es_nicht_xyz", player = false,
     hint = "zeigt den echten Rueckfall bei unbekanntem Namen" },
   { label = "6 VVF auf Judy",   name = "vfv_better_run",      player = false,
     hint = "Negativkontrolle - sollte NICHT spielen" },
-  { label = "7 Judy-Name auf V", name = "cl_test_froh",       player = true,
+  { label = "7 Judy-Name auf V", name = "cl_ohne_voinfo",     player = true,
     hint = "Negativkontrolle - sollte NICHT spielen" },
 }
 
