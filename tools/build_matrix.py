@@ -35,6 +35,12 @@ WARN_MS = 1000          # ab hier braucht die Zeile geliehenes Lipsync
 
 #  Nennt eine Zeile eine dieser Figuren, gehoert sie nicht in den Pool - egal wie gut sie
 #  klingt. Judy fehlt hier bewusst: ihr Name ist ein Vorteil, kein Ausschluss.
+#  Szenen, in denen Judy vorkommt. Vs Zeilen von dort setzen ein Gespraech mit ihr
+#  fort; alles andere ist eine freie Neukombination - brauchbar, aber es gehoert
+#  dazugeschrieben, damit niemand einen Anschluss annimmt, den es nicht gibt.
+JUDY_SZENEN = ("q004", "q105", "q115", "q201", "q202", "q203", "mq055", "sq026",
+               "sq030", "judy", "finalboards")
+
 FREMDE_NAMEN = ["River", "Panam", "Kerry", "Rogue", "Johnny", "Jackie", "Misty",
                 "Takemura", "Hanako", "Songbird", "Reed", "Saul", "Mitch", "Maiko",
                 "Hiromi", "Evelyn", "Woodman", "Fingers", "Dex", "Meredith"]
@@ -103,8 +109,11 @@ CATEGORIES = [
       fams=[], picks=[],
       judy=["189736fe942b6000", "1812474b462b6000", "189c5847c42b6000",
             "39675dc8759ce000", "1a9f63e7252b6000", "189806a8512b6000",
-            "1a67403cc92fc004"],
-      v=["1a9f07a2ab2fc000", "1532045272401000"],
+            "1a67403cc92fc004", "18830b966a2b6000", "18983199cf2b6000",
+            "18a6e78c9e2b6000", "1897f7fb1a2b6000", "1897f8b7412b6000",
+            "19eba4297c2b6000"],
+      v=["1a9f07a2ab2fc000", "1532045272401000", "1a04d435ff2c5000",
+         "39b494eb948bb000"],
       pairs=[("Lob und Abwehr",
               [("J", "q", "39675dc8759ce000"), ("V", "qv", "172a8c16fb502000")],
               "Ihr Lob ist beilaeufig - genau deshalb sitzt es."),
@@ -113,7 +122,16 @@ CATEGORIES = [
               "Funktioniert nach etwas, das die beiden zusammen geschafft haben."),
              ("Nur ein Zimmer",
               [("V", "qv", "1532045272401000"), ("J", "q", "189806a8512b6000")],
-              "Vs Zeile ist eine Frage ohne Namen - sie traegt in jede Richtung.")]),
+              "Vs Zeile ist eine Frage ohne Namen - sie traegt in jede Richtung."),
+             ("War das Timing gut oder denkst du staendig an mich",
+              [("J", "q", "18830b966a2b6000"), ("V", "qv", "1a04d435ff2c5000")],
+              "Sie stellt die Fangfrage, V faellt darauf herein - besser geht es nicht."),
+             ("Ich tauch nicht mit jeder",
+              [("J", "q", "18a6e78c9e2b6000"), ("V", "qv", "19c6ddabf55b3000")],
+              "Ihr Zugestaendnis ist beilaeufig verpackt; Vs Zusage nennt ihren Namen."),
+             ("Ablenkung",
+              [("J", "q", "18983199cf2b6000"), ("V", "qv", "39b494eb948bb000")],
+              "Beide Zeilen lassen offen, worum es geht. Genau deshalb tragen sie.")]),
 
  dict(key="alltag", title="Alltag - Kaffee, Pizza, Zuhause",
       when="V ist bei ihr, nichts Dringendes liegt an",
@@ -169,8 +187,9 @@ CATEGORIES = [
       picks=["Spieler verletzt / Sorge"],
       judy=["1ef8b0186b42f000", "1f46421f852b6008", "28aa62967b4ea000",
             "1f45f8b07b2b6008", "1ef8b0c1f442f000", "1f4640da642b6000",
-            "1a33ca85c72b6000", "14aaba91a329f000", "14aabd878129f000"],
-      v=["1a0a374e852fc000", "198e76d299521000"],
+            "1a33ca85c72b6000", "14aaba91a329f000", "14aabd878129f000",
+            "1afd6f18ec2fc000", "1a82306830610000", "1b971f17262b6000"],
+      v=["1a0a374e852fc000", "198e76d299521000", "17bb05d57b5b3000"],
       pairs=[("Schimpfen, dann weich werden",
               [("J", "b", "player_fallback_var_2"), ("J", "q", "1f4640da642b6000")],
               "Der Umschlag von Wut zu Sorge ist die ganze Wirkung."),
@@ -183,7 +202,14 @@ CATEGORIES = [
               "Vs Zeile stammt aus Judys eigener Quest und passt woertlich."),
              ("Judy sorgt sich um V",
               [("J", "b", "player_fallback_var_3"), ("V", "bv", "scene_thanks_var_2")],
-              "Die Bark-Fassung, ohne Vorbedingung einsetzbar.")]),
+              "Die Bark-Fassung, ohne Vorbedingung einsetzbar."),
+             ("Judy braucht selbst Raum",
+              [("J", "q", "1a82306830610000"), ("V", "qv", "17bb05d57b5b3000"),
+               ("J", "q", "1b971f17262b6000")],
+              "Der einzige Wortwechsel, in dem SIE zurueckzieht und V wartet."),
+             ("Sie versteht es",
+              [("V", "qv", "1a0a374e852fc000"), ("J", "q", "1afd6f18ec2fc000")],
+              "Keine Beschwichtigung, sondern Zustimmung. Das ist selten.")]),
 
  dict(key="stolz", title="Anerkennung und Stolz",
       when="V hat etwas gut gemacht - nicht zwingend im Kampf",
@@ -194,7 +220,11 @@ CATEGORIES = [
       v=["172a8c16fb502000", "18c1d0f46c4e6004"],
       pairs=[("Beeindruckt",
               [("J", "q", "16bf45bffc2fc000"), ("V", "qv", "18c1d0f46c4e6004")],
-              "Trockenes Lob, trockene Antwort.")]),
+              "Trockenes Lob, trockene Antwort."),
+             ("Gegenseitig",
+              [("J", "q", "39675dc8759ce000"), ("V", "qv", "172a8c16fb502000"),
+               ("J", "q", "1812474b462b6000")],
+              "Lob, Gegenlob, und ihre Pointe schliesst es ab.")]),
 
  dict(key="arbeit", title="Gemeinsame Arbeit",
       when="Virtu, Tauchen, Technik - sie laesst V an ihrer Arbeit teilhaben",
@@ -276,7 +306,8 @@ CATEGORIES = [
            " allein steht - deshalb gehoert immer eine Versoehnung dahinter.",
       fams=["follow_me", "hurry_up", "urge", "interrupt", "phone_urge"],
       picks=["Spieler bleibt zurueck", "Warten / Ungeduld"],
-      judy=["39675fea699ce000", "39675ce5d69ce000", "1a9f63e7252b6000"],
+      judy=["39675fea699ce000", "39675ce5d69ce000", "1a9f63e7252b6000",
+            "18f9e3bc672b6000", "19ec472e462b6000", "137c5715552b1000"],
       v=[],
       pairs=[("Gespraech unterbrochen",
               [("V", "bv", "interrupt_var_6"), ("J", "b", "interrupt_var_1")],
@@ -295,7 +326,10 @@ CATEGORIES = [
               "V bleibt stehen, Judy will weiter."),
              ("Du hast meine Plaene ruiniert",
               [("J", "q", "1a9f63e7252b6000"), ("J", "q", "189806a8512b6000")],
-              "Vorwurf mit einem Augenzwinkern, und gleich der Koeder hinterher.")]),
+              "Vorwurf mit einem Augenzwinkern, und gleich der Koeder hinterher."),
+             ("Brett vorm Kopf",
+              [("J", "q", "18f9e3bc672b6000"), ("J", "q", "19ec472e462b6000")],
+              "Spott ohne Schaerfe - sie bleibt dabei zugewandt.")]),
 
  dict(key="umgebung", title="Umgebung und Aussicht",
       when="Aussichtspunkt, ungewoehnlicher Ort, gemeinsames Schauen",
@@ -310,8 +344,45 @@ CATEGORIES = [
 
  dict(key="wasser", title="Wasser und Schwimmen",
       when="Tauchen, Schwimmen, der See",
-      note="Der gemeinsame Rueckzugsort. Keine Bark deckt das ab.",
-      fams=[], picks=["Wasser / Schwimmen"], judy=[], v=[], pairs=[]),
+      note="Der gemeinsame Rueckzugsort - und die einzige Situation, in der Judy die"
+           " Fuehrung hat. Keine Bark deckt das ab, jede Zeile muss gebaut werden.",
+      fams=[], picks=["Wasser / Schwimmen"],
+      judy=["1a6cc1fb6c2fc000", "1a6ce949fa2fc004", "135dba0e2a2fc000",
+            "1be51b21f02b6000", "18a6e78c9e2b6000"],
+      v=["19c6ddabf55b3000", "1a6181b1812fc000"],
+      pairs=[("Weiter raus",
+              [("J", "q", "1a6ce949fa2fc004"), ("V", "qv", "1a6181b1812fc000")],
+              "Ihre Einladung, Vs Zusage - beide aus derselben Tauchquest."),
+             ("Nicht allein abtauchen",
+              [("J", "q", "1be51b21f02b6000"), ("J", "q", "135dba0e2a2fc000")],
+              "Erst die Warnung, dann das Heranwinken. Sie fuehrt hier.")]),
+
+ dict(key="wohnung", title="Wohnung und Uebernachtung",
+      when="V ist bei ihr zu Hause, es wird spaet, jemand bleibt",
+      note="Die Kategorie fehlte in allen drei Vorgaengerdokumenten, obwohl das"
+           " Material vollstaendig da ist - vom Schluessel ueber den Kaffee bis zur"
+           " Couch. Naeher an einer Beziehung als jede Liebeserklaerung.",
+      fams=[], picks=[],
+      judy=["18795a0a822fc000", "18feb70a322b600c", "1a676388f12fc000",
+            "1a96129b222b6000", "18a2fa98762fc004", "18a2fa98762fc00c",
+            "1a04f187642fc000", "18795a9ae52fc000"],
+      v=["1532045272401000", "39b494eb948bb000", "1b54b12ed62fc004"],
+      pairs=[("Der Schluessel",
+              [("J", "q", "18795a0a822fc000"), ("V", "qv", "1532045272401000")],
+              "Erst das Vertrauen, dann das vorsichtige Nachfassen."),
+             ("Unser Nest fuer heut Nacht",
+              [("J", "q", "18feb70a322b600c"), ("V", "qv", "39b494eb948bb000")],
+              "Ihre Ansage, Vs Zustimmung. Kein Wort zu viel."),
+             ("Durchs Fenster statt durch die Tuer",
+              [("J", "q", "1a04f187642fc000"), ("V", "qv", "1b54b12ed62fc004")],
+              "Sie zieht V auf, V entschuldigt sich halbherzig."),
+             ("Kaffee, endlich",
+              [("J", "q", "1a676388f12fc000"), ("V", "qv", "1a6769eccf2fc000"),
+               ("J", "q", "1a96129b222b6000")],
+              "Drei Zeilen, die zusammen einen ganzen Abend andeuten."),
+             ("Es wird spaet",
+              [("J", "q", "18a2fa98762fc004"), ("J", "q", "18a2fa98762fc00c")],
+              "Die Feststellung und das Angebot. Dazwischen gehoert eine Pause.")]),
 
  dict(key="naehe", title="Tiefe Naehe",
       when="Nur nach abgeschlossener Romanze - nie im Ambient-Pool",
@@ -351,7 +422,8 @@ RISKY = [
 
 def main():
     d = _load()
-    st = {"J": 0, "V": 0, "bark": 0, "leih": 0, "namen": [], "used": set()}
+    st = {"J": 0, "V": 0, "leih": 0, "namen": [], "used": set(), "barks": set(),
+          "vbarks": set()}
     body = []
 
     for c in CATEGORIES:
@@ -363,11 +435,13 @@ def main():
         seen = set(n for _, n in judy)
         for cat in c["picks"]:
             for h in d["picks"].get(cat, []):
-                if h not in seen:
-                    seen.add(h); judy.append(("q", h))
+                k, ref = _normalize("q", h, d)
+                if ref not in seen:
+                    seen.add(ref); judy.append((k, ref))
         for h in c["judy"]:
-            if h not in seen:
-                seen.add(h); judy.append(("q", h))
+            k, ref = _normalize("q", h, d)
+            if ref not in seen:
+                seen.add(ref); judy.append((k, ref))
         vlines = [("qv", h) for h in c["v"]]
 
         for label, refs in (("Judy", judy), ("V", vlines)):
@@ -377,11 +451,12 @@ def main():
             body.append("| Zeile | Dauer | Status | Quelle |")
             body.append("|---|---|---|---|")
             for kind, ref in refs:
+                kind, ref = _normalize(kind, ref, d)
                 r = _resolve(kind, ref, d)
                 st["J" if label == "Judy" else "V"] += 1
                 st["used"].add(ref)
                 if r["status"] == "Bark":
-                    st["bark"] += 1
+                    st["barks" if label == "Judy" else "vbarks"].add(ref)
                 if "Leih" in r["status"]:
                     st["leih"] += 1
                 if r["fremd"]:
@@ -395,8 +470,12 @@ def main():
         if c["pairs"]:
             body.append("### Wortwechsel\n")
             for title, seq, why in c["pairs"]:
-                body.append("**%s**\n" % title)
+                allein = len(set(sp for sp, _, _ in seq)) == 1
+                body.append("**%s**%s\n"
+                            % (title, "  <sub>Zeilenfolge, nur Judy</sub>"
+                               if allein else ""))
                 for spk, kind, ref in seq:
+                    kind, ref = _normalize(kind, ref, d)
                     r = _resolve(kind, ref, d)
                     st["used"].add(ref)
                     body.append("- **%s:** %s  <sub>%s &middot; `%s`</sub>"
@@ -414,9 +493,9 @@ def main():
            "unbekannte Id bricht den Lauf ab - hier steht nichts Unbelegtes.\n",
            "**Bestand:** %d Judy-Eintraege und %d V-Zeilen in %d Situationen, dazu %d"
            % (st["J"], st["V"], len(CATEGORIES), npairs),
-           "Wortwechsel. %d Eintraege sind sofort spielbare Barks, %d Judy-Zeilen brauchen"
-           % (st["bark"], st["leih"]),
-           "geliehenes Lipsync.\n",
+           "Wortwechsel. Alle %d Judy-Barks sind einsortiert; %d Judy-Zeilen"
+           % (len(st["barks"]), st["leih"]),
+           "brauchen geliehenes Lipsync, der Rest sitzt.\n",
            "## Woher eine Zeile stammt, zaehlt nicht\n",
            "Der Ordner sagt nichts ueber die Eignung - nur der Wortlaut tut das. Vs",
            "\"Ich hab dich echt vermisst\" wurde fuer Panams Quest aufgenommen, nennt aber",
@@ -437,7 +516,9 @@ def main():
            "| `Zeile` | Questzeile, per Generator baubar, Lipsync sitzt |",
            "| `Zeile+Leih` | Animation laeuft ueber eine Sekunde nach - fremdes Lipsync |",
            "| `Zeile?` | keine Animation im Bestand - Lipsync ungeprueft |",
-           "| `VVF` | Vs Seite, ueber das V Voice Framework - kein Lipsync noetig |"]
+           "| `VVF` | Vs Seite, ueber das V Voice Framework - kein Lipsync noetig |",
+           "| `VVF frei` | dito, aber aus einer Szene ohne Judy - freie"
+           " Neukombination, kein Anschluss an ein Gespraech |"]
     out += body
 
     rest = sorted(set(d["barkj"]) - st["used"])
@@ -470,8 +551,8 @@ def main():
     open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
     print("Situationen %d | Judy %d | V %d | Wortwechsel %d"
           % (len(CATEGORIES), st["J"], st["V"], npairs))
-    print("Barks %d von %d einsortiert | Leih-Lipsync %d"
-          % (st["bark"], len(d["barkj"]), st["leih"]))
+    print("Judy-Barks %d von %d | V-Barks %d | Leih-Lipsync %d"
+          % (len(st["barks"]), len(d["barkj"]), len(st["vbarks"]), st["leih"]))
     if rest:
         print("ohne Situation: %s" % ", ".join(rest))
     if st["namen"]:
@@ -509,6 +590,35 @@ def _fam_barks(fams, d):
     return uniq
 
 
+def _normalize(kind, ref, d):
+    """Questzeilen aus `vset_judy` sind in Wahrheit Barks - dann auch so fuehren.
+
+    Sonst steht "Bin bei dir." zweimal da: als Bark mit 1.4 s und als Questzeile mit
+    1.0 s, weil die Dauer im Szenenknoten und die gemessene Bark auseinandergehen.
+
+    Fuer V gilt dasselbe mit `vset_v`: 136 Zeilen im V-Dump stammen von dort und sind
+    in Wahrheit Barks - mit gemessener Dauer statt gar keiner.
+    """
+    if kind not in ("q", "qv"):
+        return kind, ref
+    src, tab, bk = ((d["jud"], d["barkj"], "b") if kind == "q"
+                    else (d["vee"], d["barkv"], "bv"))
+    szene = "vset_judy" if kind == "q" else "vset_v"
+    r = src.get(str(int(ref, 16)))
+    if not r or r.get("scene") != szene:
+        return kind, ref
+    #  Der Dump fuehrt Varianten als "A | B", die Voicesets nur die erste. Ohne den
+    #  Schnitt findet "Sorry. Ist ein Notfall. | Sorry. Ist n Notfall." seine Bark nicht.
+    def kern(x):
+        return (x or "").split("|")[0].strip()
+
+    t = kern(r.get("text"))
+    for name, e in tab.items():
+        if kern(e["text"]) == t:
+            return bk, name
+    return kind, ref
+
+
 def _fremd(text):
     for n in FREMDE_NAMEN:
         if re.search(r"\b%s\b" % n, text):
@@ -531,10 +641,13 @@ def _resolve(kind, ref, d):
                          % ("Judy" if kind == "q" else "V", ref))
     r = src[key]
     rec = d["dur"].get(key)
-    ms = rec["dur"] if rec else None
+    #  100 ms ist keine Zeile, sondern ein Platzhalter im Szenenknoten. Als "0.1 s"
+    #  auszugeben behauptet eine Messung, die es nicht gibt.
+    ms = rec["dur"] if rec and rec["dur"] > 200 else None
     if kind == "qv":
-        status = "VVF"
-    elif not rec:
+        scene = r.get("scene") or ""
+        status = "VVF" if any(j in scene for j in JUDY_SZENEN) else "VVF frei"
+    elif not ms:
         status = "Zeile?"
     else:
         a = d["anim"].get("f_%016X" % int(key))
