@@ -71,6 +71,8 @@ Die Barks decken das Funktionale ab. Was fehlte, ist die Fassung, in der sie zug
 | Hoo, ich bin nur froh, dass du überhaupt an mich denkst. | 4.2 s | `Zeile` | `1893611d242b6000 sq030_00_holocall` |
 | Mich auch. Ich wurde sogar schon gefragt, warum ich so strahle. | 4.8 s | `Zeile` | `1b07d5a1472b6000 mq055_05_downtown` |
 | Ich lass es langsam angehen. Aber ich mach mich bald wieder an die Arbeit. Hab ’ne Idee für ’ne experimentelle Virtu-Serie. | 7.0 s | `Zeile` | `1b07ecef852b6000 mq055_05_downtown` |
+| Scheiße, V. Ich dachte, du bist tot. | 4.3 s | `Zeile` | `175e197aaa386000 q201_05_cabin_day_7` |
+| Hab Schüsse gehört. Lebst du noch? | 2.2 s | `Zeile` | `1bd4dab9c42b6000 q105_07_judy_braindance` |
 
 ### V
 
@@ -153,6 +155,13 @@ Die groesste Luecke im bisherigen Bestand. Judy war fast immer die Reagierende. 
 | Wollte dich um ’nen Gefallen bitten. | 2.4 s | `Zeile` | `1974ca6f6d2b6000 sq030_00_holocall` |
 | Aber deswegen ruf ich nicht an. Ich will dich um einen Gefallen bitten. | 5.3 s | `Zeile` | `1a67b32f202b6000 sq030_00_holocall` |
 | Gern. Passt mir gut, ich sitz grad eh am Steuer. | 3.7 s | `Zeile` | `1b07df75762b6000 mq055_05_downtown` |
+| Du kommst mir ... anders vor. Bist irgendwie ... abwesend. Denkst du an Mikoshi? Oder ist es der Job? | 9.9 s | `Zeile` | `14aaba91a329f000 q203_02c_judy` |
+| Du bist schon seit ’ner Woche so, V. Ich hab das Gefühl ... du verschweigst mir was. | 5.2 s | `Zeile` | `14aabd878129f000 q203_02c_judy` |
+| Wenn ich irgendwie helfen kann ... egal, wie ... musst du’s nur sagen. | 5.5 s | `Zeile` | `1a33ca85c72b6000 sq026_08_plan` |
+| Ich ... muss das verarbeiten, und zwar allein. | 6.6 s | `Zeile` | `1a82306830610000 sq026_15_end` |
+| Kann ich verstehen, V. Ehrlich gesagt würde das auch ’ne Weile dauern. | 4.1 s | `Zeile+Leih` | `1afd6f18ec2fc000 sq026_02_holocall_judy` |
+| Aber wenn du Zeit hast, sag mir Bescheid, okay? | ? | `Zeile?` | `1b971f17262b6000 sq026_02_holocall_judy` |
+| Denk nicht zu viel drüber nach, okay? | 2.0 s | `Zeile` | `1f4640da642b6000 sq030_01_dam_meetup` |
 
 ### V
 
@@ -403,36 +412,16 @@ Erst schimpft sie aus Angst, dann wird sie weich. Diese Reihenfolge ist glaubwue
 
 | Zeile | Dauer | Status | Quelle |
 |---|---|---|---|
-| V, pass besser auf! Tot nützt du niemandem! | 3.5 s | `Bark` | `player_fallback_var_2` |
-| Pass auf, verdammt! Schalt dein Hirn ein. | 2.8 s | `Bark` | `player_fallback_var_1` |
-| Alles okay? Schnauf mal kurz durch. | 2.8 s | `Bark` | `player_fallback_var_3` |
-| Ungh ... Aaargh ... Lass ... los! | 3.9 s | `Bark` | `grapple` |
-| Hab Schüsse gehört. Lebst du noch? | 2.2 s | `Zeile` | `1bd4dab9c42b6000 q105_07_judy_braindance` |
 | Was zum Teufel, V? Bist du ... krank? | 3.5 s | `Zeile` | `18a2feb32f2fc004 sq026_08_plan` |
 | V? Du siehst nicht gut aus ... | 2.5 s | `Zeile` | `1a33ace66d2b6000 sq026_08_plan` |
 | Ganz ruhig, ist alles okay? | 2.1 s | `Zeile` | `28aa62967b4ea000 sq026_08_plan` |
 | Alles in Ordnung bei dir? | 1.6 s | `Zeile` | `1f46421f852b6008 sq030_01_dam_meetup` |
-| Hey, langsam ... Ganz ruhig. | 2.3 s | `Zeile` | `1a7b4c53a32b6000 sq030_09_pier` |
 | Du solltest langsam machen. | 2.2 s | `Zeile` | `1a95b684a12b6000 sq030_09_pier` |
 | Geht’s dir wirklich gut? | 1.4 s | `Zeile` | `1f45f63cf42b6000 sq030_09_pier` |
 | Oh, ich kenne diese Stimme, V. Alles ... okay? | 4.8 s | `Zeile` | `1892e2683e2b6000 sq030_00_holocall` |
-| Pass auf dich auf, V. Komm in einem Stück zurück. | 4.3 s | `Zeile` | `14ab1431b629f000 q203_02c_judy` |
-| Pass auf dich auf da draußen, V. | 2.3 s | `Zeile` | `1f0c4ccf9242f000 q203_02c_judy` |
-| Pass auf dich auf, V. | 1.7 s | `Zeile` | `19f164ba6d2b6004 sq030_11_morning` |
-| Tief durchatmen. | 2.0 s | `Zeile` | `396692eeb0a4e000 mq055_01_megabuilding` |
-| Schön langsam atmen. Ruhig. Alles okay, dir geht’s gut. | 4.5 s | `Zeile+Leih` | `1ef8b0c1f442f000 q004_04b_after_tutorial` |
 | Sag schon, wie fühlst du dich? | 1.8 s | `Zeile` | `1ef8b0825f42f000 q004_04b_after_tutorial` |
 | Alles in Ordnung, V? | 1.6 s | `Zeile` | `1ef8b0186b42f000 q004_04b_after_tutorial` |
-| Scheiße, V. Ich dachte, du bist tot. | 4.3 s | `Zeile` | `175e197aaa386000 q201_05_cabin_day_7` |
-| Hey, es war ja nicht deine Schuld ... | 2.7 s | `Zeile` | `185efbe0f5502008 q115_02b_ripperdoc_roof` |
 | Ganz ruhig, ist alles okay? | 1.9 s | `Zeile+Leih` | `1f45f8b07b2b6008 sq030_09_pier` |
-| Denk nicht zu viel drüber nach, okay? | 2.0 s | `Zeile` | `1f4640da642b6000 sq030_01_dam_meetup` |
-| Wenn ich irgendwie helfen kann ... egal, wie ... musst du’s nur sagen. | 5.5 s | `Zeile` | `1a33ca85c72b6000 sq026_08_plan` |
-| Du kommst mir ... anders vor. Bist irgendwie ... abwesend. Denkst du an Mikoshi? Oder ist es der Job? | 9.9 s | `Zeile` | `14aaba91a329f000 q203_02c_judy` |
-| Du bist schon seit ’ner Woche so, V. Ich hab das Gefühl ... du verschweigst mir was. | 5.2 s | `Zeile` | `14aabd878129f000 q203_02c_judy` |
-| Kann ich verstehen, V. Ehrlich gesagt würde das auch ’ne Weile dauern. | 4.1 s | `Zeile+Leih` | `1afd6f18ec2fc000 sq026_02_holocall_judy` |
-| Ich ... muss das verarbeiten, und zwar allein. | 6.6 s | `Zeile` | `1a82306830610000 sq026_15_end` |
-| Aber wenn du Zeit hast, sag mir Bescheid, okay? | ? | `Zeile?` | `1b971f17262b6000 sq026_02_holocall_judy` |
 
 ### V
 
@@ -610,6 +599,9 @@ Vollstaendig ueber Barks abgedeckt - die groesste Bark-Familie im Voiceset.
 | Pass auf – da könnten Leute sein. | 2.9 s | `Zeile` | `181c6d75ad2fc000 sq026_11_to_penthouse` |
 | Kannst du sie ausschalten? | 1.6 s | `Zeile` | `18b6bc8f672fc000 sq026_11_to_penthouse` |
 | Kommeee! Die sind so gut wie erledigt! | 3.4 s | `Zeile` | `1a6d33c7952fc000 sq030_06_lake_exploration` |
+| Ungh ... Aaargh ... Lass ... los! | 3.9 s | `Bark` | `grapple` |
+| Pass auf, verdammt! Schalt dein Hirn ein. | 2.8 s | `Bark` | `player_fallback_var_1` |
+| V, pass besser auf! Tot nützt du niemandem! | 3.5 s | `Bark` | `player_fallback_var_2` |
 
 ### Wortwechsel
 
@@ -675,6 +667,11 @@ Hier steht, was den Sieg zu etwas Gemeinsamem macht statt zu einer Meldung.
 | Heeey, nicht schlecht. | 1.9 s | `Zeile` | `39675beeb89ce000 mq055_04_heywood` |
 | Okay, jetzt geht der Spaß erst richtig los. | 4.4 s | `Zeile` | `396690f54aa4e000 mq055_05_downtown` |
 | Bin bei dir. | 1.4 s | `Bark` | `danger_var_3` |
+| Hey, es war ja nicht deine Schuld ... | 2.7 s | `Zeile` | `185efbe0f5502008 q115_02b_ripperdoc_roof` |
+| Hey, langsam ... Ganz ruhig. | 2.3 s | `Zeile` | `1a7b4c53a32b6000 sq030_09_pier` |
+| Schön langsam atmen. Ruhig. Alles okay, dir geht’s gut. | 4.5 s | `Zeile+Leih` | `1ef8b0c1f442f000 q004_04b_after_tutorial` |
+| Tief durchatmen. | 2.0 s | `Zeile` | `396692eeb0a4e000 mq055_01_megabuilding` |
+| Alles okay? Schnauf mal kurz durch. | 2.8 s | `Bark` | `player_fallback_var_3` |
 
 ### V
 
@@ -1157,6 +1154,9 @@ Nur am tatsaechlichen Ende, nie als Ambient-Zeile.
 | Bis dann, V. | 1.5 s | `Zeile` | `1897d495012b6000 sq030_00_holocall` |
 | Bis dahaaaann! | 1.5 s | `Zeile` | `18982e23922b6000 sq030_00_holocall` |
 | Ich bin für dich da, V. Ruf jederzeit an. | 3.2 s | `Zeile` | `1b0b9169282b6000 judy_default` |
+| Pass auf dich auf, V. Komm in einem Stück zurück. | 4.3 s | `Zeile` | `14ab1431b629f000 q203_02c_judy` |
+| Pass auf dich auf, V. | 1.7 s | `Zeile` | `19f164ba6d2b6004 sq030_11_morning` |
+| Pass auf dich auf da draußen, V. | 2.3 s | `Zeile` | `1f0c4ccf9242f000 q203_02c_judy` |
 
 ### V
 

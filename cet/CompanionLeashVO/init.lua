@@ -806,6 +806,13 @@ registerForEvent("onDraw", function()
         ImGui.TextDisabled(string.format("Judy nicht greifbar  |  %d Zeilen", st.reibung.n))
       end
 
+      local ab = ImGui.Checkbox("Abschied##ab", st.abschied.an)
+      if ab ~= st.abschied.an then Triggers.Setzen("abschied", ab) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(string.format("%s  |  %d Zeilen",
+                                       st.abschied.da and "sie ist da" or "nicht greifbar",
+                                       st.abschied.n))
+
       local fa = ImGui.Checkbox("Fahrzeug##fa", st.fahrt.an)
       if fa ~= st.fahrt.an then Triggers.Setzen("fahrzeug", fa) end
       ImGui.SameLine()

@@ -511,6 +511,43 @@ local function leiterTick(d, p)
   leiter.stufe = leiter.stufe + 1
 end
 
+--  ---------------------------------------------------------------- Abschied
+
+--  Sie verabschiedet sich, wenn sie geht.
+--
+--  Ein Ereignis dafuer gibt es nicht, das wir ohne NCA-Haken lesen koennten. Was wir haben,
+--  ist ihre Referenz: faellt sie weg, ist Judy nicht mehr da. Das passiert aber auch beim
+--  Despawn auf Entfernung und in gesperrten Zonen, und das ist kein Abschied.
+--
+--  Der Unterschied ist die letzte bekannte Entfernung. Wer weggeschickt wird, steht vorher
+--  neben einem; wer wegen Entfernung verschwindet, war weit weg. Protokolliert wird beides,
+--  damit sich nach ein paar Sitzungen sagen laesst, ob die Trennung taugt.
+local ABSCHIED = { nah = 20.0, cd = 120.0 }
+local abschied = { warDa = false, letzteDist = nil, an = true }
+
+local function abschiedTick()
+  if not abschied.an then return end
+  local daJetzt = judy.obj ~= nil
+  if judy.dist then abschied.letzteDist = judy.dist end
+
+  if abschied.warDa and not daJetzt then
+    local w = abschied.letzteDist
+    if w and w <= ABSCHIED.nah then
+      local k = pool("abschied")
+      if #k > 0 then
+        log(string.format("ABSCHIED sie war %.0f m entfernt und ist weg", w))
+        Speaker.Request({ situation = "abschied", pool = "abschied",
+                          kandidaten = k, cd = ABSCHIED.cd })
+      end
+    else
+      log(string.format("ABSCHIED verworfen - sie war %s entfernt, das war ein Despawn",
+          w and string.format("%.0f m", w) or "unbekannt weit"))
+    end
+    abschied.letzteDist = nil
+  end
+  abschied.warDa = daJetzt
+end
+
 --  ---------------------------------------------------------------- Zufallsflirt
 
 --  Ein seltener Timer, der auch beim Laufen zuschlaegt.
@@ -613,8 +650,10 @@ local function sorgeTick()
   local p = spieler()
   if not p then return end
   local hp = sonde("StatPool.Health", function()
+    --  Der dritte Parameter heisst `perc`. Mit `false` kommen Absolutpunkte zurueck -
+    --  im Panel standen 343, und eine Schwelle von 40 war damit nie zu unterschreiten.
     return Game.GetStatPoolsSystem():GetStatPoolValue(p:GetEntityID(),
-                                                      gamedataStatPoolType.Health, false)
+                                                      gamedataStatPoolType.Health, true)
   end)
   if hp == nil then return end
 
@@ -744,6 +783,7 @@ local TESTS = {
   { name = "Blick 3",     sit = "flirt",       pool = "blick3",      q = "flirt" },
   { name = "Leiter 4",    sit = "leiter",      pool = "flirt",       q = "flirt" },
   { name = "Zufallsflirt", sit = "flirt",      pool = "flirt",       q = "flirt" },
+  { name = "Abschied",    sit = "abschied",    pool = "abschied",    q = "abschied" },
 }
 
 function T.Tests()
@@ -808,6 +848,7 @@ function T.Tick(d)
   reibungTick(d, p)
   leiterTick(d, p)
   zufallTick(d, p)
+  abschiedTick()
   wiederTick(d, p)
   fahrtTick(d, p)
 end
@@ -829,6 +870,7 @@ function T.Status()
                seit = wieder.seitStart, nach = WIEDER.nachStart,
                n = #pool("wiedersehen") },
     fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
+    abschied = { an = abschied.an, da = abschied.warDa, n = #pool("abschied") },
     stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd,
                greifbar = judy.obj ~= nil },
     leiter = { an = leiter.an, stufe = leiter.stufe, stufen = #LEITER,
@@ -851,6 +893,7 @@ function T.Setzen(was, an)
   if was == "reibung"  then reibung.an = an end
   if was == "leiter"   then leiter.an = an end
   if was == "zufall"   then zufall.an = an end
+  if was == "abschied" then abschied.an = an end
 end
 
 function T.Zuruecksetzen()

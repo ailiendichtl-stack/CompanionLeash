@@ -53,6 +53,48 @@ GEWICHT = {
     "combat_aggro_bark_var_2": 0.5,   # "Aaah!" - dieselbe Familie, reine Fuellung
 }
 
+#  Umgehaengt: Eintrag -> Situation, in die er wirklich gehoert.
+#
+#  `sorge` hielt 30 Zeilen und feuerte einmal in 255 Minuten. Beim Durchlesen war klar,
+#  warum: die Kategorie fasst zusammen, was denselben TONFALL hat, aber zu voellig
+#  verschiedenen Zeitpunkten gehoert. Eine Kampfwarnung und ein "Du bist schon seit 'ner
+#  Woche so" klingen beide besorgt und haben sonst nichts gemeinsam.
+#
+#  Hier steht die Korrektur, statt sie in `matrix_picks.json` zu verstecken - dort liegt
+#  die urspruengliche Sichtung, und die soll nachvollziehbar bleiben. Gilt fuer Barks
+#  (ueber den Namen) wie fuer Questzeilen (ueber die Id).
+UMHAENGEN = {
+    #  Waehrend des Gefechts
+    "player_fallback_var_1": "kampf",       # "Pass auf, verdammt! Schalt dein Hirn ein."
+    "player_fallback_var_2": "kampf",       # "V, pass besser auf! Tot nuetzt du niemandem!"
+    "grapple":               "kampf",       # "Ungh ... Aaargh ... Lass ... los!"
+
+    #  Danach, beim Runterkommen
+    "player_fallback_var_3": "kampf_ende",  # "Alles okay? Schnauf mal kurz durch."
+    "396692eeb0a4e000":      "kampf_ende",  # "Tief durchatmen."
+    "1a7b4c53a32b6000":      "kampf_ende",  # "Hey, langsam ... Ganz ruhig."
+    "1ef8b0c1f442f000":      "kampf_ende",  # "Schoen langsam atmen."
+    "185efbe0f5502008":      "kampf_ende",  # "Hey, es war ja nicht deine Schuld ..."
+
+    #  Beim Auseinandergehen
+    "14ab1431b629f000":      "abschied",    # "Komm in einem Stueck zurueck."
+    "1f0c4ccf9242f000":      "abschied",    # "Pass auf dich auf da draussen, V."
+    "19f164ba6d2b6004":      "abschied",    # "Pass auf dich auf, V."
+
+    #  Beim Wiedersehen - sie hat sich Sorgen gemacht, nicht macht sie sich welche
+    "175e197aaa386000":      "wiedersehen", # "Scheisse, V. Ich dachte, du bist tot."
+    "1bd4dab9c42b6000":      "wiedersehen", # "Hab Schuesse gehoert. Lebst du noch?"
+
+    #  Wenn sie von sich aus etwas anspricht - Leitersprosse 3
+    "14aaba91a329f000":      "initiative",  # "Du kommst mir ... anders vor."
+    "14aabd878129f000":      "initiative",  # "Du bist schon seit 'ner Woche so, V."
+    "1a33ca85c72b6000":      "initiative",  # "Wenn ich irgendwie helfen kann ..."
+    "1a82306830610000":      "initiative",  # "Ich ... muss das verarbeiten, und zwar allein."
+    "1afd6f18ec2fc000":      "initiative",  # "Kann ich verstehen, V ..."
+    "1b971f17262b6000":      "initiative",  # "Aber wenn du Zeit hast, sag mir Bescheid."
+    "1f4640da642b6000":      "initiative",  # "Denk nicht zu viel drueber nach, okay?"
+}
+
 #  In den Wortwechseln:
 #  ("b", name)  Judy-Bark      ("q", hex)  Judy-Questzeile
 #  ("bv", name) V-Bark         ("qv", hex) V-Questzeile
@@ -490,17 +532,24 @@ def main():
         body.append("**Wann:** %s\n" % c["when"])
         body.append("%s\n" % c["note"])
 
-        judy = [("b", n) for n in _fam_barks(c["fams"], d)]
+        judy = [("b", n) for n in _fam_barks(c["fams"], d)
+                if UMHAENGEN.get(n, c["key"]) == c["key"]]
         seen = set(n for _, n in judy)
         for cat in c["picks"]:
             for h in d["picks"].get(cat, []):
                 k, ref = _normalize("q", h, d)
-                if ref not in seen:
+                if ref not in seen and UMHAENGEN.get(ref, c["key"]) == c["key"]:
                     seen.add(ref); judy.append((k, ref))
         for h in c["judy"]:
             k, ref = _normalize("q", h, d)
-            if ref not in seen:
+            if ref not in seen and UMHAENGEN.get(ref, c["key"]) == c["key"]:
                 seen.add(ref); judy.append((k, ref))
+        #  Und was von anderswo hierher gehoert.
+        for ref, ziel in sorted(UMHAENGEN.items()):
+            if ziel != c["key"] or ref in seen:
+                continue
+            seen.add(ref)
+            judy.append(("b", ref) if ref in d["barkj"] else ("q", ref))
         vlines = [("qv", h) for h in c["v"]]
 
         for label, refs in (("Judy", judy), ("V", vlines)):
@@ -626,7 +675,7 @@ def main():
                 if stufe and not vorhanden.get("stufe"):
                     vorhanden["stufe"] = stufe
                 continue
-            eintrag = {"hex": ref, "situation": c["key"]}
+            eintrag = {"hex": ref, "situation": UMHAENGEN.get(ref, c["key"])}
             if stufe:
                 eintrag["stufe"] = stufe
             bau.append(eintrag)
@@ -666,7 +715,8 @@ def _pool_liste(bau, d):
     for c in CATEGORIES:
         for name in _fam_barks(c["fams"], d):
             e = d["barkj"][name]
-            zeilen.append((c["key"], 0, name, e["dur"], esc(e["text"]), "b"))
+            zeilen.append((UMHAENGEN.get(name, c["key"]), 0, name, e["dur"],
+                           esc(e["text"]), "b"))
     #  Questzeilen: gebaut als cl_<id>, Dauer aus der Szene.
     for b in bau:
         key = str(int(b["hex"], 16))
