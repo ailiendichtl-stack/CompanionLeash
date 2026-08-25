@@ -41,6 +41,19 @@ end
 --  jeder laute Fehler.
 local sondeTot = {}
 
+--  Eine Abfrage, die still nichts liefert, kostet mehr Zeit als jeder laute Fehler -
+--  genau daran ist der Kampf-Ausloeser einen ganzen Abend lang gescheitert. Jede Sonde
+--  meldet darum ihren ersten Fehlschlag, danach schweigt sie.
+local function sonde(name, fn)
+  local wert
+  local ok = pcall(function() wert = fn() end)
+  if (not ok or wert == nil) and not sondeTot[name] then
+    sondeTot[name] = true
+    log("SONDE " .. name .. " nicht lesbar")
+  end
+  return wert
+end
+
 local function psm(feld)
   local p = spieler()
   if not p then return nil end
@@ -270,6 +283,125 @@ local function kampfTick(d)
   end
 end
 
+--  ---------------------------------------------------------------- Sorge
+
+--  Ausgeloest wird am UEBERGANG unter die Schwelle, nicht solange V darunter ist. Sonst
+--  redet sie durch, waehrend es eng wird, und das ist das Gegenteil von Anteilnahme.
+local SORGE = {
+  schwelle = 40.0,    -- Prozent
+  cd       = 120.0,
+}
+local sorge = { war = 100.0, an = true }
+
+local function sorgeTick()
+  if not sorge.an then return end
+  local p = spieler()
+  if not p then return end
+  local hp = sonde("StatPool.Health", function()
+    return Game.GetStatPoolsSystem():GetStatPoolValue(p:GetEntityID(),
+                                                      gamedataStatPoolType.Health, false)
+  end)
+  if hp == nil then return end
+
+  if hp <= SORGE.schwelle and sorge.war > SORGE.schwelle then
+    local k = pool("sorge")
+    if #k > 0 and Speaker.Frei("sorge") then
+      log(string.format("SORGE Gesundheit %.0f%% -> unter %.0f%%", hp, SORGE.schwelle))
+      Speaker.Request({ situation = "sorge", pool = "sorge",
+                        kandidaten = k, cd = SORGE.cd })
+    end
+  end
+  sorge.war = hp
+end
+
+--  ---------------------------------------------------------------- Wiedersehen
+
+--  "V kommt zurueck" laesst sich ohne Judys Position nicht messen. Zwei ehrliche
+--  Naeherungen: der Beginn einer Sitzung, und ein Ortssprung - Schnellreise, Aufzug ins
+--  Penthouse, jede Teleportation. Ein Sprung ist schlicht eine Strecke, fuer die in einem
+--  Bild keine Zeit war; das braucht kein Blackboard und faellt auch nicht mit ihm aus.
+local WIEDER = {
+  nachStart = 25.0,    -- Ladegeraeusch abklingen lassen, dann meldet sie sich
+  sprung    = 150.0,   -- Meter in EINEM Bild = teleportiert
+  nachSprung = 8.0,
+  cd        = 300.0,
+}
+local wieder = { seitStart = 0.0, startOffen = true, letztePos = nil,
+                 seitSprung = nil, an = true }
+
+local function wiederTick(d, p)
+  if not wieder.an then return end
+
+  --  Ortssprung erkennen.
+  local pos
+  pcall(function() pos = p:GetWorldPosition() end)
+  if pos and wieder.letztePos then
+    local weit = 0.0
+    pcall(function() weit = Vector4.Distance(pos, wieder.letztePos) end)
+    if weit > WIEDER.sprung then
+      wieder.seitSprung = 0.0
+      log(string.format("WIEDERSEHEN Ortssprung %.0f m", weit))
+    end
+  end
+  wieder.letztePos = pos
+
+  local faellig = false
+  if wieder.startOffen then
+    wieder.seitStart = wieder.seitStart + d
+    if wieder.seitStart >= WIEDER.nachStart then
+      wieder.startOffen, faellig = false, true
+    end
+  end
+  if wieder.seitSprung then
+    wieder.seitSprung = wieder.seitSprung + d
+    if wieder.seitSprung >= WIEDER.nachSprung then
+      wieder.seitSprung, faellig = nil, true
+    end
+  end
+  if not faellig then return end
+
+  local k = pool("wiedersehen")
+  if #k > 0 then
+    Speaker.Request({ situation = "wiedersehen", pool = "wiedersehen",
+                      kandidaten = k, cd = WIEDER.cd })
+  end
+end
+
+--  ---------------------------------------------------------------- Fahrzeug
+
+local FAHRZEUG = {
+  anlauf = 2.5,     -- erst sitzen, dann reden
+  cd     = 150.0,
+}
+local fahrt = { drin = false, seit = nil, an = true }
+
+local function fahrtTick(d, p)
+  if not fahrt.an then return end
+  local v = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end)
+  local drin = v ~= nil
+
+  if drin and not fahrt.drin then
+    fahrt.drin, fahrt.seit = true, 0.0
+    log("FAHRZEUG aufgesessen")
+  elseif not drin and fahrt.drin then
+    fahrt.drin, fahrt.seit = false, nil
+    --  Was noch fuers Einsteigen anstand, passt nach dem Aussteigen nicht mehr.
+    Speaker.Verwerfen("fahrzeug")
+  end
+
+  if fahrt.seit then
+    fahrt.seit = fahrt.seit + d
+    if fahrt.seit >= FAHRZEUG.anlauf then
+      fahrt.seit = nil
+      local k = pool("fahrzeug")
+      if #k > 0 then
+        Speaker.Request({ situation = "fahrzeug", pool = "fahrzeug",
+                          kandidaten = k, cd = FAHRZEUG.cd })
+      end
+    end
+  end
+end
+
 --  ---------------------------------------------------------------- aussen
 
 function T.Init(opts)
@@ -300,6 +432,9 @@ function T.Tick(d)
   if not p then return end
   gazeTick(d, p)
   kampfTick(d)
+  sorgeTick()
+  wiederTick(d, p)
+  fahrtTick(d, p)
 end
 
 function T.Status()
@@ -309,17 +444,29 @@ function T.Status()
               n1 = #pool("blick", 1), n2 = #pool("blick", 2) },
     kampf = { an = kampf.an, drin = kampf.drin, seit = kampf.seit,
               n = #pool("kampf"), nEnde = #pool("kampf_ende") },
+    sorge = { an = sorge.an, hp = sorge.war, schwelle = SORGE.schwelle,
+              n = #pool("sorge") },
+    wieder = { an = wieder.an, offen = wieder.startOffen,
+               seit = wieder.seitStart, nach = WIEDER.nachStart,
+               n = #pool("wiedersehen") },
+    fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
   }
 end
 
 function T.Setzen(was, an)
-  if was == "blick" then gaze.an = an end
-  if was == "kampf" then kampf.an = an end
+  if was == "blick"    then gaze.an  = an end
+  if was == "kampf"    then kampf.an = an end
+  if was == "sorge"    then sorge.an = an end
+  if was == "wieder"   then wieder.an = an end
+  if was == "fahrzeug" then fahrt.an = an end
 end
 
 function T.Zuruecksetzen()
   gaze.s1, gaze.s2, gaze.t, gaze.id = false, false, 0.0, nil
   kampf.seit = 0.0
+  sorge.war = 100.0
+  wieder.startOffen, wieder.seitStart, wieder.seitSprung = true, 0.0, nil
+  fahrt.seit = nil
 end
 
 return T

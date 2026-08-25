@@ -188,10 +188,40 @@ Punkt mit dem besten Verhaeltnis von Aufwand zu Wirkung nach den ersten beiden.
 zusammen 25 Zeilen und wollen jeweils ein eigenes System. Das ist der Punkt, an dem aus
 Reaktion Interaktion wird - lohnend, aber nicht als Erstes.
 
+## Die Leiter - Entwurf fuer Idle und spaeter Animationen
+
+Der Blick benutzt sie schon, ohne dass sie so hiesse: eine erste Stufe frueh, eine zweite
+deutlich spaeter, und wer die zweite bekommt, ueberspringt die erste. Fuer Idle ist genau
+das die richtige Form, nur mit mehr Sprossen.
+
+Gedacht als: nach einer kurzen Weile Ruhe eine beilaeufige Zeile, dann waechst der Abstand.
+
+```
+Ruhe seit    45s   ->  eine kurze, harmlose Zeile
+             3min  ->  etwas mehr Inhalt
+             8min  ->  sie faengt von sich aus etwas an
+```
+
+Zwei Regeln machen den Unterschied zwischen Leiter und Zufallsgenerator:
+
+**Jede andere Zeile setzt sie zurueck.** Wer gerade einen Kampf kommentiert hat, ist nicht
+seit acht Minuten still. Die Leiter misst Ruhe, nicht Uhrzeit.
+
+**Die Sprossen wachsen.** Gleichbleibende Abstaende erzeugen ein Ticken, und ein Ticken
+merkt man nach dem dritten Mal. Wachsende Abstaende lesen sich als jemand, der irgendwann
+aufgibt, still zu bleiben.
+
+Dieselbe Leiter traegt spaeter die Animationen: Sprosse eins eine Gewichtsverlagerung,
+Sprosse zwei eine Pose, Sprosse drei etwas, das sie an den Ort bindet. Der Sprecher
+entscheidet weiterhin, ob geredet wird - die Leiter entscheidet nur, WAS als Naechstes
+faellig waere.
+
 ## Was ich noch nicht weiss
 
 * **Wie oft ist zu oft.** Keine der Abklingzeiten ist geprueft. Das entscheidet sich im
-  Spiel, nicht auf dem Papier.
+  Spiel, nicht auf dem Papier - und dann an `tools/log_report.py`, nicht am Gefuehl. Die
+  erste Auswertung zeigt schon zweierlei: der Kampf-Ausloeser wollte 131-mal und durfte
+  24-mal, und zehn Abstaende lagen unter zehn Sekunden.
 * **Ob `NpcHandle.Talk` besser ist als unser Voiceset-Weg.** NCA hat eine eigene
   Sprachausgabe mit Gesicht und Blickrichtung. Ungeprueft, ob sie unsere Eintraege findet.
 * **Judys Location-Modul in NCA** ist ein Stub mit 99 Zeilen. Ob wir es erweitern oder

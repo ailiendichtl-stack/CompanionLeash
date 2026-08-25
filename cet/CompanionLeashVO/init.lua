@@ -681,6 +681,31 @@ registerForEvent("onDraw", function()
       ImGui.TextDisabled(string.format("%s  |  %d Zeilen im Kampf, %d danach",
                                        st.kampf.drin and "IM GEFECHT" or "ruhig",
                                        st.kampf.n, st.kampf.nEnde))
+
+      local so = ImGui.Checkbox("Sorge##so", st.sorge.an)
+      if so ~= st.sorge.an then Triggers.Setzen("sorge", so) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(string.format("Gesundheit %.0f%%, Schwelle %.0f%%  |  %d Zeilen",
+                                       st.sorge.hp, st.sorge.schwelle, st.sorge.n))
+
+      local wi = ImGui.Checkbox("Wiedersehen##wi", st.wieder.an)
+      if wi ~= st.wieder.an then Triggers.Setzen("wieder", wi) end
+      ImGui.SameLine()
+      if st.wieder.offen then
+        ImGui.TextDisabled(string.format("Start in %.0fs  |  %d Zeilen",
+                                         math.max(0, st.wieder.nach - st.wieder.seit),
+                                         st.wieder.n))
+      else
+        ImGui.TextDisabled(string.format("wartet auf Ortssprung  |  %d Zeilen",
+                                         st.wieder.n))
+      end
+
+      local fa = ImGui.Checkbox("Fahrzeug##fa", st.fahrt.an)
+      if fa ~= st.fahrt.an then Triggers.Setzen("fahrzeug", fa) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(string.format("%s  |  %d Zeilen",
+                                       st.fahrt.drin and "AUFGESESSEN" or "zu Fuss",
+                                       st.fahrt.n))
     end
   end
 

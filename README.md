@@ -153,3 +153,6 @@ staging copy, and a purge/redeploy restores the stock file.
   Stimme
 - [TRIGGER_PLAN.md](TRIGGER_PLAN.md) - woran die Zeilen haengen sollen: welche Ausloeser
   es gibt, was fehlt, und in welcher Reihenfolge das Sinn ergibt
+
+Wie oft sie im Spiel tatsaechlich redet, sagt `python tools/log_report.py` - je Situation,
+je Zeile, mit den Ablehnungen und den Abstaenden dazwischen.
