@@ -217,25 +217,28 @@ local function stimmeTick()
   if not dl or dl.text == "" or dl.text == stimme.letzter then return end
   stimme.letzter = dl.text
 
-  if Speaker.Spricht() then
-    if dl.hash and dl.hash ~= "" then stimme.judyId = dl.hash end
-    judyMerken(dl.obj)
-    return
-  end
-  if stimme.judyId and dl.hash == stimme.judyId then
-    judyMerken(dl.obj)
-    Speaker.Fremd(dl.dur)
-    stimme.zuletztFremd = dl.text
-    log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
-  end
+  --  Frueher wurde hier ihr Entity-Hash gelernt, sobald eine unserer Zeilen lief. Das
+  --  ging schief: erscheint in diesem Moment ein fremder Untertitel - eine Werbetafel
+  --  reicht -, wird dessen Sprecher als Judy gemerkt, und danach sperrt uns jede Reklame.
+  --  Im Protokoll stand dann "Judy spricht selbst: Kumquat fuer die Seele."
+  --
+  --  Es gibt eine sichere Pruefung, und die stand schon da: die Record-Id.
+  if not istJudy(dl.obj) then return end
+  judyMerken(dl.obj)
+  pcall(function() stimme.judyId = tostring(dl.obj:GetEntityID().hash) end)
+  if Speaker.Spricht() then return end
+
+  Speaker.Fremd(dl.dur)
+  stimme.zuletztFremd = dl.text
+  log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
 end
 
 --  ---------------------------------------------------------------- Der lange Blick
 
 local GAZE = {
-  stufe1  =    5.0,   -- ab hier merkt sie es
-  stufe2  =   14.0,   -- ab hier nimmt sie es auf
-  cd1     =  180.0,   -- Abklingzeit der beilaeufigen Reaktion
+  stufe1  =   10.0,   -- ab hier merkt sie es
+  stufe2  =   30.0,   -- ab hier nimmt sie es auf
+  cd1     =  300.0,   -- Abklingzeit der beilaeufigen Reaktion
   cd2     = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
   distanz =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
 }
@@ -388,7 +391,7 @@ local function reibungTick(d, p)
     return
   end
 
-  local w = abstand(p)
+  local w = judy.dist
   if not w then reibung.seit = 0.0; return end
 
   if w < REIBUNG.nah then
@@ -561,6 +564,10 @@ function T.Tick(d)
   if not Speaker then return end
   local p = spieler()
   if not p then return end
+  --  Unabhaengig von jedem Ausloeser: der Abstand wird auch angezeigt und spaeter vom
+  --  Teleport-Fix gebraucht. Frueher rechnete ihn nur reibungTick, und der steigt im
+  --  Wagen und im Gefecht sofort aus - dann stand im Panel ein alter Wert.
+  abstand(p)
   stimmeTick()
   gazeTick(d, p)
   kampfTick(d)
