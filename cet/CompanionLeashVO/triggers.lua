@@ -293,7 +293,7 @@ local STANCE = { Crouch = "Crouch", Stand = "Stand" }
 local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
                   gesetzt = 0, korrekturen = 0, gemeldet = false,
-                  feat = nil, setzWeg = nil, spur = nil }
+                  gemeldetOk = false }
 
 --  Was steht gerade in ihrem Zustands-Blackboard?
 local function haltungLesen(o)
@@ -321,63 +321,20 @@ local function haltungSetzen(o, name)
   local wert = ZUSTAND[name] or ZUSTAND.Stand
   local schritte = { feature = false, wrapper = false, blackboard = false }
 
-  --  Zum zweiten Mal derselbe Fehler: der letzte Anlauf umschloss `NewObject` UND das
-  --  Setzen von `.state` mit einem pcall. Scheitert das Feld, sieht es aus wie ein
-  --  gescheiterter Bau - und `bau=nil` liess beides offen. Jeder Schritt einzeln.
-  if not haltung.gemeldet then
-    haltung.spur = {}
-    --  CETs Typsuche kennt nicht zwingend den Namen aus dem Skript-Dump. Die nativen
-    --  Klassen tragen je nach Bereich ein Praefix - anim, game, gameanim -, und welches
-    --  hier gilt, sagt nur der Versuch.
-    local KANDIDATEN = {
-      "AnimFeature_NPCState", "handle:AnimFeature_NPCState",
-      "animAnimFeature_NPCState", "gameAnimFeature_NPCState",
-      "gameanimAnimFeature_NPCState", "handle:animAnimFeature_NPCState",
-    }
-    for _, name in ipairs(KANDIDATEN) do
-      local obj
-      local okBau = pcall(function() obj = NewObject(name) end)
-      if okBau and obj then
-        local okFeld = pcall(function() obj.state = wert end)
-        haltung.spur[#haltung.spur + 1] =
-          string.format("%s: Bau ok, Feld %s", name, okFeld and "ok" or "FEHLER")
-        if okFeld and not haltung.feat then haltung.feat = name end
-      else
-        haltung.spur[#haltung.spur + 1] = string.format("%s: kein Objekt", name)
-      end
-    end
-    --  Gibt es die Klasse ueberhaupt? Reflection antwortet unabhaengig davon, ob
-    --  NewObject sie bauen kann - das trennt "gibt es nicht" von "laesst sich nicht bauen".
-    for _, name in ipairs(KANDIDATEN) do
-      if not name:find("handle:", 1, true) then
-        pcall(function()
-          local c = Reflection.GetClass(name)
-          haltung.spur[#haltung.spur + 1] =
-            string.format("Reflection %s: %s", name, c and "BEKANNT" or "unbekannt")
-        end)
-      end
-    end
-  end
-
-  if haltung.feat then
-    local feat
-    pcall(function() feat = NewObject(haltung.feat); feat.state = wert end)
-    if feat then
-      pcall(function()
-        AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-        schritte.feature = true
-        haltung.setzWeg = "ApplyFeature"
-      end)
-    end
-  end
-
-  --  Weg ohne Objekt: ein nackter Int auf denselben Eingang. Ob der Graph das liest, ist
-  --  offen - aber er kostet nichts und braucht keine Klasse.
-  if not schritte.feature then
+  --  Der Klassenname traegt ein Praefix, das im Skript-Dump nicht steht: dort heisst sie
+  --  `AnimFeature_NPCState`, in der RTTI `animAnimFeature_NPCState`. Reflection kennt den
+  --  Dump-Namen gar nicht - sechs Schreibweisen durchzuprobieren war der einzige Weg, das
+  --  herauszufinden, und ohne die Trennung von Bau und Feldzugriff haette die Sonde nur
+  --  wieder "geht nicht" gesagt.
+  local feat
+  pcall(function()
+    feat = NewObject("animAnimFeature_NPCState")
+    feat.state = wert
+  end)
+  if feat then
     pcall(function()
-      AnimationControllerComponent.SetInputInt(o, CName.new("stanceState"), wert)
+      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
       schritte.feature = true
-      haltung.setzWeg = "SetInputInt"
     end)
   end
 
@@ -398,10 +355,9 @@ local function haltungSetzen(o, name)
 
   if not haltung.gemeldet then
     haltung.gemeldet = true
-    log(string.format("HALTUNG Feature=%s (setz=%s) Wrapper=%s Blackboard=%s",
-        tostring(schritte.feature), tostring(haltung.setzWeg),
-        tostring(schritte.wrapper), tostring(schritte.blackboard)))
-    for _, z in ipairs(haltung.spur or {}) do log("   " .. z) end
+    log(string.format("HALTUNG Feature=%s Wrapper=%s Blackboard=%s",
+        tostring(schritte.feature), tostring(schritte.wrapper),
+        tostring(schritte.blackboard)))
   end
   return schritte.feature or schritte.wrapper
 end

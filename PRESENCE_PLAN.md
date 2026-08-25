@@ -128,10 +128,27 @@ she stands. Immediate, not next tick.
 **The real open question is not whether Judy can crouch — it is whether she can crouch
 *while walking under AI locomotion*.** Two paths:
 
-1. `AnimFeature_Stance.SetStanceState(animStanceState.Crouch)` via
-   `AnimationControllerComponent.ApplyFeature(n"Stance", feat)` — same mechanism NCA's
-   `Talk()` uses for `AnimFeature_FacialReaction`. Would preserve movement. **No vanilla
-   script sets this**, so there is no reference usage — hence a spike.
+1. ~~`AnimFeature_Stance.SetStanceState(...)`~~ — **falsche Faehrte, im Spiel geklaert.**
+   Die Haltung laeuft nicht ueber `Stance`, sondern ueber drei Schritte, die
+   `npcStateComponent.UpdateStanceState` zusammen ausfuehrt:
+
+   ```
+   ApplyFeature(o, "stanceState", animAnimFeature_NPCState{state})
+   SetAnimWrapperWeightOnOwnerAndItems(o, "inCrouch", 1.0 / 0.0)
+   PuppetStateBlackboard:SetInt(PuppetState.Stance, state)
+   ```
+
+   Der zweite ist der wichtige: der Anim-Wrapper schaltet das BEWEGUNGSSET um. Nur das
+   Feature zu setzen haette hoechstens die Pose gekippt.
+
+   Der Klassenname steht so in keinem Skript: der Dump kennt `AnimFeature_NPCState`, die
+   RTTI nur `animAnimFeature_NPCState`, und `Reflection.GetClass` kennt den Dump-Namen
+   nicht einmal. Sechs Schreibweisen durchzuprobieren war der einzige Weg dahin.
+
+   Der naheliegende Weg ueber das Signal - `GetStatesComponent():
+   OnNPCStateChangeSignalReceived()` - kam ohne Fehler an und tat nichts: dahinter liegt
+   `SetReplicatedStanceState`, eine native Replikation, und wenn die ablehnt, wird
+   `UpdateStanceState` nie erreicht.
 2. Play `action_crouch` as a routine — a proven path, but routines anchor the NPC to a
    workspot, so she would crouch *in place* and stop following.
 
