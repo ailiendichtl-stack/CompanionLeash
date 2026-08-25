@@ -397,7 +397,7 @@ Ihre Ungeduld und Vs Zusage schliessen die Verabredung ab.
 
 **Wann:** V ist verletzt, erschoepft oder lange weg gewesen
 
-Erst schimpft sie aus Angst, dann wird sie weich. Diese Reihenfolge ist glaubwuerdiger als reine Fuersorge - und beide Haelften liegen vor.
+Erst schimpft sie aus Angst, dann wird sie weich. Diese Reihenfolge ist glaubwuerdiger als reine Fuersorge - und beide Haelften liegen vor.  **Zu zerlegen:** 30 Zeilen, ein Treffer in 255 Minuten. Was hier liegt, teilt sich den Tonfall, nicht den Zeitpunkt - die Kampfwarnungen gehoeren zu *Kampf*, das Durchatmen zu *Nach dem Kampf*, *Pass auf dich auf* zu *Abschied*, *Ich dachte, du bist tot* zu *Wiedersehen*. Uebrig bleiben rund sechs Zeilen, die wirklich an der Gesundheit haengen. Siehe TRIGGER_PLAN.md.
 
 ### Judy
 

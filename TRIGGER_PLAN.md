@@ -222,6 +222,36 @@ Sprosse zwei eine Pose, Sprosse drei etwas, das sie an den Ort bindet. Der Sprec
 entscheidet weiterhin, ob geredet wird - die Leiter entscheidet nur, WAS als Naechstes
 faellig waere.
 
+## Offen: Sorge ist keine Situation, sondern vier
+
+Nach den ersten Sitzungen: `sorge` haelt **30 Zeilen** und hat in 255 Minuten **einmal**
+gefeuert. Das liegt nicht am Schwellenwert allein - die Kategorie fasst zusammen, was
+denselben Tonfall hat, aber zu voellig verschiedenen Zeitpunkten gehoert.
+
+Durchgesehen zerfaellt sie mindestens in vier Gruppen:
+
+| gehoert zu | Beispiele |
+|---|---|
+| **Kampf** | *"Pass auf, verdammt! Schalt dein Hirn ein."* &middot; *"V, pass besser auf! Tot nuetzt du niemandem!"* |
+| **Nach dem Kampf** | *"Alles okay? Schnauf mal kurz durch."* &middot; *"Tief durchatmen."* &middot; *"Hey, langsam ... Ganz ruhig."* |
+| **Abschied** | *"Pass auf dich auf, V."* &middot; *"Komm in einem Stueck zurueck."* |
+| **Wiedersehen** | *"Scheisse, V. Ich dachte, du bist tot."* &middot; *"Hab Schuesse gehoert. Lebst du noch?"* |
+| **Naehe / Leiter 3** | *"Du kommst mir ... anders vor."* &middot; *"Du bist schon seit 'ner Woche so, V."* &middot; *"Wenn ich irgendwie helfen kann ..."* |
+
+Was danach uebrig bleibt und wirklich an der Gesundheit haengt, sind vielleicht sechs
+Zeilen - *"Alles in Ordnung, V?"*, *"Geht's dir wirklich gut?"*, *"V? Du siehst nicht gut
+aus ..."*. Die anderen 24 warten auf einen Ausloeser, der nie kommt, weil sie am falschen
+haengen.
+
+**Nicht nur umhaengen, auch nachzaehlen:** dieselbe Frage steht bei jeder Kategorie mit
+vielen Zeilen und wenigen Treffern. `log_report.py` zeigt sie - eine Situation mit dreissig
+Zeilen und einem Treffer ist ein Hinweis auf eine falsche Zuordnung, nicht auf einen
+seltenen Zustand.
+
+**Nebenbei der Schwellenwert:** die Sorge-Schwelle vergleicht 40 gegen den ROHEN Wert des
+Gesundheitspools. Bei ausgebautem Charakter steht der bei ueber 300, die Schwelle wird also
+nie unterschritten. Sie muss auf den Anteil am Maximum rechnen.
+
 ## Was ich noch nicht weiss
 
 * **Wie oft ist zu oft.** Keine der Abklingzeiten ist geprueft. Das entscheidet sich im
