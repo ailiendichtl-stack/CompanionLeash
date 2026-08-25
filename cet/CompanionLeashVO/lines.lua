@@ -1,6 +1,6 @@
 --  Erzeugt von tools/build_matrix.py. Nicht von Hand aendern.
 --  Alles, was ein Ausloeser abspielen kann: Barks und gebaute Questzeilen.
---  n = Voiceset-Eintrag, s = Situation, d = Dauer, st = Stufe, a = b|q
+--  n = Eintrag, s = Situation, d = Dauer, st = Stufe, w = Gewicht, a = b|q
 return {
   { n = "cl_1897d495012b6000", s = "abschied", d = 1.5, a = "q", t = "Bis dann, V." },
   { n = "cl_18982e23922b6000", s = "abschied", d = 1.5, a = "q", t = "Bis dahaaaann!" },
@@ -88,10 +88,10 @@ return {
   { n = "cl_18b6bc8f672fc000", s = "kampf", d = 1.6, a = "q", t = "Kannst du sie ausschalten?" },
   { n = "cl_180700ef0d2fc000", s = "kampf", d = 1.5, a = "q", t = "Erledige die, schnell." },
   { n = "grenade_enemy_var_1", s = "kampf", d = 1.4, a = "b", t = "Granate!" },
-  { n = "combat_aggro_bark_var_1", s = "kampf", d = 1.4, a = "b", t = "Echt jetzt?!" },
+  { n = "combat_aggro_bark_var_1", s = "kampf", d = 1.4, w = 0.20, a = "b", t = "Echt jetzt?!" },
   { n = "enemy_warning_var_1", s = "kampf", d = 1.4, a = "b", t = "Da kommen sie!" },
   { n = "danger_var_3", s = "kampf", d = 1.4, a = "b", t = "Bin bei dir." },
-  { n = "combat_aggro_bark_var_2", s = "kampf", d = 1.3, a = "b", t = "Aaah!" },
+  { n = "combat_aggro_bark_var_2", s = "kampf", d = 1.3, w = 0.50, a = "b", t = "Aaah!" },
   { n = "danger", s = "kampf", d = 1.2, a = "b", t = "Achtung!" },
   { n = "danger_var_2", s = "kampf", d = 1.2, a = "b", t = "Achtung!" },
   { n = "battlecry_curse", s = "kampf", d = 1.2, a = "b", t = "Fuuuck!" },

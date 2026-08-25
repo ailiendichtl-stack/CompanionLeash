@@ -115,7 +115,18 @@ local function waehlen(a)
   end
   --  Nur wenn der Pool aus einer einzigen Zeile besteht, bleibt die Wiederholung uebrig.
   if #frei == 0 then frei = k end
-  local e = frei[math.random(#frei)]
+
+  --  Gewichtet ziehen. `w` steht in lines.lua und ist ohne Angabe 1.0; wer eine Zeile
+  --  seltener hoeren will, setzt sie in der Matrix herunter statt sie zu streichen.
+  local summe = 0.0
+  for _, e in ipairs(frei) do summe = summe + (e.w or 1.0) end
+  local r = math.random() * summe
+  local e = frei[#frei]
+  for _, kand in ipairs(frei) do
+    r = r - (kand.w or 1.0)
+    if r <= 0.0 then e = kand; break end
+  end
+
   a.line, a.dauer = e.n, e.d or a.dauer or 2.0
   return true
 end

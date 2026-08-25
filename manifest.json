@@ -29,8 +29,8 @@
   },
   "cet_files": {
     "CompanionLeashVO/init.lua": "903c80cc4abf53530d442dceb0b90133",
-    "CompanionLeashVO/speaker.lua": "e4e1fdb3b09efd8524a1aaf9b9188951",
+    "CompanionLeashVO/speaker.lua": "14375495142adae326417daf0d2aa219",
     "CompanionLeashVO/triggers.lua": "69747bae09ddc92708a56652ce25c9dc",
-    "CompanionLeashVO/lines.lua": "24848e3d755b5a4a37900de637c15349"
+    "CompanionLeashVO/lines.lua": "f3040ddc3244a33794acefe6efb2255d"
   }
 }

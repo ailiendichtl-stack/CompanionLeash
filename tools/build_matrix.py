@@ -45,6 +45,14 @@ FREMDE_NAMEN = ["River", "Panam", "Kerry", "Rogue", "Johnny", "Jackie", "Misty",
                 "Takemura", "Hanako", "Songbird", "Reed", "Saul", "Mitch", "Maiko",
                 "Hiromi", "Evelyn", "Woodman", "Fingers", "Dex", "Meredith"]
 
+#  Wie oft eine Zeile drankommt. 1.0 ist die Voreinstellung; darunter seltener.
+#  Nicht jede Zeile vertraegt dieselbe Haeufigkeit - eine kurze Fuellzeile faellt beim
+#  dritten Mal auf, eine laengere nicht. Das ist Feinschliff am Inhalt, kein Code.
+GEWICHT = {
+    "combat_aggro_bark_var_1": 0.2,   # "Echt jetzt?!" - im Spiel als nervig aufgefallen
+    "combat_aggro_bark_var_2": 0.5,   # "Aaah!" - dieselbe Familie, reine Fuellung
+}
+
 #  In den Wortwechseln:
 #  ("b", name)  Judy-Bark      ("q", hex)  Judy-Questzeile
 #  ("bv", name) V-Bark         ("qv", hex) V-Questzeile
@@ -668,19 +676,21 @@ def _pool_liste(bau, d):
 
     out = ["--  Erzeugt von tools/build_matrix.py. Nicht von Hand aendern.",
            "--  Alles, was ein Ausloeser abspielen kann: Barks und gebaute Questzeilen.",
-           "--  n = Voiceset-Eintrag, s = Situation, d = Dauer, st = Stufe, a = b|q",
+           "--  n = Eintrag, s = Situation, d = Dauer, st = Stufe, w = Gewicht, a = b|q",
            "return {"]
     for sit, stufe, name, dur_s, txt, art in sorted(zeilen,
                                                     key=lambda z: (z[0], z[1], -z[3])):
         st = ", st = %d" % stufe if stufe else ""
-        out.append('  { n = "%s", s = "%s", d = %.1f%s, a = "%s", t = "%s" },'
-                   % (name, sit, dur_s, st, art, txt[:78]))
+        g = GEWICHT.get(name, GEWICHT.get(name[3:] if name.startswith("cl_") else "", 1.0))
+        w = ", w = %.2f" % g if g != 1.0 else ""
+        out.append('  { n = "%s", s = "%s", d = %.1f%s%s, a = "%s", t = "%s" },'
+                   % (name, sit, dur_s, st, w, art, txt[:78]))
     out.append("}")
     p = os.path.join(HERE, "cet", "CompanionLeashVO", "lines.lua")
     open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
     barks = sum(1 for z in zeilen if z[5] == "b")
-    print("Pool-Liste: %d Eintraege (%d Barks, %d Zeilen) -> cet/CompanionLeashVO/lines.lua"
-          % (len(zeilen), barks, len(zeilen) - barks))
+    print("Pool-Liste: %d Eintraege (%d Barks, %d Zeilen), %d gewichtet"
+          % (len(zeilen), barks, len(zeilen) - barks, len(GEWICHT)))
 
 
 def _load():
