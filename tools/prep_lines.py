@@ -46,7 +46,7 @@ def load():
     rows, seen = [], set()
     for r in arc["lines"]:
         if "vset" in r["speaker"]:
-            continue  # die 55 Barks stehen schon in MATRIX.md
+            continue  # die 55 Barks stehen schon in DIALOG_MATRIX.md
         t = r["text"]
         if not isinstance(t, str):
             t = " | ".join(str(x) for x in t)

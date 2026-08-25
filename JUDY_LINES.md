@@ -5,11 +5,11 @@ abspielbar** - dafuer braucht es Fake-Lipsync oder eine eigene Szene.
 
 `*` markiert Zeilen, die ohne Vorgeschichte funktionieren (816 von 1151). Das heisst
 nicht, dass sie als Begleiter-Zeile taugen - der Grossteil handelt von der Quest. Die
-gesichtete Auswahl steht in [MATRIX.md](MATRIX.md).
+gesichtete Auswahl steht in [DIALOG_MATRIX.md](DIALOG_MATRIX.md).
 
 Die Dauer ist aus der Zeichenzahl **geschaetzt** (~14 Zeichen/s), nicht gemessen.
 
-Die 55 spielbaren Barks stehen nicht hier, sondern in MATRIX.md.
+Die 55 spielbaren Barks stehen nicht hier, sondern in DIALOG_MATRIX.md.
 
 ## sq030_06_lake_exploration  <sub>90 Zeilen</sub>
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Baut MATRIX.md - der EINE Bestand: welche Zeile in welcher Situation, Judy und V.
+"""Baut DIALOG_MATRIX.md - der EINE Bestand: welche Zeile in welcher Situation, Judy und V.
 
 Vorher lagen drei Dokumente nebeneinander, die alle dasselbe beschrieben: MATRIX (Barks
 und gesichtete Questzeilen je Situation), PAIRS (Wortwechsel) und RELATIONSHIP (die
@@ -24,7 +24,7 @@ Vs "Ich hab dich echt vermisst" wurde fuer Panams Quest aufgenommen, sagt aber k
 und kann ebenso gut Judy gelten. Ausgeschlossen wird deshalb maschinell: nennt eine Zeile
 eine andere Figur, faellt sie heraus.
 
-    python tools/build_matrix.py     -> MATRIX.md
+    python tools/build_matrix.py     -> DIALOG_MATRIX.md
 """
 import json
 import os
@@ -429,7 +429,7 @@ def main():
            "Evelyn, Fingers, Maiko, das Clouds - und funktioniert ausserhalb seines",
            "Zusammenhangs nicht, egal wie gut er klingt. Die 1104 Quest-Zeilen sind also",
            "kein Reservoir von 1104 einsetzbaren Zeilen.\n",
-           "Der vollstaendige Bestand steht in [LINES.md](LINES.md) und",
+           "Der vollstaendige Bestand steht in [JUDY_LINES.md](JUDY_LINES.md) und",
            "[data/v_ALL_de.md](data/v_ALL_de.md) - hier ist nur, was gesichtet ist.\n",
            "## Lesart\n",
            "| Kennung | Bedeutung |", "|---|---|",
@@ -466,7 +466,7 @@ def main():
     out.append("* **Dauern fuer Vs Zeilen** fehlen groesstenteils: `durations.json` deckt"
                " bisher nur die Szenen mit Judy ab.")
 
-    p = os.path.join(HERE, "MATRIX.md")
+    p = os.path.join(HERE, "DIALOG_MATRIX.md")
     open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
     print("Situationen %d | Judy %d | V %d | Wortwechsel %d"
           % (len(CATEGORIES), st["J"], st["V"], npairs))
@@ -478,7 +478,7 @@ def main():
         print("!! nennt eine andere Figur:")
         for t, n in st["namen"]:
             print("   %-12s %s" % (n, t[:60]))
-    print("geschrieben: MATRIX.md (%d KB)" % (os.path.getsize(p) // 1024))
+    print("geschrieben: DIALOG_MATRIX.md (%d KB)" % (os.path.getsize(p) // 1024))
 
 
 def _load():

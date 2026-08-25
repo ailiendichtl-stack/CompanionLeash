@@ -130,9 +130,24 @@ staging copy, and a purge/redeploy restores the stock file.
 - Untested on multi-companion squads; each behaviour instance holds its own state, so it
   should be fine, but it has not been verified.
 
-- [MATRIX.md](MATRIX.md) - **der eine Bestand**: Zeilen, Wortwechsel und Barks je
-  Situation, Judy und V. Fasst die frueheren MATRIX, PAIRS und RELATIONSHIP zusammen.
-- [LINES.md](LINES.md) - vollstaendiger Zeilenbestand Judy
-- [data/judy_ALL_de.md](data/judy_ALL_de.md) - alle Sprachdateien Judy
-- [data/v_ALL_de.md](data/v_ALL_de.md) - alle Zeilen V
-- [BUILD_VOICESET.md](BUILD_VOICESET.md)
+## Dokumente
+
+**Was Judy und V sagen koennen**
+
+- [DIALOG_MATRIX.md](DIALOG_MATRIX.md) - **der eine Bestand.** Zeilen, Wortwechsel und
+  Barks je Situation, beide Seiten. Fasst die frueheren MATRIX, PAIRS und RELATIONSHIP
+  zusammen; alles darin ist gegen die Sprachdaten geprueft.
+- [JUDY_LINES.md](JUDY_LINES.md) - Judys 1151 Szenen-Zeilen, nach Szene gruppiert
+- [data/judy_ALL_de.md](data/judy_ALL_de.md) - alle 1751 Judy-Sprachdateien, roh
+- [data/v_ALL_de.md](data/v_ALL_de.md) - alle 12360 Zeilen der weiblichen V, roh
+
+**Wie es funktioniert**
+
+- [BUILD_VOICESET.md](BUILD_VOICESET.md) - Bauanleitung: beliebige Sprachzeilen als
+  spielbare Voiceset-Eintraege registrieren, mit echtem Lipsync
+- [VOICE_RESEARCH.md](VOICE_RESEARCH.md) - wie Stimme, Untertitel und Lipsync im Spiel
+  zusammenhaengen; der Weg dorthin samt Sackgassen
+- [ANIMATION_RESEARCH.md](ANIMATION_RESEARCH.md) - Posen, Workspots und was fremde Mods
+  an Zwei-Personen-Inhalten bereits koennen
+- [PRESENCE_PLAN.md](PRESENCE_PLAN.md) - Feature-Plan 0.3: Posen, Stealth-Haltung, Idle,
+  Stimme

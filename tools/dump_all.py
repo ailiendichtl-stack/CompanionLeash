@@ -96,7 +96,7 @@ def main():
         "aussortiert; hier stehen sie mit.",
         "",
         "Die Dauer ist nicht enthalten: sie liesse sich nur aus den Audiodateien messen.",
-        "Gemessen sind bisher ausschliesslich die 55 Barks, siehe [MATRIX.md](MATRIX.md).",
+        "Gemessen sind bisher ausschliesslich die 55 Barks, siehe [DIALOG_MATRIX.md](DIALOG_MATRIX.md).",
         "",
         "`f`/`m` bezeichnet das Geschlecht von **V**, nicht von Judy - dieselbe Zeile",
         "existiert oft in beiden Fassungen.",

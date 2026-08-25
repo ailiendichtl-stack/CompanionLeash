@@ -27,7 +27,7 @@ Evelyn, Fingers, Maiko, das Clouds - und funktioniert ausserhalb seines
 Zusammenhangs nicht, egal wie gut er klingt. Die 1104 Quest-Zeilen sind also
 kein Reservoir von 1104 einsetzbaren Zeilen.
 
-Der vollstaendige Bestand steht in [LINES.md](LINES.md) und
+Der vollstaendige Bestand steht in [JUDY_LINES.md](JUDY_LINES.md) und
 [data/v_ALL_de.md](data/v_ALL_de.md) - hier ist nur, was gesichtet ist.
 
 ## Lesart

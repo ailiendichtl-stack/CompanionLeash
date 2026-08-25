@@ -285,7 +285,7 @@ Supporting evidence: the animation database has **no facial rig**. Every rig is 
 ### Facial expression IS script-controllable
 
 `AnimFeature_FacialReaction` takes two ints, and AMM has already mapped them - an earlier
-note in RESEARCH.md called this an unexplored axis, which was simply wrong:
+note in ANIMATION_RESEARCH.md called this an unexplored axis, which was simply wrong:
 
 | Expression | category | idle | | Expression | category | idle |
 |---|---|---|---|---|---|---|
