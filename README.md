@@ -151,3 +151,5 @@ staging copy, and a purge/redeploy restores the stock file.
   an Zwei-Personen-Inhalten bereits koennen
 - [PRESENCE_PLAN.md](PRESENCE_PLAN.md) - Feature-Plan 0.3: Posen, Stealth-Haltung, Idle,
   Stimme
+- [TRIGGER_PLAN.md](TRIGGER_PLAN.md) - woran die Zeilen haengen sollen: welche Ausloeser
+  es gibt, was fehlt, und in welcher Reihenfolge das Sinn ergibt
