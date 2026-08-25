@@ -297,7 +297,7 @@ local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls 
 --  ist `SetReplicatedStanceState`, dieselbe Replikation, die schon das Signal geschluckt
 --  hat. Der Code bleibt samt Befund stehen, laeuft aber nicht mehr im Leerlauf mit.
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
-                  sigName = nil,
+                  weg = nil,
                   gesetzt = 0, korrekturen = 0, gemeldet = false,
                   gemeldetOk = false }
 
@@ -320,75 +320,141 @@ local function haltungLesen(o)
   return v
 end
 
---  Der Vanilla-Weg, und er sieht anders aus als alles bisher Probierte.
+--  `NPCPuppet.ChangeStanceState(obj, newState)` - oeffentlich, statisch, und genau das,
+--  was die Behavior-Aufgaben selbst aufrufen (`aiChangeNPCState.script`).
 --
---  Ich habe den EMPFAENGER direkt aufgerufen - `OnNPCStateChangeSignalReceived`. Die KI
---  tut das nie. Sie SENDET ein Signal in die Signaltabelle ihres AI-Controllers:
+--  Der lange Weg hierher, damit er nicht nochmal gegangen wird:
 --
---      tbl = puppet:GetAIControllerComponent():GetSignals()
---      id  = tbl:GetOrCreateSignal("NPCStateChangeSignal")
---      tbl:Set(id, false)
---      tbl:SetWithData(id, signal)
+--    Den Empfaenger direkt aufzurufen aenderte nur den Spiegel der Komponente.
+--    Anim-Feature und Wrapper sind die Anzeigeebene, nicht der Zustand.
+--    Das Blackboard selbst zu setzen war schaedlich - es ist die Kopie, nicht das Original.
 --
---  Der Unterschied ist nicht kosmetisch. Ein Signal wird nicht zugestellt, sondern gehoben:
---  der Behavior-Graph hoert auf dieselbe Tabelle, und dort - nicht in der Komponente -
---  liegt der autoritative Uebergang. Die Komponente spiegelt ihn bloss.
+--  Diese Funktion hebt das Signal so, wie die KI es tut - aber ueber
+--  `owner:GetSignalTable()`, NICHT ueber `GetAIControllerComponent():GetSignals()`. Zwei
+--  verschiedene Tabellen; mein Nachbau nahm die falsche.
 --
---  Alle vier Methoden sind `public import final`, also von aussen erreichbar.
+--  Sie hat ausserdem eine Vorpruefung: `GetStanceStateFromBlackboard() == newState` steigt
+--  sofort aus. Genau deshalb war das eigenmaechtige Beschreiben des Blackboards nicht nur
+--  unsauber, sondern haette diesen Weg aktiv blockiert.
 local function haltungSetzen(o, name)
-  local schritte = { ai = false, tabelle = false, signal = false, gesendet = false }
-
-  local tbl
+  local ok = false
   pcall(function()
-    local ai = o:GetAIControllerComponent()
-    if ai then
-      schritte.ai = true
-      tbl = ai:GetSignals()
-      if tbl then schritte.tabelle = true end
-    end
+    NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", name))
+    ok = true
   end)
-  if not tbl then
-    if not haltung.gemeldet then
-      haltung.gemeldet = true
-      log(string.format("HALTUNG Signalweg: AI=%s Tabelle=%s - kein Zugang",
-          tostring(schritte.ai), tostring(schritte.tabelle)))
-    end
-    return false
-  end
 
-  local sig
-  for _, wie in ipairs({ "NPCStateChangeSignal", "gameNPCStateChangeSignal",
-                         "handle:NPCStateChangeSignal" }) do
-    if not sig then
-      pcall(function()
-        local x = NewObject(wie)
-        if x then
-          x.m_stanceState = Enum.new("gamedataNPCStanceState", name)
-          x.m_stanceStateValid = true
-          sig = x
-          haltung.sigName = wie
-        end
-      end)
-    end
-  end
-  if sig then schritte.signal = true end
-
-  if sig then
+  --  Rueckfall: dieselbe Mechanik von Hand, ueber die AI-Controller-Tabelle. Bleibt drin,
+  --  weil sie eine andere Tabelle anspricht - falls die statische Funktion nicht greift,
+  --  sagt der Vergleich etwas aus.
+  if not ok then
     pcall(function()
+      local tbl = o:GetAIControllerComponent():GetSignals()
+      local sig = NewObject("NPCStateChangeSignal")
+      sig.m_stanceState = Enum.new("gamedataNPCStanceState", name)
+      sig.m_stanceStateValid = true
       local id = tbl:GetOrCreateSignal(CName.new("NPCStateChangeSignal"))
       tbl:Set(id, false)
       tbl:SetWithData(id, sig)
-      schritte.gesendet = true
+      ok = true
+      haltung.weg = "Signaltabelle"
     end)
+  else
+    haltung.weg = "NPCPuppet.ChangeStanceState"
   end
 
   if not haltung.gemeldet then
     haltung.gemeldet = true
-    log(string.format("HALTUNG Signalweg: AI=%s Tabelle=%s Signal=%s (%s) gesendet=%s",
-        tostring(schritte.ai), tostring(schritte.tabelle), tostring(schritte.signal),
-        tostring(haltung.sigName), tostring(schritte.gesendet)))
+    log("HALTUNG Weg: " .. tostring(haltung.weg or "keiner"))
   end
-  return schritte.gesendet
+  return ok
+end
+
+--  ---------------------------------------------------------------- Haltung: alle Wege
+--
+--  Solange nichts wirkt, ist Raten teuer: jeder Versuch kostet einen Reload und einen
+--  Testlauf. Darum liegt jeder Weg auf einem eigenen Knopf, und jeder misst den ECHTEN
+--  Zustand vor und nach dem Versuch - `GetCurrentStanceState()`, nicht den Spiegel.
+--
+--  Der interessanteste ist Nummer 6: `SetReplicatedStanceState` gibt einen Bool zurueck,
+--  den das private `ChangeStanceState` verschluckt. Den hat noch nie jemand gesehen.
+local HWEGE = {
+  { name = "1 NPCPuppet.ChangeStanceState", fn = function(o, st)
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      return "aufgerufen"
+    end },
+  { name = "2 Signaltabelle (Puppet)", fn = function(o, st)
+      local tbl = o:GetSignalTable()
+      if not tbl then return "keine Tabelle" end
+      local sig = NewObject("NPCStateChangeSignal")
+      sig.m_stanceState = Enum.new("gamedataNPCStanceState", st)
+      sig.m_stanceStateValid = true
+      local id = tbl:GetOrCreateSignal(CName.new("NPCStateChangeSignal"))
+      tbl:Set(id, false)
+      tbl:SetWithData(id, sig)
+      return "gesendet"
+    end },
+  { name = "3 Signaltabelle (AI-Controller)", fn = function(o, st)
+      local tbl = o:GetAIControllerComponent():GetSignals()
+      if not tbl then return "keine Tabelle" end
+      local sig = NewObject("NPCStateChangeSignal")
+      sig.m_stanceState = Enum.new("gamedataNPCStanceState", st)
+      sig.m_stanceStateValid = true
+      local id = tbl:GetOrCreateSignal(CName.new("NPCStateChangeSignal"))
+      tbl:Set(id, false)
+      tbl:SetWithData(id, sig)
+      return "gesendet"
+    end },
+  { name = "4 Empfaenger direkt", fn = function(o, st)
+      local sig = NewObject("NPCStateChangeSignal")
+      sig.m_stanceState = Enum.new("gamedataNPCStanceState", st)
+      sig.m_stanceStateValid = true
+      o:GetStatesComponent():OnNPCStateChangeSignalReceived(sig)
+      return "zugestellt"
+    end },
+  { name = "5 SetCurrentStanceState", fn = function(o, st)
+      local r = o:GetStatesComponent():SetCurrentStanceState(
+                  Enum.new("gamedataNPCStanceState", st))
+      return "Rueckgabe " .. tostring(r)
+    end },
+  { name = "6 SetReplicatedStanceState", fn = function(o, st)
+      --  2 = Crouch, 3 = Stand. Der Bool ist der Wert, den alles andere verschluckt.
+      local r = o:GetStatesComponent():SetReplicatedStanceState((st == "Crouch") and 2 or 3)
+      return "Rueckgabe " .. tostring(r)
+    end },
+  { name = "7 Anim-Feature + Wrapper", fn = function(o, st)
+      local feat = NewObject("animAnimFeature_NPCState")
+      feat.state = (st == "Crouch") and 2 or 3
+      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
+      AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
+        o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
+      return "angewandt"
+    end },
+  { name = "8 Cover statt Crouch", fn = function(o, st)
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState",
+                                              (st == "Crouch") and "Cover" or "Stand"))
+      return "aufgerufen"
+    end },
+}
+
+function T.HaltungWege()
+  local out = {}
+  for i, w in ipairs(HWEGE) do out[i] = w.name end
+  return out
+end
+
+function T.HaltungTest(i, hocken)
+  local w = HWEGE[i]
+  if not w then return end
+  local o = judyHolen()
+  if not o then log("HTEST Judy nicht greifbar"); return end
+  local st = hocken and "Crouch" or "Stand"
+  local vorher = haltungLesen(o)
+  local ergebnis
+  local ok = pcall(function() ergebnis = w.fn(o, st) end)
+  local nachher = haltungLesen(o)
+  log(string.format("HTEST %s -> %s | %s | vorher %s, nachher %s",
+      w.name, st, ok and tostring(ergebnis) or "FEHLER",
+      tostring(vorher), tostring(nachher)))
 end
 
 local function haltungTick(d)

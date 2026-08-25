@@ -14,6 +14,10 @@
 --  Die Messungen dazu stehen in VOICE.md.
 
 local MOD = "[CompanionLeashVO]"
+--  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
+--  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
+--  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
+local BAU = "03:37:25"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -387,6 +391,7 @@ registerForEvent("onInit", function()
   else
     log("ACHTUNG: speaker.lua nicht geladen - Ausloeser spielen ohne Schiedsstelle")
   end
+  log("BAU " .. (BAU or "?"))
   log(string.format("bereit - %d Stile gelesen, invisible=%s, Pool %d Eintraege",
       #STYLES, tostring(styleIdx >= 0), #LINES))
   local dv = dialogueVar()
@@ -658,6 +663,20 @@ registerForEvent("onDraw", function()
       end
       ImGui.Separator()
       for _, z in ipairs(st.buch) do ImGui.TextDisabled(z) end
+    end
+  end
+
+  if Triggers and ImGui.CollapsingHeader("Haltung - Wege durchtesten",
+                                         ImGuiTreeNodeFlags.DefaultOpen) then
+    ImGui.TextWrapped("Jeder Knopf geht einen anderen Weg und misst den ECHTEN Zustand "
+                      .. "vor und nach dem Versuch. 2 = Crouch, 3 = Stand. Aendert sich "
+                      .. "'nachher', hat der Weg gegriffen.")
+    for i, name in ipairs(Triggers.HaltungWege()) do
+      if ImGui.Button("Hocke##h" .. i) then Triggers.HaltungTest(i, true) end
+      ImGui.SameLine()
+      if ImGui.Button("Stand##s" .. i) then Triggers.HaltungTest(i, false) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(name)
     end
   end
 
