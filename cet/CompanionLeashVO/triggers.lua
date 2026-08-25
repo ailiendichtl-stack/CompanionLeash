@@ -388,6 +388,13 @@ local function haltungTick(d)
       if haltung.ziel == ziel then
         --  Sie stand schon auf diesem Ziel und ist zurueckgefallen: das ist die KI.
         haltung.korrekturen = haltung.korrekturen + 1
+        --  Die wichtigste Zahl gehoert ins Protokoll, nicht nur ins Panel: ob jemand
+        --  zurueckdreht, entscheidet ueber den ganzen Ansatz.
+        if haltung.korrekturen == 1 or haltung.korrekturen == 25
+           or haltung.korrekturen == 200 then
+          log(string.format("HALTUNG %d Korrektur(en) - etwas setzt die Haltung zurueck",
+              haltung.korrekturen))
+        end
       else
         haltung.gesetzt = haltung.gesetzt + 1
         log(string.format("HALTUNG %s (V %s)", ziel, hockt and "hockt" or "steht"))
