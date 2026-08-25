@@ -361,27 +361,27 @@ local function gazeFeuern(obj)
     log(string.format("BLICK Stufe %d - kein Eintrag mit st=%d in lines.lua", stufe, stufe))
     return
   end
-  local l = pool[math.random(#pool)]
 
   speaker = 0
   for i, nm in ipairs(STYLES) do
     if nm:lower() == "regular" then styleIdx = i - 1 end
   end
-  log(string.format("BLICK Stufe %d nach %.1fs: %s", stufe, gaze.t, l.n))
+  log(string.format("BLICK Stufe %d nach %.1fs, %d Kandidaten", stufe, gaze.t, #pool))
   if not Speaker then
-    playBark(l.n, obj)
+    playBark(pool[math.random(#pool)].n, obj)
   else
+    --  Der ganze Pool geht mit, nicht eine gewuerfelte Zeile: der Sprecher waehlt erst
+    --  beim Sprechen und kann dabei die zuletzt gespielte auslassen.
     Speaker.Request({
-      situation = "blick",
-      prio      = Speaker.PRIO.blick,
-      pool      = "blick" .. stufe,
-      line      = l.n,
-      dauer     = l.d or 2.0,
-      cd        = (stufe == 2) and GAZE.cd2 or GAZE.cd1,
-      ziel      = obj,
+      situation  = "blick",
+      prio       = Speaker.PRIO.blick,
+      pool       = "blick" .. stufe,
+      kandidaten = pool,
+      cd         = (stufe == 2) and GAZE.cd2 or GAZE.cd1,
+      ziel       = obj,
     })
   end
-  gaze.zuletzt = string.format("Stufe %d, %s", stufe, l.t)
+  gaze.zuletzt = string.format("Stufe %d, %d Kandidaten", stufe, #pool)
 end
 
 --  Laeuft eine Spielsitzung? Im Hauptmenue und waehrend des Ladens gibt es keinen

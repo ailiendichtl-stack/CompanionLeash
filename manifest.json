@@ -28,8 +28,8 @@
     "CompanionLeash.yaml": "30cdc450c7006af80acf29ce40e0b87a"
   },
   "cet_files": {
-    "CompanionLeashVO/init.lua": "6916266026fe1f9ef1636d4b8baca636",
-    "CompanionLeashVO/speaker.lua": "a5cd8eed0811d2777d55c159560c94cf",
+    "CompanionLeashVO/init.lua": "70b15452eeade2adc955ec3f4823d6f2",
+    "CompanionLeashVO/speaker.lua": "11af328786af3ea5d25e95ea2ad85871",
     "CompanionLeashVO/lines.lua": "24e3816d794cb6af3ff40c6f26c7706c"
   }
 }

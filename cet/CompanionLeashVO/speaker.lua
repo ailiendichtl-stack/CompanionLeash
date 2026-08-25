@@ -92,12 +92,29 @@ end
 
 --  Warum ein Antrag jetzt nicht darf. nil heisst: er darf.
 local function pruefen(a)
-  if not a.line or a.line == "" then return "noLine" end
+  if not a.line and not (a.kandidaten and #a.kandidaten > 0) then return "noLine" end
   if not tierOk() then return "dialogueActive" end
   if S.jetzt < S.ruheBis then return "globalCooldown" end
   if a.pool and S.cdBis[a.pool] and S.jetzt < S.cdBis[a.pool] then return "cooldown" end
-  if a.pool and S.zuletzt[a.pool] == a.line then return "duplicateLine" end
+  if a.line and a.pool and S.zuletzt[a.pool] == a.line then return "duplicateLine" end
   return nil
+end
+
+--  Aus den Kandidaten eine Zeile waehlen, die nicht die zuletzt gespielte ist.
+--  Erst hier, nicht beim Antrag: ein wartender Antrag soll frisch waehlen.
+local function waehlen(a)
+  if a.line then return true end
+  local k = a.kandidaten
+  if not k or #k == 0 then return false end
+  local frei = {}
+  for _, e in ipairs(k) do
+    if e.n ~= S.zuletzt[a.pool] then frei[#frei + 1] = e end
+  end
+  --  Nur wenn der Pool aus einer einzigen Zeile besteht, bleibt die Wiederholung uebrig.
+  if #frei == 0 then frei = k end
+  local e = frei[math.random(#frei)]
+  a.line, a.dauer = e.n, e.d or a.dauer or 2.0
+  return true
 end
 
 local function starten(a)
@@ -136,6 +153,7 @@ function Speaker.Request(a)
     return false
   end
 
+  if not waehlen(a) then ablehnen(a, "noLine"); return false end
   starten(a)
   return true
 end
@@ -188,6 +206,7 @@ function Speaker.Tick(d)
   S.warten[bestSit] = nil
   local grund = pruefen(best)
   if grund then ablehnen(best, grund); return end
+  if not waehlen(best) then ablehnen(best, "noLine"); return end
   starten(best)
 end
 
@@ -214,6 +233,8 @@ function Speaker.Freigeben()
   S.aktiv, S.ruheBis = nil, 0.0
   S.cdBis, S.warten, S.zuletzt = {}, {}, {}
   buchen("CLEAR", "alle Sperren geloest")
+  schreiben("SPEAKER CLEAR alle Sperren von Hand geloest - Abklingzeiten und "
+            .. "Wiederholungsschutz sind ab hier ohne Aussage")
 end
 
 return Speaker
