@@ -293,7 +293,7 @@ local STANCE = { Crouch = "Crouch", Stand = "Stand" }
 local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
                   gesetzt = 0, korrekturen = 0, gemeldet = false,
-                  bauWeg = nil, setzWeg = nil }
+                  feat = nil, setzWeg = nil, spur = nil }
 
 --  Was steht gerade in ihrem Zustands-Blackboard?
 local function haltungLesen(o)
@@ -321,43 +321,54 @@ local function haltungSetzen(o, name)
   local wert = ZUSTAND[name] or ZUSTAND.Stand
   local schritte = { feature = false, wrapper = false, blackboard = false }
 
-  --  Der erste Anlauf umschloss Objektbau und Anwendung mit EINEM pcall und meldete nur
-  --  "Feature=false" - welcher der beiden Schritte scheiterte, blieb offen. Getrennt, und
-  --  mit den Schreibweisen durchprobiert: `AnimFeature` ist ein Handle-Typ, und CET
-  --  braucht dafuer unter Umstaenden das Praefix.
-  local feat
-  for _, wie in ipairs({ "handle:AnimFeature_NPCState", "AnimFeature_NPCState",
-                         "gameAnimFeature_NPCState" }) do
-    if not feat then
+  --  Zum zweiten Mal derselbe Fehler: der letzte Anlauf umschloss `NewObject` UND das
+  --  Setzen von `.state` mit einem pcall. Scheitert das Feld, sieht es aus wie ein
+  --  gescheiterter Bau - und `bau=nil` liess beides offen. Jeder Schritt einzeln.
+  if not haltung.gemeldet then
+    haltung.spur = {}
+    for _, name in ipairs({ "AnimFeature_NPCState", "handle:AnimFeature_NPCState",
+                            "gameAnimFeature_NPCState", "animAnimFeature_NPCState" }) do
+      local obj
+      local okBau = pcall(function() obj = NewObject(name) end)
+      if okBau and obj then
+        local okFeld = pcall(function() obj.state = wert end)
+        haltung.spur[#haltung.spur + 1] =
+          string.format("%s: Bau ok, Feld %s", name, okFeld and "ok" or "FEHLER")
+        if okFeld and not haltung.feat then haltung.feat = name end
+      else
+        haltung.spur[#haltung.spur + 1] = string.format("%s: kein Objekt", name)
+      end
+    end
+    --  Gibt es die Klasse ueberhaupt? Reflection sagt es unabhaengig von NewObject.
+    for _, name in ipairs({ "AnimFeature_NPCState", "gameAnimFeature_NPCState" }) do
       pcall(function()
-        local f = NewObject(wie)
-        if f then
-          f.state = wert
-          feat = f
-          haltung.bauWeg = wie
-        end
+        local c = Reflection.GetClass(name)
+        haltung.spur[#haltung.spur + 1] =
+          string.format("Reflection %s: %s", name, c and "bekannt" or "unbekannt")
       end)
     end
   end
 
-  if feat then
-    --  Statische Methoden einer Skriptklasse sind in CET direkt erreichbar - falls nicht,
-    --  bleibt der Weg ueber die Komponente am Objekt.
-    pcall(function()
-      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-      schritte.feature = true
-      haltung.setzWeg = "statisch"
-    end)
-    if not schritte.feature then
+  if haltung.feat then
+    local feat
+    pcall(function() feat = NewObject(haltung.feat); feat.state = wert end)
+    if feat then
       pcall(function()
-        local comp = o:FindComponentByName(CName.new("AnimationController"))
-        if comp then
-          comp:ApplyFeature(CName.new("stanceState"), feat)
-          schritte.feature = true
-          haltung.setzWeg = "Komponente"
-        end
+        AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
+        schritte.feature = true
+        haltung.setzWeg = "ApplyFeature"
       end)
     end
+  end
+
+  --  Weg ohne Objekt: ein nackter Int auf denselben Eingang. Ob der Graph das liest, ist
+  --  offen - aber er kostet nichts und braucht keine Klasse.
+  if not schritte.feature then
+    pcall(function()
+      AnimationControllerComponent.SetInputInt(o, CName.new("stanceState"), wert)
+      schritte.feature = true
+      haltung.setzWeg = "SetInputInt"
+    end)
   end
 
   pcall(function()
@@ -377,10 +388,10 @@ local function haltungSetzen(o, name)
 
   if not haltung.gemeldet then
     haltung.gemeldet = true
-    log(string.format("HALTUNG Wege: Feature=%s (bau=%s, setz=%s) Wrapper=%s Blackboard=%s",
-        tostring(schritte.feature), tostring(haltung.bauWeg),
-        tostring(haltung.setzWeg), tostring(schritte.wrapper),
-        tostring(schritte.blackboard)))
+    log(string.format("HALTUNG Feature=%s (setz=%s) Wrapper=%s Blackboard=%s",
+        tostring(schritte.feature), tostring(haltung.setzWeg),
+        tostring(schritte.wrapper), tostring(schritte.blackboard)))
+    for _, z in ipairs(haltung.spur or {}) do log("   " .. z) end
   end
   return schritte.feature or schritte.wrapper
 end
