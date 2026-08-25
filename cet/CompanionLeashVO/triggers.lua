@@ -254,6 +254,89 @@ local function abstand(p)
   return w
 end
 
+--  ---------------------------------------------------------------- Haltung
+
+--  Geht V in die Hocke, soll Judy es auch tun - und dabei weiterlaufen.
+--
+--  Der Weg fuehrt durch dieselbe Tuer, die die Kampf-KI benutzt. Die Haltung wird nicht
+--  ueber ein Anim-Feature gesetzt, sondern ueber ein Signal an ihre Zustandskomponente:
+--
+--      puppet:GetStatesComponent():OnNPCStateChangeSignalReceived(signal)
+--
+--  `OnNPCStateChangeSignalReceived` ist oeffentlich, und `ChangeStanceState` dahinter macht
+--  genau das Richtige: Anim-Feature anwenden, Anim-Wrapper-Gewichte umsetzen, Blackboard
+--  schreiben. Selbst am Anim-Feature zu drehen haette den halben Weg nachgebaut.
+--
+--  OFFEN und der eigentliche Grund fuer die Rueckmessung: ob die KI die Haltung beim
+--  naechsten Verhaltensschritt wieder ueberschreibt. Darum wird nicht blind gesetzt,
+--  sondern der Ist-Wert aus ihrem Blackboard gelesen und nachgezogen.
+local STANCE = { Crouch = "Crouch", Stand = "Stand" }
+local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
+local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
+                  gesetzt = 0, korrekturen = 0 }
+
+--  Was steht gerade in ihrem Zustands-Blackboard?
+local function haltungLesen(o)
+  local v
+  pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb = o:GetPuppetStateBlackboard()
+    if bb then v = bb:GetInt(defs.PuppetState.Stance) end
+  end)
+  return v
+end
+
+local function haltungSetzen(o, name)
+  local ok = false
+  pcall(function()
+    local comp = o:GetStatesComponent()
+    if not comp then return end
+    local sig = NewObject("NPCStateChangeSignal")
+    sig.m_stanceState = Enum.new("gamedataNPCStanceState", name)
+    sig.m_stanceStateValid = true
+    comp:OnNPCStateChangeSignalReceived(sig)
+    ok = true
+  end)
+  return ok
+end
+
+local function haltungTick(d)
+  if not haltung.an then return end
+  haltung.seit = haltung.seit + d
+  if haltung.seit < HALTUNG.takt then return end
+  haltung.seit = 0.0
+
+  local o = judyHolen()
+  if not o then haltung.ziel, haltung.ist = nil, nil; return end
+
+  --  gamePSMLocomotionStates: 1 Crouch, 11 CrouchSprint, 12 CrouchDodge
+  local lok = psm("Locomotion")
+  local hockt = lok == 1 or lok == 11 or lok == 12
+  local ziel = hockt and STANCE.Crouch or STANCE.Stand
+  local istWert = haltungLesen(o)
+  haltung.ist = istWert
+
+  --  gamedataNPCStanceState: 1 Cover, 2 Crouch, 3 Stand
+  local istName = (istWert == 2) and STANCE.Crouch or (istWert == 3) and STANCE.Stand or nil
+
+  if ziel == haltung.ziel and istName == ziel then return end
+
+  if istName ~= ziel then
+    if haltungSetzen(o, ziel) then
+      if haltung.ziel == ziel then
+        --  Sie stand schon auf diesem Ziel und ist zurueckgefallen: das ist die KI.
+        haltung.korrekturen = haltung.korrekturen + 1
+      else
+        haltung.gesetzt = haltung.gesetzt + 1
+        log(string.format("HALTUNG %s (V %s)", ziel, hockt and "hockt" or "steht"))
+      end
+    elseif haltung.ziel ~= ziel then
+      log("HALTUNG konnte nicht gesetzt werden - GetStatesComponent oder Signal fehlt")
+    end
+  end
+  haltung.ziel = ziel
+end
+
 --  ---------------------------------------------------------------- Judys eigene Stimme
 
 --  Die Spiel-KI laesst Judy im Gefecht selbst reden - dieselbe Voiceset-Infrastruktur, die
@@ -849,6 +932,7 @@ function T.Tick(d)
   leiterTick(d, p)
   zufallTick(d, p)
   abschiedTick()
+  haltungTick(d)
   wiederTick(d, p)
   fahrtTick(d, p)
 end
@@ -871,6 +955,8 @@ function T.Status()
                n = #pool("wiedersehen") },
     fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
     abschied = { an = abschied.an, da = abschied.warDa, n = #pool("abschied") },
+    haltung = { an = haltung.an, ziel = haltung.ziel, ist = haltung.ist,
+                gesetzt = haltung.gesetzt, korrekturen = haltung.korrekturen },
     stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd,
                greifbar = judy.obj ~= nil },
     leiter = { an = leiter.an, stufe = leiter.stufe, stufen = #LEITER,
@@ -894,6 +980,7 @@ function T.Setzen(was, an)
   if was == "leiter"   then leiter.an = an end
   if was == "zufall"   then zufall.an = an end
   if was == "abschied" then abschied.an = an end
+  if was == "haltung"  then haltung.an = an end
 end
 
 function T.Zuruecksetzen()

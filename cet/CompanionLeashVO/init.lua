@@ -655,6 +655,20 @@ registerForEvent("onDraw", function()
     end
   end
 
+  if Triggers and ImGui.CollapsingHeader("Haltung", ImGuiTreeNodeFlags.DefaultOpen) then
+    local st = Triggers.Status().haltung
+    local ha = ImGui.Checkbox("Hocke uebernehmen##ha", st.an)
+    if ha ~= st.an then Triggers.Setzen("haltung", ha) end
+    ImGui.SameLine()
+    ImGui.TextDisabled(string.format("Ziel %s   ist %s",
+                                     st.ziel or "-", tostring(st.ist or "-")))
+    --  Die Korrekturen sind der eigentliche Messwert: steigen sie, dreht die KI zurueck.
+    ImGui.Text(string.format("gesetzt %d   Korrekturen %d", st.gesetzt, st.korrekturen))
+    if st.korrekturen > 0 then
+      ImGui.TextDisabled("   Korrekturen steigen = die KI setzt die Haltung zurueck")
+    end
+  end
+
   if Triggers and ImGui.CollapsingHeader("Ausloeser testen",
                                          ImGuiTreeNodeFlags.DefaultOpen) then
     ImGui.TextWrapped("Loest sofort aus, ohne die Bedingung herzustellen. Abklingzeiten "
