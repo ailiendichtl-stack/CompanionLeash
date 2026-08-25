@@ -124,7 +124,8 @@ def main():
     if alle:
         bau = json.load(open(os.path.join(HERE, "data", "matrix_lines.json"),
                              encoding="utf-8"))
-        wanted = [dict(name="cl_" + b["hex"], hex=b["hex"], sit=b["situation"])
+        wanted = [dict(name="cl_" + b["hex"], hex=b["hex"], sit=b["situation"],
+                       stufe=b.get("stufe", 0))
                   for b in bau]
         print("Bauliste aus der Matrix: %d Zeilen" % len(wanted))
 
@@ -171,7 +172,7 @@ def main():
         _add_entry(root, st, name, hexid, duration, lipsync)
         anims_needed.setdefault(lip_scene, {})[lipsync] = lipsync
         zaehl["gebaut"] += 1
-        gebaut.append((name, w.get("sit", ""), hexid, duration))
+        gebaut.append((name, w.get("sit", ""), hexid, duration, w.get("stufe", 0)))
         if "geliehen" in note:
             zaehl["leih"] += 1
         if "Platzhalter" in note:
@@ -265,10 +266,11 @@ def _panel_liste(gebaut, durations):
     out = ["--  Erzeugt von tools/build_lines.py --alle. Nicht von Hand aendern.",
            "--  %d Zeilen aus der gesichteten Matrix." % len(gebaut),
            "return {"]
-    for name, sit, hexid, ms in sorted(gebaut, key=lambda g: (g[1], -g[3])):
+    for name, sit, hexid, ms, stufe in sorted(gebaut, key=lambda g: (g[1], g[4], -g[3])):
         t = esc(txt.get(str(int(hexid, 16)), ""))[:78]
-        out.append('  { n = "%s", s = "%s", d = %.1f, t = "%s" },'
-                   % (name, sit, ms / 1000.0, t))
+        st = ", st = %d" % stufe if stufe else ""
+        out.append('  { n = "%s", s = "%s", d = %.1f%s, t = "%s" },'
+                   % (name, sit, ms / 1000.0, st, t))
     out.append("}")
     p = os.path.join(HERE, "cet", "CompanionLeashVO", "lines.lua")
     open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")

@@ -218,6 +218,29 @@ local MATRIX = {
     hint = "unangetastet - der Nullpunkt" },
 }
 
+--  Der lange Blick.
+--
+--  `GetLookAtObject` liefert, was V gerade anvisiert - dieselbe Abfrage, mit der das Panel
+--  sein Ziel sperrt. NCAs `OnLookAtCompanion` haette dasselbe geleistet, uns aber an
+--  fremden Code gebunden; hier haengt nichts an NCA ausser dem Companion-Tag, den wir
+--  ohnehin schon benutzen.
+--
+--  Zwei Stufen, nicht eine. Unter fuenf Sekunden passiert nichts - man visiert seine
+--  Begleiterin beim Laufen staendig an, und alles darunter wuerde dauernd feuern. Ab fuenf
+--  faellt es ihr auf. Wer deutlich laenger schaut, bekommt die zweite Ebene, und die
+--  vertraegt keine Wiederholung.
+local GAZE = {
+  stufe1   =    5.0,   -- ab hier merkt sie es
+  stufe2   =   14.0,   -- ab hier nimmt sie es auf
+  cd1      =  180.0,   -- Abklingzeit der beilaeufigen Reaktion
+  cd2      = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
+  distanz  =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
+  nachlauf =    1.5,   -- Puffer nach einer Zeile, damit nichts hineinfaellt
+}
+local gaze = { t = 0.0, id = nil, s1 = false, s2 = false,
+               cd1 = 0.0, cd2 = 0.0, busy = 0.0, zuletzt = "-" }
+local gazeAn = true
+
 local STYLES, styleIdx = {}, -1
 local target, targetName = nil, "-"
 local facePending = nil
@@ -240,8 +263,8 @@ end
 --  und wurden jeweils muehsam gefunden: useVoicesetSystem/playOnlyGrunt duerfen NICHT
 --  gesetzt werden, die beiden override-Flags MUESSEN gesetzt werden, und die Params gehen
 --  NACH der Zuweisung in node.type.
-local function playBark(name)
-  if speaker == 0 and not target then log("kein Ziel"); return end
+local function playBark(name, obj)
+  if speaker == 0 and not (target or obj) then log("kein Ziel"); return end
   local ok, err = pcall(function()
     local node = NewObject("questVoicesetManagerNodeDefinition")
     node.type  = NewObject("questPlayVoiceset_NodeType")
@@ -286,6 +309,106 @@ local function playBark(name)
   end)
   lastPlayed = name
   if not ok then log("BARK " .. name .. " FEHLER: " .. tostring(err)) end
+end
+
+--  Ist das Judy? Das gesperrte Ziel zaehlt, sonst entscheidet die Record-Id. Der
+--  Anzeigename waere sprachabhaengig und damit unbrauchbar.
+local function istJudy(o)
+  if not o then return false end
+  local h
+  pcall(function() h = o:GetEntityID().hash end)
+  if not h then return false end
+  if target then
+    local th
+    pcall(function() th = target:GetEntityID().hash end)
+    if th and tostring(th) == tostring(h) then return true end
+  end
+  local rec = ""
+  pcall(function() rec = tostring(TDBID.ToStringDBID(o:GetRecordID())) end)
+  return rec:lower():find("judy", 1, true) ~= nil
+end
+
+local function gazePool(stufe)
+  local p = {}
+  for _, l in ipairs(LINES) do
+    if l.st == stufe then p[#p + 1] = l end
+  end
+  return p
+end
+
+local function gazeFeuern(obj)
+  if gaze.busy > 0.0 then return end
+  local stufe
+  if not gaze.s2 and gaze.t >= GAZE.stufe2 and gaze.cd2 <= 0.0 then
+    stufe = 2
+  elseif not gaze.s1 and gaze.t >= GAZE.stufe1 and gaze.cd1 <= 0.0 then
+    stufe = 1
+  end
+  if not stufe then return end
+
+  local pool = gazePool(stufe)
+  if #pool == 0 then
+    log(string.format("BLICK Stufe %d - kein Eintrag mit st=%d in lines.lua", stufe, stufe))
+    if stufe == 2 then gaze.s2 = true else gaze.s1 = true end
+    return
+  end
+  local l = pool[math.random(#pool)]
+
+  speaker = 0
+  for i, nm in ipairs(STYLES) do
+    if nm:lower() == "regular" then styleIdx = i - 1 end
+  end
+  log(string.format("BLICK Stufe %d nach %.1fs: %s  \"%s\"", stufe, gaze.t, l.n, l.t))
+  playBark(l.n, obj)
+
+  gaze.busy = (l.d or 2.0) + GAZE.nachlauf
+  gaze.zuletzt = string.format("Stufe %d, %s", stufe, l.t)
+  if stufe == 2 then
+    gaze.s2, gaze.cd2 = true, GAZE.cd2
+    --  Wer die zweite Ebene bekommen hat, braucht die erste in derselben Weile nicht mehr.
+    gaze.s1, gaze.cd1 = true, GAZE.cd1
+  else
+    gaze.s1, gaze.cd1 = true, GAZE.cd1
+  end
+end
+
+local function gazeTick(d)
+  gaze.cd1  = math.max(0.0, gaze.cd1 - d)
+  gaze.cd2  = math.max(0.0, gaze.cd2 - d)
+  gaze.busy = math.max(0.0, gaze.busy - d)
+  if not gazeAn then return end
+
+  local o
+  pcall(function()
+    o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+  end)
+
+  local passt = istJudy(o)
+  if passt then
+    local kampf = false
+    pcall(function() kampf = Game.GetPlayer():IsInCombat() end)
+    if kampf then passt = false end
+  end
+  if passt then
+    local dist = 999.0
+    pcall(function()
+      dist = Vector4.Distance(Game.GetPlayer():GetWorldPosition(), o:GetWorldPosition())
+    end)
+    if dist > GAZE.distanz then passt = false end
+  end
+
+  if passt then
+    local id = tostring(o:GetEntityID().hash)
+    if id ~= gaze.id then
+      gaze.id, gaze.t, gaze.s1, gaze.s2 = id, 0.0, false, false
+    end
+    gaze.t = gaze.t + d
+    gazeFeuern(o)
+  elseif gaze.id then
+    --  Wegsehen setzt die Uhr zurueck. Sonst liesse sich die Schwelle aus lauter kurzen
+    --  Blicken zusammensammeln, und das ist nicht dasselbe wie jemanden anzusehen.
+    gaze.id, gaze.t, gaze.s1, gaze.s2 = nil, 0.0, false, false
+  end
 end
 
 local function dialogueVar()
@@ -348,7 +471,9 @@ registerForEvent("onInit", function()
   for i, nm in ipairs(STYLES) do
     if nm:lower() == "invisible" then styleIdx = i - 1 end
   end
-  log(string.format("bereit - %d Stile gelesen, invisible=%s", #STYLES, tostring(styleIdx >= 0)))
+  pcall(function() math.randomseed(os.time()) end)
+  log(string.format("bereit - %d Stile gelesen, invisible=%s, Blickzeilen=%d",
+      #STYLES, tostring(styleIdx >= 0), #gazePool(1) + #gazePool(2)))
   local dv = dialogueVar()
   if dv and dv:GetValue() == 0 then
     log("ACHTUNG: DialogueVolume steht auf 0 - im Panel steht ein Knopf zum Zuruecksetzen")
@@ -386,6 +511,7 @@ end
 
 registerForEvent("onUpdate", function(dt)
   local d = dt or 0.016
+  gazeTick(d)
 
   --  Sweep: jeden Namen feuern, kurz auf die Zeile warten, Ergebnis mitschreiben.
   --  Ein Treffer steht nach ~0.25s fest, ein Blindgaenger kostet nur den Timeout.
@@ -576,6 +702,27 @@ registerForEvent("onDraw", function()
       ImGui.SameLine()
       ImGui.TextDisabled(t.hint)
     end
+  end
+
+  if ImGui.CollapsingHeader("Der lange Blick", ImGuiTreeNodeFlags.DefaultOpen) then
+    gazeAn = ImGui.Checkbox("aktiv##gz", gazeAn)
+    ImGui.SameLine()
+    ImGui.TextDisabled(string.format("Stufe 1 ab %.0fs  |  Stufe 2 ab %.0fs",
+                                     GAZE.stufe1, GAZE.stufe2))
+    local frac = math.min(1.0, gaze.t / GAZE.stufe2)
+    ImGui.ProgressBar(frac, 260, 14,
+                      string.format("%.1fs  %s", gaze.t, gaze.id and "sieht sie an" or "-"))
+    ImGui.Text(string.format("Abklingzeit  Stufe 1 %.0fs   Stufe 2 %.0fs   belegt %.1fs",
+                             gaze.cd1, gaze.cd2, gaze.busy))
+    ImGui.TextDisabled("zuletzt: " .. gaze.zuletzt)
+    if ImGui.Button("Abklingzeiten loeschen##gz") then
+      gaze.cd1, gaze.cd2, gaze.busy = 0.0, 0.0, 0.0
+      gaze.s1, gaze.s2 = false, false
+      log("BLICK Abklingzeiten geloescht")
+    end
+    ImGui.SameLine()
+    ImGui.TextDisabled(string.format("%d Zeilen Stufe 1, %d Stufe 2",
+                                     #gazePool(1), #gazePool(2)))
   end
 
   if ImGui.CollapsingHeader(string.format("Matrix-Zeilen - %d gebaut", #LINES)) then

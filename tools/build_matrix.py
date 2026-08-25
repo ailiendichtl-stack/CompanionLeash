@@ -417,6 +417,11 @@ CATEGORIES = [
       judy=["1bde5efe6529f000", "1362da25582fc000", "39669645a8a4e000",
             "3966964c69a4e000", "18ff52f8fd2b6000", "3966891225a4e000",
             "1a676ce3032fc000", "189c5847c42b6000", "18830b966a2b6000"],
+      #  Welche Zeile zu welcher Stufe gehoert. Ohne das muesste die Verdrahtung die
+      #  Zuordnung ein zweites Mal fuehren, und die beiden wuerden auseinanderlaufen.
+      stufen={"1bde5efe6529f000": 1, "1362da25582fc000": 1, "39669645a8a4e000": 1,
+              "3966964c69a4e000": 1, "18ff52f8fd2b6000": 2, "3966891225a4e000": 2,
+              "1a676ce3032fc000": 2, "189c5847c42b6000": 2, "18830b966a2b6000": 2},
       v=[],
       pairs=[("Stufe eins - sie merkt es",
               [("J", "q", "1bde5efe6529f000"), ("J", "q", "1362da25582fc000")],
@@ -597,8 +602,21 @@ def main():
             refs += d["picks"].get(cat, [])
         for h in refs:
             k, ref = _normalize("q", h, d)
-            if k == "q" and ref not in [b["hex"] for b in bau]:
-                bau.append({"hex": ref, "situation": c["key"]})
+            if k != "q":
+                continue
+            stufe = c.get("stufen", {}).get(ref)
+            vorhanden = next((b for b in bau if b["hex"] == ref), None)
+            if vorhanden:
+                #  Steht schon in einer frueheren Situation. Die Stufe gehoert trotzdem
+                #  dran - sonst verliert eine Zeile, die in zwei Kategorien vorkommt,
+                #  genau die Angabe, die die Verdrahtung braucht.
+                if stufe and not vorhanden.get("stufe"):
+                    vorhanden["stufe"] = stufe
+                continue
+            eintrag = {"hex": ref, "situation": c["key"]}
+            if stufe:
+                eintrag["stufe"] = stufe
+            bau.append(eintrag)
     json.dump(bau, open(os.path.join(HERE, "data", "matrix_lines.json"), "w",
                         encoding="utf-8"), ensure_ascii=False, indent=1)
     print("Bauliste: %d Questzeilen -> data/matrix_lines.json" % len(bau))
