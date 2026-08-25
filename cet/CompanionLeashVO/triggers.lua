@@ -17,13 +17,17 @@ local Speaker, LINES, log, holeZiel
 --  Laeuft eine Spielsitzung? Im Hauptmenue und waehrend des Ladens gibt es keinen Spieler,
 --  und ein nil an eine native Funktion zu reichen faengt kein pcall ab - das nimmt den
 --  Prozess mit. Genau daran ist der erste Anlauf gestorben.
-local function imSpiel()
+local function spieler()
   local vor = true
   local ok = pcall(function() vor = Game.GetSystemRequestsHandler():IsPreGame() end)
-  if not ok or vor then return false end
+  if not ok or vor then return nil end
   local p
   pcall(function() p = Game.GetPlayer() end)
-  return p ~= nil
+  return p
+end
+
+local function imSpiel()
+  return spieler() ~= nil
 end
 
 --  Ein Wert aus der Spieler-Zustandsmaschine.
@@ -38,11 +42,13 @@ end
 local sondeTot = {}
 
 local function psm(feld)
+  local p = spieler()
+  if not p then return nil end
   local wert, ok = nil, false
   pcall(function()
     local defs = Game.GetAllBlackboardDefs()
     local bb = Game.GetBlackboardSystem():GetLocalInstanced(
-                 Game.GetPlayer():GetEntityID(), defs.PlayerStateMachine)
+                 p:GetEntityID(), defs.PlayerStateMachine)
     if bb then
       wert = bb:GetInt(defs.PlayerStateMachine[feld])
       ok = wert ~= nil
@@ -177,14 +183,13 @@ local function gazeFeuern(obj)
   gaze.zuletzt = string.format("Stufe %d, %d Kandidaten", stufe, #k)
 end
 
-local function gazeTick(d)
+local function gazeTick(d, p)
   if not gaze.an then return end
-  local spieler = Game.GetPlayer()
   local ts
   pcall(function() ts = Game.GetTargetingSystem() end)
   if not ts then return end
   local o
-  pcall(function() o = ts:GetLookAtObject(spieler, false, false) end)
+  pcall(function() o = ts:GetLookAtObject(p, false, false) end)
 
   local passt = istJudy(o)
   if passt then
@@ -193,7 +198,7 @@ local function gazeTick(d)
   if passt then
     local dist = 999.0
     pcall(function()
-      dist = Vector4.Distance(spieler:GetWorldPosition(), o:GetWorldPosition())
+      dist = Vector4.Distance(p:GetWorldPosition(), o:GetWorldPosition())
     end)
     if dist > GAZE.distanz then passt = false end
   end
@@ -276,9 +281,11 @@ end
 
 --  Fuer das Panel: was sieht V gerade an?
 function T.Anvisiert()
+  local p = spieler()
+  if not p then return nil end
   local o
   pcall(function()
-    o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+    o = Game.GetTargetingSystem():GetLookAtObject(p, false, false)
   end)
   if not o then return nil end
   local rec, name = beschreibe(o)
@@ -288,8 +295,10 @@ function T.Anvisiert()
 end
 
 function T.Tick(d)
-  if not Speaker or not imSpiel() then return end
-  gazeTick(d)
+  if not Speaker then return end
+  local p = spieler()
+  if not p then return end
+  gazeTick(d, p)
   kampfTick(d)
 end
 

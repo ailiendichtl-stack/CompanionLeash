@@ -79,10 +79,13 @@ end
 --  Spieler die Kontrolle abgegeben, und dort hat eine Bark nichts verloren.
 local function tierOk()
   local t = 1
+  local p
+  pcall(function() p = Game.GetPlayer() end)
+  if not p then return true end
   local ok = pcall(function()
     local defs = Game.GetAllBlackboardDefs()
     local bb = Game.GetBlackboardSystem():GetLocalInstanced(
-                 Game.GetPlayer():GetEntityID(), defs.PlayerStateMachine)
+                 p:GetEntityID(), defs.PlayerStateMachine)
     if bb then t = bb:GetInt(defs.PlayerStateMachine.SceneTier) end
   end)
   if not ok then return true end          -- nicht lesbar: nicht daran scheitern

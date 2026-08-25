@@ -522,7 +522,16 @@ registerForEvent("onDraw", function()
     if ImGui.Button("freigeben") then target, targetName = nil, "-" end
   else
     if ImGui.Button("Ziel sperren (anschauen)") then
-      local o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+      --  Auch hier kein ungeprueftes nil an einen nativen Aufruf: das Overlay laesst sich
+      --  im Hauptmenue oeffnen, und dort gibt es keinen Spieler.
+      local o
+      local sp
+      pcall(function() sp = Game.GetPlayer() end)
+      if sp then
+        pcall(function()
+          o = Game.GetTargetingSystem():GetLookAtObject(sp, false, false)
+        end)
+      end
       if o then
         target = o
         targetName = tostring(o:GetDisplayName())
