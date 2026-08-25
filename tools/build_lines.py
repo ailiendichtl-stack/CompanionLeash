@@ -37,14 +37,14 @@ also nicht zu trennen, und das Ereignis in mq055 ist strukturell identisch mit u
 Nachbau. Nur eine Fassung der Animation existiert im ganzen Spiel, es gibt also auch keine
 kuerzere zum Ausweichen.
 
-Bleibt, die Frage zu umgehen:
+Bleibt, die Frage zu umgehen: die Zeile behaelt ihren Ton, bekommt aber die
+Lipsync-Animation einer ANDEREN Zeile aehnlicher Laenge ohne Vorlauf. Die Lippen formen dann
+nicht diese Worte, sitzen aber zeitlich richtig - aus Companion-Abstand der bessere Tausch.
+Im Spiel bestaetigt, also passiert es ab `WARN_MS` von selbst; `raw=True` schaltet es fuer
+Vergleiche ab, `borrow="<hex>"` waehlt den Spender von Hand.
 
-    borrow="<hex>"   die Zeile behaelt ihren Ton, bekommt aber die Lipsync-Animation einer
-                     ANDEREN Zeile aehnlicher Laenge ohne Vorlauf. Die Lippen formen dann
-                     nicht diese Worte, sitzen aber zeitlich richtig.
-
-Fuer eine Begleiterin, die man selten aus einem Meter Abstand ansieht, duerfte das besser
-aussehen als ein Mund, der erst nach der Haelfte des Satzes einsetzt.
+Das ist ein Umweg, keine Loesung - im Vorlauf steckt echte Mimik, die verloren geht. Der
+Fall ist unter "Offen" in BUILD_VOICESET.md notiert.
 
 Dazu wird ein `judy.anims` erzeugt, das die 55 Bark-Animationen und die Animationen aller
 gewuenschten Zeilen enthaelt. Die Laufzeit laedt es nicht ueber die Szenenreferenz, sondern
@@ -76,9 +76,8 @@ WANTED = [
     dict(name="cl_kurz", hex="1812474b462b6000"),   # 2502 ms, q105_06c     Anim  -135
     dict(name="cl_lang", hex="18795a0a822fc000"),   # 5005 ms, sq030_11     Anim  -305
     #  Dreimal dieselbe Zeile aus mq055 - 2922 ms Ton gegen 4267 ms Animation.
-    dict(name="cl_v_roh",  hex="39669188b9a4e000"),
-    #  2900 ms, aus q201_05_cabin_day_7, Vorlauf +27 ms
-    dict(name="cl_v_leih", hex="39669188b9a4e000", borrow="175e1a1cba386000"),
+    dict(name="cl_v_roh",  hex="39669188b9a4e000", raw=True),
+    dict(name="cl_v_leih", hex="39669188b9a4e000"),
 ]
 
 
@@ -101,6 +100,7 @@ def main():
         "handle": _max_handle(dst),
     }
 
+    donors = _donors(anims, durations)
     anims_needed = {}   # Szene -> {Zielname: Spezifikation fuer merge_anims}
     for w in WANTED:
         name, hexid = w["name"], w["hex"]
@@ -115,11 +115,16 @@ def main():
         lipsync, lip_scene = src, rec["scene"]
         if delta is None:
             note = "kein Anim-Eintrag"
-        elif w.get("borrow"):
-            b = w["borrow"]
-            lipsync = "f_" + b.upper()
-            lip_scene = durations[str(int(b, 16))]["scene"]
-            note = "Lipsync geliehen: %d ms statt %d" % (anims[lipsync]["ms"], anim["ms"])
+        elif w.get("borrow") or (delta > WARN_MS and not w.get("raw")):
+            b = w.get("borrow")
+            if b:
+                lipsync = "f_" + b.upper()
+            else:
+                lipsync = _donor(donors, rec["dur"])
+            lip_scene = durations[str(int(lipsync[2:], 16))]["scene"]
+            note = "Lipsync geliehen: %s, %d ms statt %d" % (lipsync[2:10] + "..",
+                                                             anims[lipsync]["ms"],
+                                                             anim["ms"])
         else:
             note = "Anim %+d ms" % delta
             if delta > WARN_MS:
@@ -154,6 +159,22 @@ def main():
             p = os.path.join(r, f)
             print("   %-92s %6d KB" % (os.path.relpath(p, BUILD),
                                        os.path.getsize(p) // 1024))
+
+
+def _donors(anims, durations):
+    """Animationen, die zu ihrer eigenen Zeile passen - als Spender brauchbar."""
+    out = []
+    for name, a in anims.items():
+        rec = durations.get(str(int(name[2:], 16)))
+        if rec and abs(a["ms"] - rec["dur"]) <= 150:
+            out.append((a["ms"], name))
+    out.sort()
+    return out
+
+
+def _donor(donors, target):
+    """Der Spender, dessen Laenge der Zeile am naechsten kommt."""
+    return min(donors, key=lambda d: abs(d[0] - target))[1]
 
 
 def _add_entry(root, st, name, hexid, duration, lipsync):

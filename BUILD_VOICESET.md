@@ -210,13 +210,28 @@ laenger ist. Das loest sich mit den gemessenen `.wem`-Dauern.
 ## Offen
 
 
-* **Dauern** der Quest-Zeilen - aus den `.wem` messen statt schaetzen.
+* **Vorlauf in den Animationen** *(geloest per Umweg, spaeter neu angehen)* - 44 der 1375
+  Zeilen (3 %) haben eine Lipsync-Animation, die ueber eine Sekunde laenger ist als die
+  Zeile. Der Ueberhang ist Mimik VOR dem Sprechen: in mq055 beginnt die Animation 1345 ms
+  vor dem Dialogereignis und endet mit ihm. Im Voiceset laeuft sie ab Ereignisbeginn, also
+  setzt der Mund erst nach knapp der Haelfte des Satzes ein.
+
+  Durchgefallen sind: `frameClamping` auf das Startbild (schneidet nicht), die Zeile auf
+  die Animationslaenge dehnen (die Laufzeit skaliert nicht), und `startTime` (verschiebt
+  Ton und Animation gemeinsam - die Animation haengt am Ereignis, nicht am Abschnitt). Das
+  Ereignis in mq055 ist strukturell identisch mit dem Nachbau, und die Animation existiert
+  nur in einer Fassung.
+
+  Behelf: die Zeile bekommt die Animation einer anderen Zeile aehnlicher Laenge ohne
+  Vorlauf. Zeitlich richtig, inhaltlich ungefaehr - aus Companion-Abstand tragbar. Im Spiel
+  bestaetigt, im Generator automatisch ab `WARN_MS`.
+
+  Offen bleibt der saubere Weg: den Vorlauf aus den Animationsdaten schneiden. Dazu muesste
+  der komprimierte `animBuffer` neu geschrieben werden. **Niedrige Prioritaet** - es geht um
+  3 % der Zeilen, und der Behelf sieht gut genug aus.
 * **Randomizer** - wie `scnRandomizerNode` die Varianten waehlt, falls wir Familien bauen.
 * **Sprecher-Id** - `speaker`/`addressee` stehen bei Judy beide auf 0; ob das fuer
   zusaetzliche Zeilen so bleiben kann, ist ungeprueft.
-* **Dauer** - die Vorlage-Dauer bleibt beim Klonen stehen. Im Spiel aeussert sich das als
-  Versatz zwischen Ton und Mundbewegung. Aus den `.wem` messen und in `duration` und
-  `sectionDuration` eintragen.
 * **Sprachen** - die Referenz traegt `en` fest im Pfad, obwohl die Dateien je Sprache
   getrennt liegen. Vanilla macht das ueberall so, die Engine setzt die aktive Sprache also
   selbst ein. Fuer eine veroeffentlichte Mod ist damit vermutlich nichts weiter zu tun -
