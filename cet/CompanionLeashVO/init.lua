@@ -250,8 +250,11 @@ end
 --  und wurden jeweils muehsam gefunden: useVoicesetSystem/playOnlyGrunt duerfen NICHT
 --  gesetzt werden, die beiden override-Flags MUESSEN gesetzt werden, und die Params gehen
 --  NACH der Zuweisung in node.type.
-local function playBark(name, obj)
-  if speaker == 0 and not (target or obj) then log("kein Ziel"); return end
+local function playBark(name, obj, autom)
+  if speaker == 0 and not autom and not (target or obj) then
+    log("kein Ziel - im Panel sperren oder anschauen")
+    return
+  end
   local ok, err = pcall(function()
     local node = NewObject("questVoicesetManagerNodeDefinition")
     node.type  = NewObject("questPlayVoiceset_NodeType")
@@ -365,7 +368,8 @@ registerForEvent("onInit", function()
         for i, nm in ipairs(STYLES) do
           if nm:lower() == "regular" then styleIdx = i - 1 end
         end
-        playBark(name, obj)
+        --  autom: kein gesperrtes Ziel noetig. Der Knoten adressiert sie ueber ihren Tag.
+        playBark(name, obj, true)
       end,
       schreiben = log,
     })
