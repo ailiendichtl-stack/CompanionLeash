@@ -159,6 +159,43 @@ local function istJudy(o)
   return false
 end
 
+--  ---------------------------------------------------------------- Beziehungsstand
+
+--  Flirt braucht keine Ausloesung, sondern eine SPERRE. Wer die Romanze nie gespielt hat,
+--  soll nicht angeflirtet werden - das faellt sofort auf und ist kein Geschmacksfrage,
+--  sondern schlicht falsch.
+--
+--  NCA fuehrt `love` und `friendship` je Figur in seiner PersistenceSystem, und
+--  `GetLove(recordID)` ist von aussen erreichbar. Ist der Wert -1, kennt NCA sie nicht.
+local NCA_PS = nil
+local bez = { liebe = nil, freund = nil }
+local LIEBE_MIN = 25       -- vorlaeufig; der Balken sieht nach 0..100 aus
+
+local function beziehungLesen()
+  if NCA_PS == nil then
+    pcall(function()
+      local c = Game.GetScriptableSystemsContainer()
+      NCA_PS = c:Get("NightCityAllies.Persistence.PersistenceSystem")
+      if not NCA_PS then NCA_PS = c:Get("PersistenceSystem") end
+    end)
+    if not NCA_PS then
+      NCA_PS = false
+      log("SONDE NCAs PersistenceSystem nicht erreichbar - Flirt bleibt gesperrt")
+    end
+  end
+  if not NCA_PS or not JUDY then return end
+  pcall(function()
+    bez.liebe  = NCA_PS:GetLove(JUDY)
+    bez.freund = NCA_PS:GetFriendship(JUDY)
+  end)
+end
+
+--  Unbekannt heisst gesperrt - aber sichtbar gesperrt. Im Panel steht der Wert, und ein
+--  stiller Riegel waere nach den letzten Tagen genau das falsche Verhalten.
+local function verliebtGenug()
+  return bez.liebe ~= nil and bez.liebe >= LIEBE_MIN
+end
+
 --  ---------------------------------------------------------------- Wo ist Judy
 
 --  Eine Referenz auf sie, die sich selbst instand haelt.
@@ -238,17 +275,24 @@ end
 local GAZE = {
   stufe1  =   10.0,   -- ab hier merkt sie es
   stufe2  =   30.0,   -- ab hier nimmt sie es auf
+  stufe3  =   75.0,   -- so lange sieht man niemanden aus Versehen an
   cd1     =  300.0,   -- Abklingzeit der beilaeufigen Reaktion
   cd2     = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
+  cd3     = 3600.0,   -- die dritte einmal pro Stunde
   distanz =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
 }
 --  s1/s2 gehoeren dem Blick: sie verhindern, dass er innerhalb EINES Blicks nachlegt.
 --  Belegt-Sein und Abklingzeiten fuehrt der Sprecher.
-local gaze = { t = 0.0, id = nil, s1 = false, s2 = false, an = true, zuletzt = "-" }
+local gaze = { t = 0.0, id = nil, s1 = false, s2 = false, s3 = false,
+               an = true, zuletzt = "-" }
 
 local function gazeFeuern(obj)
+  --  Dritte Stufe: so lange sieht man niemanden aus Versehen an. Sie zieht aus dem
+  --  Flirt-Pool und nur, wenn die Beziehung das traegt.
   local stufe
-  if not gaze.s2 and gaze.t >= GAZE.stufe2 then
+  if not gaze.s3 and gaze.t >= GAZE.stufe3 and verliebtGenug() then
+    stufe = 3
+  elseif not gaze.s2 and gaze.t >= GAZE.stufe2 then
     stufe = 2
   elseif not gaze.s1 and gaze.t >= GAZE.stufe1 then
     stufe = 1
@@ -257,19 +301,21 @@ local function gazeFeuern(obj)
 
   --  Ob angenommen oder nicht: innerhalb dieses Blicks nicht noch einmal anfragen. Ohne
   --  das stellt der Ausloeser in jedem Frame denselben Antrag, solange V hinsieht.
-  if stufe == 2 then gaze.s1, gaze.s2 = true, true else gaze.s1 = true end
+  gaze.s1 = true
+  if stufe >= 2 then gaze.s2 = true end
+  if stufe >= 3 then gaze.s3 = true end
 
-  local k = pool("blick", stufe)
+  local k = (stufe == 3) and pool("flirt") or pool("blick", stufe)
   if #k == 0 then
-    log(string.format("BLICK Stufe %d - kein Eintrag mit st=%d in lines.lua", stufe, stufe))
+    log(string.format("BLICK Stufe %d - Pool leer", stufe))
     return
   end
   log(string.format("BLICK Stufe %d nach %.1fs, %d Kandidaten", stufe, gaze.t, #k))
   Speaker.Request({
-    situation  = "blick",
+    situation  = (stufe == 3) and "flirt" or "blick",
     pool       = "blick" .. stufe,
     kandidaten = k,
-    cd         = (stufe == 2) and GAZE.cd2 or GAZE.cd1,
+    cd         = (stufe == 3) and GAZE.cd3 or (stufe == 2) and GAZE.cd2 or GAZE.cd1,
     ziel       = obj,
   })
   gaze.zuletzt = string.format("Stufe %d, %d Kandidaten", stufe, #k)
@@ -300,14 +346,14 @@ local function gazeTick(d, p)
     stimme.judyId = id
     judyMerken(o)
     if id ~= gaze.id then
-      gaze.id, gaze.t, gaze.s1, gaze.s2 = id, 0.0, false, false
+      gaze.id, gaze.t, gaze.s1, gaze.s2, gaze.s3 = id, 0.0, false, false, false
     end
     gaze.t = gaze.t + d
     gazeFeuern(o)
   elseif gaze.id then
     --  Wegsehen setzt die Uhr zurueck. Sonst liesse sich die Schwelle aus lauter kurzen
     --  Blicken zusammensammeln, und das ist nicht dasselbe wie jemanden anzusehen.
-    gaze.id, gaze.t, gaze.s1, gaze.s2 = nil, 0.0, false, false
+    gaze.id, gaze.t, gaze.s1, gaze.s2, gaze.s3 = nil, 0.0, false, false, false
   end
 end
 
@@ -384,6 +430,7 @@ local LEITER = {
   { steht =  25.0, pool = "reibung",    cd = 120.0 },   -- V steht rum: Ungeduld
   { steht =  75.0, pool = "alltag",     cd =  60.0 },   -- laenger: Smalltalk
   { steht = 180.0, pool = "initiative", cd =  60.0 },   -- sehr lange: sie faengt etwas an
+  { steht = 420.0, pool = "flirt",      cd = 900.0, liebe = true },   -- sieben Minuten
 }
 --  In Metern JE SEKUNDE. Der erste Anlauf verglich die Strecke EINES BILDES mit einem
 --  festen Wert; bei 60 Bildern waren das knapp ein Meter pro Bild, und damit haette
@@ -431,6 +478,7 @@ local function leiterTick(d, p)
   if not st then return end
   if leiter.stehtSeit < st.steht then return end
   if Speaker.StillSeit() < RUHE_MIN then return end
+  if st.liebe and not verliebtGenug() then return end
 
   local k = pool(st.pool)
   if #k == 0 or not Speaker.Frei(st.pool) then return end
@@ -635,6 +683,8 @@ local TESTS = {
   { name = "Leiter 1",    sit = "leiter",      pool = "reibung",     q = "reibung" },
   { name = "Leiter 2",    sit = "leiter",      pool = "alltag",      q = "alltag" },
   { name = "Leiter 3",    sit = "leiter",      pool = "initiative",  q = "initiative" },
+  { name = "Blick 3",     sit = "flirt",       pool = "blick3",      q = "flirt" },
+  { name = "Leiter 4",    sit = "leiter",      pool = "flirt",       q = "flirt" },
 }
 
 function T.Tests()
@@ -691,6 +741,7 @@ function T.Tick(d)
   --  Teleport-Fix gebraucht. Frueher rechnete ihn nur reibungTick, und der steigt im
   --  Wagen und im Gefecht sofort aus - dann stand im Panel ein alter Wert.
   abstand(p)
+  beziehungLesen()
   stimmeTick()
   gazeTick(d, p)
   kampfTick(d)
@@ -704,8 +755,10 @@ end
 function T.Status()
   return {
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
-              stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2,
-              n1 = #pool("blick", 1), n2 = #pool("blick", 2) },
+              stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2, stufe3 = GAZE.stufe3,
+              n1 = #pool("blick", 1), n2 = #pool("blick", 2), n3 = #pool("flirt") },
+    bez = { liebe = bez.liebe, freund = bez.freund, min = LIEBE_MIN,
+            offen = verliebtGenug() },
     kampf = { an = kampf.an, drin = kampf.drin, seit = kampf.seit,
               n = #pool("kampf"), nEnde = #pool("kampf_ende") },
     sorge = { an = sorge.an, hp = sorge.war, schwelle = SORGE.schwelle,
@@ -738,7 +791,7 @@ function T.Setzen(was, an)
 end
 
 function T.Zuruecksetzen()
-  gaze.s1, gaze.s2, gaze.t, gaze.id = false, false, 0.0, nil
+  gaze.s1, gaze.s2, gaze.s3, gaze.t, gaze.id = false, false, false, 0.0, nil
   kampf.seit = 0.0
   sorge.war = 100.0
   wieder.startOffen, wieder.seitStart, wieder.seitSprung = true, 0.0, nil

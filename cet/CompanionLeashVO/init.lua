@@ -681,9 +681,10 @@ registerForEvent("onDraw", function()
       local an = ImGui.Checkbox("Blick##gz", st.gaze.an)
       if an ~= st.gaze.an then Triggers.Setzen("blick", an) end
       ImGui.SameLine()
-      ImGui.TextDisabled(string.format("Stufe 1 ab %.0fs (%d)  |  Stufe 2 ab %.0fs (%d)",
+      ImGui.TextDisabled(string.format("%.0fs (%d)  |  %.0fs (%d)  |  %.0fs (%d, Flirt)",
                                        st.gaze.stufe1, st.gaze.n1,
-                                       st.gaze.stufe2, st.gaze.n2))
+                                       st.gaze.stufe2, st.gaze.n2,
+                                       st.gaze.stufe3, st.gaze.n3))
       ImGui.ProgressBar(math.min(1.0, st.gaze.t / st.gaze.stufe2), 260, 14,
                         string.format("%.1fs  %s", st.gaze.t,
                                       st.gaze.aktiv and "sieht sie an" or "-"))
@@ -727,6 +728,18 @@ registerForEvent("onDraw", function()
                                          st.wieder.n))
       end
 
+      ImGui.Separator()
+      if st.bez.liebe == nil then
+        ImGui.TextColored(1.0, 0.6, 0.3, 1.0,
+                          "Beziehungsstand nicht lesbar - Flirt gesperrt")
+      elseif st.bez.offen then
+        ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
+                          string.format("Liebe %d / Freundschaft %d - Flirt offen (ab %d)",
+                                        st.bez.liebe, st.bez.freund or -1, st.bez.min))
+      else
+        ImGui.TextDisabled(string.format("Liebe %d / Freundschaft %d - Flirt gesperrt (ab %d)",
+                                         st.bez.liebe, st.bez.freund or -1, st.bez.min))
+      end
       ImGui.Separator()
       if st.stimme.kennt then
         ImGui.TextDisabled("Judys Stimme erkannt  |  zuletzt von der KI: "

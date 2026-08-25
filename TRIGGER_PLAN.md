@@ -222,6 +222,36 @@ Sprosse zwei eine Pose, Sprosse drei etwas, das sie an den Ort bindet. Der Sprec
 entscheidet weiterhin, ob geredet wird - die Leiter entscheidet nur, WAS als Naechstes
 faellig waere.
 
+## Flirt: die Sperre ist wichtiger als der Ausloeser
+
+Verdrahtet als dritte Blickstufe (75 s ansehen) und vierte Leitersprosse (7 min stehen).
+Beides billig, weil die Uhren ohnehin laufen.
+
+Das Entscheidende ist aber die **Sperre**. Wer die Romanze nie gespielt hat, darf nicht
+angeflirtet werden - das ist keine Geschmacksfrage, das ist schlicht falsch, und es faellt
+sofort auf. NCA fuehrt `love` je Figur in seiner `PersistenceSystem`, und `GetLove(recordID)`
+ist von aussen erreichbar. Unbekannt heisst gesperrt, aber **sichtbar** gesperrt: der Wert
+steht im Panel, ein stiller Riegel waere nach dieser Woche genau das falsche Verhalten.
+
+Die Schwelle von 25 ist geraten - der Wert geht in NCAs Oberflaeche an einen Balken und
+sieht nach 0..100 aus, geprueft ist das nicht.
+
+### Was sich sonst anbietet
+
+**Nah und still.** V steht dicht bei ihr und bewegt sich nicht - das ist etwas anderes als
+irgendwo herumzustehen, und der Abstand liegt jetzt vor. Zwei, drei Meter statt der acht,
+die der Blick zulaesst.
+
+**Nach einem gewonnenen Gefecht.** Sie ist aufgedreht, "Sieh uns an. Nicht totzukriegen." -
+und ein Flirt dahinter sitzt anders als einer aus dem Leerlauf. Braucht Vorsicht, sonst
+kommen zwei Zeilen hintereinander.
+
+**Nachts.** `Context().hour` fuehrt NCA bereits mit; spaet und ruhig ist ein anderer Rahmen
+als mittags auf der Strasse.
+
+**Ort.** Sobald Judys Wohnung als NCA-Ort registriert ist, ist "bei ihr zu Hause" der
+staerkste Rahmen ueberhaupt - und derselbe Ort schaltet *Wohnung* und *Alltag* mit frei.
+
 ## Offen: Sorge ist keine Situation, sondern vier
 
 Nach den ersten Sitzungen: `sorge` haelt **30 Zeilen** und hat in 255 Minuten **einmal**
