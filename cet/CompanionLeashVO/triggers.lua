@@ -593,7 +593,8 @@ function T.Status()
     stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd,
                greifbar = judy.obj ~= nil },
     reibung = { an = reibung.an, dist = judy.dist, seit = reibung.seit,
-                weit = REIBUNG.weit, n = #pool("reibung") },
+                nah = REIBUNG.nah, weit = REIBUNG.weit, geduld = REIBUNG.geduld,
+                n = #pool("reibung") },
   }
 end
 

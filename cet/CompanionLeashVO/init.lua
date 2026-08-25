@@ -729,9 +729,19 @@ registerForEvent("onDraw", function()
       if re ~= st.reibung.an then Triggers.Setzen("reibung", re) end
       ImGui.SameLine()
       if st.reibung.dist then
-        ImGui.TextDisabled(string.format("%.1f m  (weit ab %.0f)  %.1fs zu weit  |  %d Zeilen",
-                                         st.reibung.dist, st.reibung.weit,
-                                         st.reibung.seit, st.reibung.n))
+        --  Der blosse Zaehler war irrefuehrend: er stand auf 0.0, weil sie danebenstand,
+        --  und las sich wie ein defekter Wert. Der Zustand gehoert dazu.
+        local lage
+        if st.reibung.dist < st.reibung.nah then
+          lage = "nah - alles gut"
+        elseif st.reibung.dist < st.reibung.weit then
+          lage = "dazwischen - zaehlt noch nicht"
+        else
+          lage = string.format("ZU WEIT seit %.1fs von %.0fs",
+                               st.reibung.seit, st.reibung.geduld)
+        end
+        ImGui.TextDisabled(string.format("%.1f m   %s   |  %d Zeilen",
+                                         st.reibung.dist, lage, st.reibung.n))
       else
         ImGui.TextDisabled(string.format("Judy nicht greifbar  |  %d Zeilen", st.reibung.n))
       end
