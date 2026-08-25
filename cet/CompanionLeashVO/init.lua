@@ -228,6 +228,10 @@ local MATRIX = {
 }
 
 
+--  Vorwaerts deklariert: onInit reicht lastLine an die Ausloeser weiter und steht im
+--  Quelltext davor. Ohne diese Zeile bekaeme Triggers.Init ein nil.
+local lastLine
+
 local STYLES, styleIdx = {}, -1
 local target, targetName = nil, "-"
 local facePending = nil
@@ -375,7 +379,8 @@ registerForEvent("onInit", function()
     })
     if Triggers then
       Triggers.Init({ speaker = Speaker, lines = LINES, log = log,
-                      ziel = function() return target end })
+                      ziel = function() return target end,
+                      letzteZeile = lastLine })
     else
       log("ACHTUNG: triggers.lua nicht geladen - keine automatischen Zeilen")
     end
@@ -392,7 +397,7 @@ end)
 
 --  Liest die zuletzt angezeigte Dialogzeile. ShowDialogLine haelt ein ARRAY von
 --  scnDialogLineData - als Struct gelesen ist jedes Feld nil.
-local function lastLine()
+lastLine = function()
   local ok, res = pcall(function()
     local defs = Game.GetAllBlackboardDefs()
     local bb   = Game.GetBlackboardSystem():Get(defs.UIGameData)
@@ -632,6 +637,10 @@ registerForEvent("onDraw", function()
       ImGui.Text("laeuft: " .. st.aktiv)
       ImGui.Text(string.format("wartend %d   angenommen %d   abgelehnt %d",
                                st.warten, st.angenommen, st.abgelehnt))
+      if st.fremdBis > 0.0 then
+        ImGui.TextColored(1.0, 0.8, 0.3, 1.0,
+                          string.format("Judy spricht selbst - noch %.1fs", st.fremdBis))
+      end
       local g = {}
       for k, v in pairs(st.gruende) do g[#g + 1] = string.format("%s %d", k, v) end
       table.sort(g)
@@ -699,6 +708,16 @@ registerForEvent("onDraw", function()
         ImGui.TextDisabled(string.format("wartet auf Ortssprung  |  %d Zeilen",
                                          st.wieder.n))
       end
+
+      ImGui.Separator()
+      if st.stimme.kennt then
+        ImGui.TextDisabled("Judys Stimme erkannt  |  zuletzt von der KI: "
+                           .. st.stimme.zuletzt)
+      else
+        ImGui.TextDisabled("Judys Entity noch unbekannt - einmal ansehen oder eine "
+                           .. "Zeile abspielen")
+      end
+      ImGui.Separator()
 
       local fa = ImGui.Checkbox("Fahrzeug##fa", st.fahrt.an)
       if fa ~= st.fahrt.an then Triggers.Setzen("fahrzeug", fa) end

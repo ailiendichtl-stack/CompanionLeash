@@ -10,7 +10,7 @@
 
 local T = {}
 
-local Speaker, LINES, log, holeZiel
+local Speaker, LINES, log, holeZiel, letzteZeile
 
 --  ---------------------------------------------------------------- gemeinsame Hilfen
 
@@ -218,6 +218,7 @@ local function gazeTick(d, p)
 
   if passt then
     local id = tostring(o:GetEntityID().hash)
+    stimme.judyId = id
     if id ~= gaze.id then
       gaze.id, gaze.t, gaze.s1, gaze.s2 = id, 0.0, false, false
     end
@@ -280,6 +281,37 @@ local function kampfTick(d)
                           kandidaten = k, cd = KAMPF.cd_ende })
       end
     end
+  end
+end
+
+--  ---------------------------------------------------------------- Judys eigene Stimme
+
+--  Die Spiel-KI laesst Judy im Gefecht selbst reden - dieselbe Voiceset-Infrastruktur, die
+--  wir benutzen. Wer da dazwischenspricht, ersetzt ihre Zeile statt sie zu ergaenzen.
+--
+--  Eine direkte Abfrage "spricht sie gerade" gibt es nicht. Was es gibt, ist der
+--  Untertitel: `UIGameData.ShowDialogLine` fuehrt die zuletzt gezeigte Zeile samt Sprecher
+--  und Dauer. Erscheint dort eine Zeile von ihr, waehrend WIR nichts gestartet haben, war
+--  es die KI.
+--
+--  Nebenbei loest das ein zweites Problem: laeuft eine unserer Zeilen, ist der Sprecher im
+--  Untertitel zwangslaeufig sie - so lernen wir ihre Entity-Id, ohne sie ansehen zu muessen.
+local stimme = { judyId = nil, letzter = "", zuletztFremd = "-" }
+
+local function stimmeTick()
+  if not letzteZeile then return end
+  local dl = letzteZeile()
+  if not dl or dl.text == "" or dl.text == stimme.letzter then return end
+  stimme.letzter = dl.text
+
+  if Speaker.Spricht() then
+    if dl.hash and dl.hash ~= "" then stimme.judyId = dl.hash end
+    return
+  end
+  if stimme.judyId and dl.hash == stimme.judyId then
+    Speaker.Fremd(dl.dur)
+    stimme.zuletztFremd = dl.text
+    log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
   end
 end
 
@@ -405,10 +437,11 @@ end
 --  ---------------------------------------------------------------- aussen
 
 function T.Init(opts)
-  Speaker  = opts.speaker
-  LINES    = opts.lines or {}
-  log      = opts.log or function() end
-  holeZiel = opts.ziel
+  Speaker     = opts.speaker
+  LINES       = opts.lines or {}
+  log         = opts.log or function() end
+  holeZiel    = opts.ziel
+  letzteZeile = opts.letzteZeile
 end
 
 --  Fuer das Panel: was sieht V gerade an?
@@ -430,6 +463,7 @@ function T.Tick(d)
   if not Speaker then return end
   local p = spieler()
   if not p then return end
+  stimmeTick()
   gazeTick(d, p)
   kampfTick(d)
   sorgeTick()
@@ -450,6 +484,7 @@ function T.Status()
                seit = wieder.seitStart, nach = WIEDER.nachStart,
                n = #pool("wiedersehen") },
     fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
+    stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd },
   }
 end
 

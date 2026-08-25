@@ -46,6 +46,7 @@ local S = {
   gen     = 0,
   aktiv   = nil,      -- { situation, prio, line, gen, endeUm }
   ruheBis = 0.0,
+  fremdBis = 0.0,     -- solange redet die Spiel-KI selbst durch sie
   cdBis   = {},       -- Pool -> Zeitpunkt
   zuletzt = {},       -- Pool -> zuletzt gespielter Name
   warten  = {},       -- Situation -> Antrag (hoechstens einer je Situation)
@@ -97,6 +98,9 @@ end
 local function pruefen(a)
   if not a.line and not (a.kandidaten and #a.kandidaten > 0) then return "noLine" end
   if not tierOk() then return "dialogueActive" end
+  --  Die Spiel-KI laesst Judy im Gefecht von sich aus reden, ueber dieselbe
+  --  Voiceset-Infrastruktur. Wer da dazwischenfunkt, ueberschreibt ihre eigene Zeile.
+  if S.jetzt < S.fremdBis then return "fremdeStimme" end
   if S.jetzt < S.ruheBis then return "globalCooldown" end
   if a.pool and S.cdBis[a.pool] and S.jetzt < S.cdBis[a.pool] then return "cooldown" end
   if a.line and a.pool and S.zuletzt[a.pool] == a.line then return "duplicateLine" end
@@ -172,11 +176,25 @@ function Speaker.Request(a)
   return true
 end
 
+--  Spricht gerade eine Zeile von UNS?
+function Speaker.Spricht()
+  return S.aktiv ~= nil
+end
+
+--  Judy redet gerade von sich aus. Fuer diese Dauer stellt sich der Sprecher hinten an -
+--  eine eigene Zeile daraufzusetzen wuerde ihre ueberschreiben, nicht ergaenzen.
+function Speaker.Fremd(dauer)
+  local d = math.max(0.5, math.min(12.0, dauer or 2.0))
+  S.fremdBis = math.max(S.fremdBis, S.jetzt + d + 0.8)
+  buchen("FREMD", string.format("%.1fs", d))
+end
+
 --  Waere ein Antrag fuer diesen Pool jetzt ueberhaupt aussichtsreich? Ein Ausloeser, der
 --  im Takt anfragt, soll nicht 15-mal je Abklingzeit abgelehnt werden - das flutet das
 --  Protokoll und macht die echten Ablehnungen unauffindbar.
 function Speaker.Frei(pool)
   if S.aktiv then return false end
+  if S.jetzt < S.fremdBis then return false end
   if S.jetzt < S.ruheBis then return false end
   if pool and S.cdBis[pool] and S.jetzt < S.cdBis[pool] then return false end
   return true
@@ -237,6 +255,7 @@ end
 function Speaker.Status()
   return {
     jetzt = S.jetzt,
+    fremdBis = math.max(0.0, S.fremdBis - S.jetzt),
     aktiv = S.aktiv and string.format("%s  %s  noch %.1fs",
               S.aktiv.situation, S.aktiv.line, math.max(0.0, S.aktiv.endeUm - S.jetzt)) or "-",
     warten = (function()
@@ -254,7 +273,7 @@ end
 
 --  Fuer das Panel: alle Sperren loesen, damit man beim Einstellen nicht wartet.
 function Speaker.Freigeben()
-  S.aktiv, S.ruheBis = nil, 0.0
+  S.aktiv, S.ruheBis, S.fremdBis = nil, 0.0, 0.0
   S.cdBis, S.warten, S.zuletzt = {}, {}, {}
   buchen("CLEAR", "alle Sperren geloest")
   schreiben("SPEAKER CLEAR alle Sperren von Hand geloest - Abklingzeiten und "
