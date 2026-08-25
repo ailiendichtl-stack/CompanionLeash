@@ -26,6 +26,35 @@ local function imSpiel()
   return p ~= nil
 end
 
+--  Ein Wert aus der Spieler-Zustandsmaschine.
+--
+--  `Game.GetPlayer():IsInCombat()` sah naheliegend aus und lieferte nie etwas - der Aufruf
+--  scheiterte, das pcall schluckte es, und der Kampf-Ausloeser blieb still. Nichts im
+--  Protokoll, weil ich nur Zustandswechsel schreibe, und Wechsel gab es nie.
+--
+--  Darum zwei Dinge: das Blackboard statt der Skriptfunktion, und eine Sonde, die ihren
+--  ERSTEN Fehlschlag meldet. Eine Abfrage, die stumm nichts liefert, kostet mehr Zeit als
+--  jeder laute Fehler.
+local sondeTot = {}
+
+local function psm(feld)
+  local wert, ok = nil, false
+  pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb = Game.GetBlackboardSystem():GetLocalInstanced(
+                 Game.GetPlayer():GetEntityID(), defs.PlayerStateMachine)
+    if bb then
+      wert = bb:GetInt(defs.PlayerStateMachine[feld])
+      ok = wert ~= nil
+    end
+  end)
+  if not ok and not sondeTot[feld] then
+    sondeTot[feld] = true
+    log("SONDE PlayerStateMachine." .. feld .. " nicht lesbar")
+  end
+  return wert
+end
+
 --  Alle Eintraege einer Situation, wahlweise nur einer Stufe.
 local function pool(situation, stufe)
   local p = {}
@@ -48,8 +77,6 @@ end
 --  Darum wird die Record-Id jetzt als ZAHL verglichen, gegen `Character.Judy` - das ist
 --  die Id, unter der NCA sie fuehrt. Keine Namensaufloesung, keine Sprache, kein Debugname.
 --  Der aufgeloeste LocKey und das gesperrte Panel-Ziel bleiben als Rueckfallebenen.
-local gesehen = {}
-
 local JUDY = nil
 pcall(function() JUDY = TweakDBID.new("Character.Judy") end)
 
@@ -101,17 +128,10 @@ local function istJudy(o)
 
   if klarname(o):lower():find("judy", 1, true) then return true end
 
-  --  Einmal je Objekt festhalten, was tatsaechlich da war. Ohne das sucht man den Fehler
-  --  wieder dort, wo er nicht ist.
-  local h = "?"
-  pcall(function() h = tostring(o:GetEntityID().hash) end)
-  if not gesehen[h] then
-    gesehen[h] = true
-    local rec, name = beschreibe(o)
-    log(string.format("BLICK nicht Judy: name=%s record=%s (Judy=%s)",
-        name, rec,
-        JUDY and string.format("%s:%s", tostring(JUDY.hash), tostring(JUDY.length)) or "nil"))
-  end
+  --  Frueher stand hier ein Eintrag je unbekanntem Objekt. Das hat die Erkennung
+  --  aufgeklaert, aber Night City hat Tausende Entitaeten, und 75 von 160 Zeilen waren
+  --  Autos und Passanten. Was jetzt zaehlt, steht im Panel unter "anvisiert" - live und
+  --  ohne Protokoll.
   return false
 end
 
@@ -168,9 +188,7 @@ local function gazeTick(d)
 
   local passt = istJudy(o)
   if passt then
-    local kampf = false
-    pcall(function() kampf = spieler:IsInCombat() end)
-    if kampf then passt = false end
+    if psm("Combat") == 1 then passt = false end
   end
   if passt then
     local dist = 999.0
@@ -206,8 +224,8 @@ local kampf = { drin = false, seit = 0.0, seitEnde = nil, an = true }
 
 local function kampfTick(d)
   if not kampf.an then return end
-  local drin = false
-  pcall(function() drin = Game.GetPlayer():IsInCombat() end)
+  --  gamePSMCombat: 0 Default, 1 InCombat, 2 OutOfCombat, 3 Stealth
+  local drin = psm("Combat") == 1
 
   if drin and not kampf.drin then
     kampf.drin, kampf.seit, kampf.seitEnde = true, 0.0, nil
