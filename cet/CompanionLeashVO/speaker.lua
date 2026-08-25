@@ -53,6 +53,7 @@ local S = {
   buch    = {},       -- Ringpuffer der letzten Entscheidungen
   zaehler = { angenommen = 0, abgelehnt = 0 },
   gruende = {},       -- Ablehnungsgrund -> Anzahl
+  stillSeit = 0.0,    -- Zeitpunkt, seit dem nichts mehr gesprochen wurde
 }
 
 local spielen, schreiben
@@ -176,6 +177,21 @@ function Speaker.Request(a)
   return true
 end
 
+--  Wie lange ist es her, dass sie zuletzt etwas gesagt hat?
+--
+--  Die Leiter misst RUHE, nicht Uhrzeit. Wer gerade einen Kampf kommentiert hat, ist nicht
+--  seit acht Minuten still - deshalb kommt der Wert von hier und nicht aus einem eigenen
+--  Zaehler im Ausloeser.
+function Speaker.StillSeit()
+  if S.aktiv then return 0.0 end
+  return S.jetzt - S.stillSeit
+end
+
+--  Aus welcher Situation kam die letzte Zeile?
+function Speaker.LetzteSituation()
+  return S.letzteSituation
+end
+
 --  Spricht gerade eine Zeile von UNS?
 function Speaker.Spricht()
   return S.aktiv ~= nil
@@ -221,6 +237,7 @@ function Speaker.Tick(d)
     schreiben("SPEAKER FINISH line=" .. a.line)
     buchen("FINISH", a.line)
     S.letzteSituation = a.situation
+    S.stillSeit = S.jetzt
   end
 
   --  Verfallene Antraege raeumen.

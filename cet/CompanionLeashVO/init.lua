@@ -725,6 +725,19 @@ registerForEvent("onDraw", function()
       end
       ImGui.Separator()
 
+      local le = ImGui.Checkbox("Leiter##le", st.leiter.an)
+      if le ~= st.leiter.an then Triggers.Setzen("leiter", le) end
+      ImGui.SameLine()
+      if st.leiter.naechste then
+        ImGui.TextDisabled(string.format("Sprosse %d/%d bei %.0fs  |  Ruhe %.0fs, steht %.0fs",
+                                         st.leiter.stufe, st.leiter.stufen,
+                                         st.leiter.naechste, st.leiter.ruhe,
+                                         st.leiter.steht))
+      else
+        ImGui.TextDisabled(string.format("durch - alle %d Sprossen gespielt",
+                                         st.leiter.stufen))
+      end
+
       local re = ImGui.Checkbox("Warten##re", st.reibung.an)
       if re ~= st.reibung.an then Triggers.Setzen("reibung", re) end
       ImGui.SameLine()
