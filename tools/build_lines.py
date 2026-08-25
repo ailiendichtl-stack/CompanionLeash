@@ -37,6 +37,14 @@ also nicht zu trennen, und das Ereignis in mq055 ist strukturell identisch mit u
 Nachbau. Nur eine Fassung der Animation existiert im ganzen Spiel, es gibt also auch keine
 kuerzere zum Ausweichen.
 
+Was dabei mitgeht, war mir zuerst nicht klar: die Animation ist nicht Lipsync, sondern
+die ganze Gesichtsperformance - 344 Joints, 414 Tracks, additiv auf die Ruhepose. Es gibt
+im ganzen Szenenformat kein Ereignis fuer Mimik, sie steckt allein in dieser Datei. Wer die
+Animation leiht, leiht also die Emotion mit. Deshalb wird der Spender zuerst in derselben
+Questreihe gesucht: Judys Tonfall ist innerhalb einer Quest aehnlicher als quer durchs
+Spiel, und "Ich bin froh, dass du da bist" mit dem Gesicht einer Terminabsprache liegt
+daneben, auch wenn die Laenge stimmt.
+
 Bleibt, die Frage zu umgehen: die Zeile behaelt ihren Ton, bekommt aber die
 Lipsync-Animation einer ANDEREN Zeile aehnlicher Laenge ohne Vorlauf. Die Lippen formen dann
 nicht diese Worte, sitzen aber zeitlich richtig - aus Companion-Abstand der bessere Tausch.
@@ -67,6 +75,8 @@ ANIM_DEPOT = ("base/localization/de-de/lipsync/base/quest/secondary_characters/"
               "vsets/vset_judy")
 TEMPLATE = "danger_var_1"     # direkt, kein Randomizer, Nachlauf +1
 WARN_MS = 1000                # ab hier laeuft die Animation der Zeile sichtbar davon
+PLATZHALTER_MS = 200          # darunter ist die Szenendauer kein Messwert
+NAH_GENUG_MS = 400            # so weit darf ein Spender aus der eigenen Reihe danebenliegen
 
 #  (Eintragsname, stringId als Hex). Die ersten beiden sagen fast dasselbe, unterscheiden
 #  sich aber im Verhaeltnis Animation zu Zeile - nebeneinander machen sie hoerbar, dass es
@@ -78,6 +88,9 @@ WANTED = [
     #  Dreimal dieselbe Zeile aus mq055 - 2922 ms Ton gegen 4267 ms Animation.
     dict(name="cl_v_roh",  hex="39669188b9a4e000", raw=True),
     dict(name="cl_v_leih", hex="39669188b9a4e000"),
+    #  Szenendauer ist ein 100-ms-Platzhalter - faellt auf die Animationslaenge zurueck
+    #  und braucht dann gar keinen Spender.
+    dict(name="cl_tauch",  hex="1be5242cf12b6000"),
 ]
 
 
@@ -112,27 +125,31 @@ def main():
         anim = anims.get(src)
         delta = (anim["ms"] - rec["dur"]) if anim else None
 
-        lipsync, lip_scene = src, rec["scene"]
+        duration, lipsync, lip_scene = rec["dur"], src, rec["scene"]
         if delta is None:
             note = "kein Anim-Eintrag"
+        elif rec["dur"] <= PLATZHALTER_MS:
+            #  Die Szene traegt keine echte Dauer. Die eigene Animation ist dann das
+            #  beste Mass, das es gibt - und sie passt per Definition zum Gesicht.
+            duration = anim["ms"]
+            note = "Szenendauer ist Platzhalter, Animationslaenge %d genommen" % anim["ms"]
         elif w.get("borrow") or (delta > WARN_MS and not w.get("raw")):
             b = w.get("borrow")
             if b:
                 lipsync = "f_" + b.upper()
             else:
-                lipsync = _donor(donors, rec["dur"])
+                lipsync = _donor(donors, rec["dur"], rec["scene"])
             lip_scene = durations[str(int(lipsync[2:], 16))]["scene"]
-            note = "Lipsync geliehen: %s, %d ms statt %d" % (lipsync[2:10] + "..",
-                                                             anims[lipsync]["ms"],
-                                                             anim["ms"])
+            note = "Lipsync geliehen aus %s, %d ms statt %d" % (
+                _reihe(lip_scene), anims[lipsync]["ms"], anim["ms"])
         else:
             note = "Anim %+d ms" % delta
             if delta > WARN_MS:
                 note += "  << Mund hinkt nach"
 
-        _add_entry(root, st, name, hexid, rec["dur"], lipsync)
+        _add_entry(root, st, name, hexid, duration, lipsync)
         anims_needed.setdefault(lip_scene, {})[lipsync] = lipsync
-        print("  %-12s %5d ms  %-24s %s" % (name, rec["dur"], rec["scene"][:24], note))
+        print("  %-12s %5d ms  %-24s %s" % (name, duration, rec["scene"][:24], note))
 
     print()
     print("Einstiege %d = startNodes %d | Knoten %d = Symbole %d | Zeilen %d"
@@ -166,14 +183,30 @@ def _donors(anims, durations):
     out = []
     for name, a in anims.items():
         rec = durations.get(str(int(name[2:], 16)))
-        if rec and abs(a["ms"] - rec["dur"]) <= 150:
-            out.append((a["ms"], name))
+        if rec and rec["dur"] > PLATZHALTER_MS and abs(a["ms"] - rec["dur"]) <= 150:
+            out.append((a["ms"], name, _reihe(rec["scene"])))
     out.sort()
     return out
 
 
-def _donor(donors, target):
-    """Der Spender, dessen Laenge der Zeile am naechsten kommt."""
+def _reihe(scene):
+    """Die Questreihe einer Szene: mq055_01_megabuilding -> mq055."""
+    return scene.split("_")[0] if scene else ""
+
+
+def _donor(donors, target, scene):
+    """Der passendste Spender - erst nach Tonfall, dann nach Laenge.
+
+    Mit der Animation kommt die ganze Mimik. Innerhalb einer Questreihe ist Judys Ton
+    aehnlicher als quer durchs Spiel, also bekommt die eigene Reihe den Vorzug - solange
+    ihr bester Spender nicht zu weit danebenliegt.
+    """
+    reihe = _reihe(scene)
+    eigen = [d for d in donors if d[2] == reihe]
+    if eigen:
+        best = min(eigen, key=lambda d: abs(d[0] - target))
+        if abs(best[0] - target) <= NAH_GENUG_MS:
+            return best[1]
     return min(donors, key=lambda d: abs(d[0] - target))[1]
 
 

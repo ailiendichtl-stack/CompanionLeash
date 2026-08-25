@@ -207,6 +207,31 @@ Beobachtet wurde ein Versatz von etwa einer halben Sekunde zwischen Ton und Anim
 erwartbar, weil der Klon noch die **Dauer der Vorlage** traegt (1545 ms) und die Zielzeile
 laenger ist. Das loest sich mit den gemessenen `.wem`-Dauern.
 
+## Mimik kommt aus der Lipsync-Datei
+
+Es gibt kein Ereignis fuer Gesichtsausdruck. 36 Ereignistypen in 54 Quest-Szenen, 5348
+Dialogereignisse - keines steuert Mimik. Das Naechste ist `scnLookAtEvent`, und das ist
+Blickrichtung.
+
+Die Mimik steckt in der Animation selbst. Eine `f_<hex>` hat **344 Joints und 414 Tracks**,
+additiv auf die Ruhepose - Brauen, Lider, Wangen, nicht nur Mundformen. Der beste Beleg ist
+der Vorlauf: die mq055-Animation bewegt 1345 ms lang das Gesicht, bevor der erste Laut
+kommt. Waere dort nur Lipsync drin, gaebe es nichts zu animieren.
+
+Fuer den Bau heisst das zweierlei. Erstens: Mimik und Emotion kommen von selbst, sobald die
+eigene Animation der Zeile im Set liegt - es ist nichts zu setzen und es gibt auch keinen
+Hebel dafuer. Zweitens: **wer die Animation leiht, leiht die Emotion mit.** Deshalb sucht
+`build_lines.py` den Spender zuerst in derselben Questreihe; Judys Ton ist innerhalb einer
+Quest aehnlicher als quer durchs Spiel. Das gelingt in 35 von 42 Faellen bei 400 ms
+Toleranz. mq055 ist die Ausnahme - es stellt 6 betroffene Zeilen, aber nur 3 Spender.
+
+Steuerbar ist genau ein Feld: `voParams.disableHeadMovement` schaltet die prozedurale
+Kopfbewegung ab. Vanilla nutzt es 23-mal von 5348, sie ist also standardmaessig an.
+
+Ein zweiter Gesichtskanal existiert - `resouresReferences.ridFacialAnimSets` mit
+`scnPlayRidAnimEvent` -, aber nur fuer aufgezeichnete Cinematics: 30 Eintraege in 54
+Szenen, in Judys Voiceset keiner.
+
 ## Offen
 
 
