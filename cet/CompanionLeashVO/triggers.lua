@@ -377,6 +377,92 @@ end
 --
 --  Der interessanteste ist Nummer 6: `SetReplicatedStanceState` gibt einen Bool zurueck,
 --  den das private `ChangeStanceState` verschluckt. Den hat noch nie jemand gesehen.
+--  ------------------------------------------------ Haltung: mitlesen statt weiterraten
+--
+--  Im Kampf geht sie von selbst in Deckung und in die Hocke. Ihr Animationsgraph kann es
+--  also - nur nicht ueber den Weg, den wir gehen. Damit ist Wege-Raten der falsche Zug.
+--  Das Spiel fuehrt es uns vor; wir lesen mit, WAS sich dabei an ihr aendert.
+
+local function bbLesen(o, feld)
+  local v
+  pcall(function()
+    local defs = Game.GetAllBlackboardDefs().PuppetState
+    local bb = Game.GetBlackboardSystem():GetLocalInstanced(o:GetEntityID(), defs)
+    if bb and defs[feld] then v = bb:GetInt(defs[feld]) end
+  end)
+  return v
+end
+
+--  Jeder Wert einzeln und einzeln abgesichert. Faellt einer aus, steht dort ein Strich,
+--  und die anderen sagen trotzdem etwas.
+local FELDER = {
+  { "Haltung",  function(o) return haltungLesen(o) end },
+  { "bbStance", function(o) return bbLesen(o, "Stance") end },
+  { "bbHigh",   function(o) return bbLesen(o, "HighLevel") end },
+  { "bbUpper",  function(o) return bbLesen(o, "UpperBody") end },
+  { "bbCover",  function(o) return bbLesen(o, "InCover") end },
+  { "bbLoco",   function(o) return bbLesen(o, "Locomotion") end },
+  { "Kampf",    function(o) return o:IsInCombat() end },
+  { "Deckung",  function(o) return o:IsInCover() end },
+  { "Waffe",    function(o) return o:HasAnyWeaponEquipped() end },
+  { "Tempo",    function(o) return string.format("%.1f", Vector4.Length(o:GetVelocity())) end },
+}
+
+local beob = { an = false, takt = 0.0, vorher = nil }
+
+local function probeNehmen(o)
+  local pr = {}
+  for _, f in ipairs(FELDER) do
+    local v
+    pcall(function() v = f[2](o) end)
+    pr[f[1]] = (v == nil) and "-" or tostring(v)
+  end
+  return pr
+end
+
+local function probeSchreiben(kopf, pr)
+  log("PROBE " .. kopf)
+  for _, f in ipairs(FELDER) do
+    log(string.format("   %-9s %s", f[1], pr[f[1]]))
+  end
+end
+
+--  Nur Aenderungen melden. Waehrend eines Gefechts stuende sonst alle 0.4s dasselbe im
+--  Log und die eine Zeile, auf die es ankommt, ginge darin unter.
+local function beobTick(d)
+  if not beob.an then return end
+  beob.takt = beob.takt + d
+  if beob.takt < 0.4 then return end
+  beob.takt = 0.0
+  local o = judyHolen()
+  if not o then return end
+  local jetzt = probeNehmen(o)
+  if not beob.vorher then
+    beob.vorher = jetzt
+    probeSchreiben("Ausgangslage", jetzt)
+    return
+  end
+  local aend = {}
+  for _, f in ipairs(FELDER) do
+    local n = f[1]
+    if jetzt[n] ~= beob.vorher[n] then
+      aend[#aend + 1] = string.format("%s %s -> %s", n, beob.vorher[n], jetzt[n])
+    end
+  end
+  if #aend > 0 then log("PROBE " .. table.concat(aend, " | ")) end
+  beob.vorher = jetzt
+end
+
+--  Die Ebene UEBER der Haltung. Der Verdacht: in `Relaxed` hat ihr Graph gar keinen
+--  Hock-Zustand, deshalb bleibt der gesetzte Wert unbenutzt liegen. Im Kampf setzt die KI
+--  beides - Lage UND Haltung - und dann sieht man es.
+local function lageSetzen(o, name)
+  local ok, fehler = pcall(function()
+    NPCPuppet.ChangeHighLevelState(o, Enum.new("gamedataNPCHighLevelState", name))
+  end)
+  return ok and ("Lage " .. name) or ("Lage " .. name .. " fehlt: " .. tostring(fehler))
+end
+
 local HWEGE = {
   { name = "1 NPCPuppet.ChangeStanceState", fn = function(o, st)
       NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
@@ -458,12 +544,92 @@ local HWEGE = {
       haltung.nachmessen = { o = o, rest = 3.0, takt = 0.0 }
       return "messe 3s nach"
     end },
+  { name = "12 Lage Combat, dann Hocke", fn = function(o, st)
+      local m = lageSetzen(o, "Combat")
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      return m
+    end },
+  { name = "13 Lage Alerted, dann Hocke", fn = function(o, st)
+      local m = lageSetzen(o, "Alerted")
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      return m
+    end },
+  { name = "14 Lage Stealth, dann Hocke", fn = function(o, st)
+      local m = lageSetzen(o, "Stealth")
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      return m
+    end },
   { name = "8 Cover statt Crouch", fn = function(o, st)
       NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState",
                                               (st == "Crouch") and "Cover" or "Stand"))
       return "aufgerufen"
     end },
 }
+
+--  Was gibt es ueberhaupt? Bisher habe ich Namen aus dem Skript-Dump geraten, und die
+--  RTTI kennt nicht jeden davon - `AnimFeature_NPCState` gegen `animAnimFeature_NPCState`
+--  hat uns das schon vorgefuehrt. Hier fragen wir die laufende RTTI selbst.
+local RTTI_KLASSEN = { "ScriptedPuppet", "NPCPuppet", "npcStateComponent", "gamePuppet",
+                       "AnimationControllerComponent", "AIHumanComponent", "AIComponent" }
+local RTTI_MUSTER  = { "stance", "crouch", "stealth", "cover", "locomotion", "movement",
+                       "highlevel", "state" }
+
+local function enumZeigen(name, bis)
+  local teile = {}
+  for i = 0, bis do
+    local ok, txt = pcall(function() return tostring(Enum.new(name, i)) end)
+    if ok and txt and txt ~= "" then teile[#teile + 1] = i .. "=" .. txt end
+  end
+  log("ENUM " .. name .. ": " .. table.concat(teile, "  "))
+end
+
+function T.HaltungRTTI()
+  for _, kn in ipairs(RTTI_KLASSEN) do
+    local ok, fehler = pcall(function()
+      local c = Reflection.GetClass(kn)
+      if not c then log("RTTI " .. kn .. " - unbekannt"); return end
+      local treffer = {}
+      for _, liste in ipairs({ c:GetFunctions(), c:GetStaticFunctions() }) do
+        for _, f in ipairs(liste) do
+          local n = f:GetName()
+          local klein = string.lower(n)
+          for _, m in ipairs(RTTI_MUSTER) do
+            if string.find(klein, m, 1, true) then treffer[#treffer + 1] = n; break end
+          end
+        end
+      end
+      log(string.format("RTTI %s - %d Treffer", kn, #treffer))
+      for _, n in ipairs(treffer) do log("   " .. n) end
+    end)
+    if not ok then log("RTTI " .. kn .. " - Fehler: " .. tostring(fehler)) end
+  end
+
+  local ok, fehler = pcall(function()
+    local c = Reflection.GetClass("PuppetStateDef")
+    if not c then log("RTTI PuppetStateDef - unbekannt"); return end
+    local namen = {}
+    for _, pr in ipairs(c:GetProperties()) do namen[#namen + 1] = pr:GetName() end
+    log("RTTI PuppetStateDef - Felder: " .. table.concat(namen, ", "))
+  end)
+  if not ok then log("RTTI PuppetStateDef - Fehler: " .. tostring(fehler)) end
+
+  enumZeigen("gamedataNPCStanceState", 6)
+  enumZeigen("gamedataNPCHighLevelState", 8)
+  enumZeigen("gamedataNPCUpperBodyState", 8)
+  enumZeigen("moveMovementType", 8)
+end
+
+function T.Probe()
+  local o = judyHolen()
+  if not o then log("PROBE Judy nicht greifbar"); return end
+  probeSchreiben("Momentaufnahme", probeNehmen(o))
+end
+
+function T.Beobachten(an)
+  beob.an = an and true or false
+  beob.vorher = nil
+  log("PROBE Beobachtung " .. (beob.an and "an" or "aus"))
+end
 
 function T.HaltungWege()
   local out = {}
@@ -1163,6 +1329,7 @@ function T.Tick(d)
   beziehungLesen()
   stimmeTick()
   nachmessen(d)
+  beobTick(d)
   halten(d)
   gazeTick(d, p)
   kampfTick(d)
@@ -1178,6 +1345,7 @@ end
 
 function T.Status()
   return {
+    beob  = beob.an,
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
               stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2, stufe3 = GAZE.stufe3,
               n1 = #pool("blick", 1), n2 = #pool("blick", 2), n3 = #pool("flirt") },
