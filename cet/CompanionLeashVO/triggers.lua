@@ -326,8 +326,15 @@ local function haltungSetzen(o, name)
   --  gescheiterter Bau - und `bau=nil` liess beides offen. Jeder Schritt einzeln.
   if not haltung.gemeldet then
     haltung.spur = {}
-    for _, name in ipairs({ "AnimFeature_NPCState", "handle:AnimFeature_NPCState",
-                            "gameAnimFeature_NPCState", "animAnimFeature_NPCState" }) do
+    --  CETs Typsuche kennt nicht zwingend den Namen aus dem Skript-Dump. Die nativen
+    --  Klassen tragen je nach Bereich ein Praefix - anim, game, gameanim -, und welches
+    --  hier gilt, sagt nur der Versuch.
+    local KANDIDATEN = {
+      "AnimFeature_NPCState", "handle:AnimFeature_NPCState",
+      "animAnimFeature_NPCState", "gameAnimFeature_NPCState",
+      "gameanimAnimFeature_NPCState", "handle:animAnimFeature_NPCState",
+    }
+    for _, name in ipairs(KANDIDATEN) do
       local obj
       local okBau = pcall(function() obj = NewObject(name) end)
       if okBau and obj then
@@ -339,13 +346,16 @@ local function haltungSetzen(o, name)
         haltung.spur[#haltung.spur + 1] = string.format("%s: kein Objekt", name)
       end
     end
-    --  Gibt es die Klasse ueberhaupt? Reflection sagt es unabhaengig von NewObject.
-    for _, name in ipairs({ "AnimFeature_NPCState", "gameAnimFeature_NPCState" }) do
-      pcall(function()
-        local c = Reflection.GetClass(name)
-        haltung.spur[#haltung.spur + 1] =
-          string.format("Reflection %s: %s", name, c and "bekannt" or "unbekannt")
-      end)
+    --  Gibt es die Klasse ueberhaupt? Reflection antwortet unabhaengig davon, ob
+    --  NewObject sie bauen kann - das trennt "gibt es nicht" von "laesst sich nicht bauen".
+    for _, name in ipairs(KANDIDATEN) do
+      if not name:find("handle:", 1, true) then
+        pcall(function()
+          local c = Reflection.GetClass(name)
+          haltung.spur[#haltung.spur + 1] =
+            string.format("Reflection %s: %s", name, c and "BEKANNT" or "unbekannt")
+        end)
+      end
     end
   end
 
