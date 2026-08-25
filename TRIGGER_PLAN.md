@@ -229,12 +229,26 @@ Beides billig, weil die Uhren ohnehin laufen.
 
 Das Entscheidende ist aber die **Sperre**. Wer die Romanze nie gespielt hat, darf nicht
 angeflirtet werden - das ist keine Geschmacksfrage, das ist schlicht falsch, und es faellt
-sofort auf. NCA fuehrt `love` je Figur in seiner `PersistenceSystem`, und `GetLove(recordID)`
-ist von aussen erreichbar. Unbekannt heisst gesperrt, aber **sichtbar** gesperrt: der Wert
-steht im Panel, ein stiller Riegel waere nach dieser Woche genau das falsche Verhalten.
+sofort auf.
 
-Die Schwelle von 25 ist geraten - der Wert geht in NCAs Oberflaeche an einen Balken und
-sieht nach 0..100 aus, geprueft ist das nicht.
+Der erste Versuch nahm NCAs `love`, und das war der falsche Wert. Im Spiel stand
+**Liebe 6 / Freundschaft 70** bei abgeschlossener Romanze und fester Partnerin: NCAs Zaehler
+misst seinen EIGENEN Fortschritt aus Posen und Gespraechen, nicht die Romanze. Als Sperre
+haette er alles zugehalten.
+
+Der richtige Wert ist ein **Quest-Fakt**. Das Spiel fuehrt sie je Figur nach demselben
+Muster:
+
+```
+sq027_panam_lover      sq029_river_lover      sq028_kerry_relationship
+sq030_judy_lover       mq055_judy
+```
+
+Gefunden nicht durch Raten, sondern in den installierten Romanzen-Mods - die fragen sie
+selbst ab. Beide Judy-Fakten werden geprueft, der erste positive gewinnt.
+
+Unbekannt heisst gesperrt, aber **sichtbar** gesperrt: im Panel steht, welcher Fakt
+gegriffen hat. NCAs Punktestand bleibt daneben stehen, als Anschauung ohne Wirkung.
 
 Dazu ein **Zufallstimer, alle 10 bis 20 Minuten**. Blick und Leiter setzen beide Stillstand
 voraus - wer durch die Stadt laeuft, erreicht keinen von beiden, und genau dort fehlt etwas:

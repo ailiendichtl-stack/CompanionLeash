@@ -162,14 +162,21 @@ end
 --  ---------------------------------------------------------------- Beziehungsstand
 
 --  Flirt braucht keine Ausloesung, sondern eine SPERRE. Wer die Romanze nie gespielt hat,
---  soll nicht angeflirtet werden - das faellt sofort auf und ist kein Geschmacksfrage,
+--  soll nicht angeflirtet werden - das faellt sofort auf und ist keine Geschmacksfrage,
 --  sondern schlicht falsch.
 --
---  NCA fuehrt `love` und `friendship` je Figur in seiner PersistenceSystem, und
---  `GetLove(recordID)` ist von aussen erreichbar. Ist der Wert -1, kennt NCA sie nicht.
+--  Der erste Versuch nahm NCAs `love`. Das war der falsche Wert: er zaehlt NCAs eigenen
+--  Fortschritt aus Posen und Gespraechen. Im Spiel stand "Liebe 6 / Freundschaft 70" bei
+--  abgeschlossener Romanze und fester Partnerin - als Sperre haette er alles zugehalten.
+--
+--  Der richtige Wert ist ein Quest-Fakt. Das Spiel fuehrt sie je Figur nach demselben
+--  Muster - `sq027_panam_lover`, `sq029_river_lover`, `sq028_kerry_relationship` -, und
+--  Judys heisst `sq030_judy_lover`. Beide hier benutzten Fakten werden von installierten
+--  Romanzen-Mods abgefragt, sind also nicht geraten.
+local FAKTEN = { "sq030_judy_lover", "mq055_judy" }
+
 local NCA_PS = nil
-local bez = { liebe = nil, freund = nil }
-local LIEBE_MIN = 25       -- vorlaeufig; der Balken sieht nach 0..100 aus
+local bez = { liebe = nil, freund = nil, fakt = nil, welcher = nil }
 
 local function beziehungLesen()
   if NCA_PS == nil then
@@ -183,17 +190,30 @@ local function beziehungLesen()
       log("SONDE NCAs PersistenceSystem nicht erreichbar - Flirt bleibt gesperrt")
     end
   end
-  if not NCA_PS or not JUDY then return end
-  pcall(function()
-    bez.liebe  = NCA_PS:GetLove(JUDY)
-    bez.freund = NCA_PS:GetFriendship(JUDY)
-  end)
+  if NCA_PS and JUDY then
+    pcall(function()
+      bez.liebe  = NCA_PS:GetLove(JUDY)
+      bez.freund = NCA_PS:GetFriendship(JUDY)
+    end)
+  end
+
+  --  Der Fakt entscheidet. NCAs Werte stehen nur zur Anschauung daneben.
+  bez.fakt, bez.welcher = nil, nil
+  for _, name in ipairs(FAKTEN) do
+    local v
+    pcall(function() v = Game.GetQuestsSystem():GetFact(CName.new(name)) end)
+    if v and v > 0 then
+      bez.fakt, bez.welcher = v, name
+      return
+    end
+    if v ~= nil and bez.fakt == nil then bez.fakt = 0 end
+  end
 end
 
---  Unbekannt heisst gesperrt - aber sichtbar gesperrt. Im Panel steht der Wert, und ein
---  stiller Riegel waere nach den letzten Tagen genau das falsche Verhalten.
+--  Unbekannt heisst gesperrt - aber sichtbar gesperrt. Im Panel steht, welcher Fakt
+--  gegriffen hat; ein stiller Riegel waere nach dieser Woche genau das falsche Verhalten.
 local function verliebtGenug()
-  return bez.liebe ~= nil and bez.liebe >= LIEBE_MIN
+  return bez.fakt ~= nil and bez.fakt > 0
 end
 
 --  ---------------------------------------------------------------- Wo ist Judy
@@ -797,8 +817,8 @@ function T.Status()
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
               stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2, stufe3 = GAZE.stufe3,
               n1 = #pool("blick", 1), n2 = #pool("blick", 2), n3 = #pool("flirt") },
-    bez = { liebe = bez.liebe, freund = bez.freund, min = LIEBE_MIN,
-            offen = verliebtGenug() },
+    bez = { liebe = bez.liebe, freund = bez.freund,
+            fakt = bez.fakt, welcher = bez.welcher, offen = verliebtGenug() },
     zufall = { an = zufall.an, rest = zufall.rest,
                min = ZUFALL.min, max = ZUFALL.max, n = #pool("flirt") },
     kampf = { an = kampf.an, drin = kampf.drin, seit = kampf.seit,

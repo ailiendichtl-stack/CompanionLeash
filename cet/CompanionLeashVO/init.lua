@@ -729,17 +729,19 @@ registerForEvent("onDraw", function()
       end
 
       ImGui.Separator()
-      if st.bez.liebe == nil then
-        ImGui.TextColored(1.0, 0.6, 0.3, 1.0,
-                          "Beziehungsstand nicht lesbar - Flirt gesperrt")
-      elseif st.bez.offen then
+      if st.bez.offen then
         ImGui.TextColored(0.4, 1.0, 0.4, 1.0,
-                          string.format("Liebe %d / Freundschaft %d - Flirt offen (ab %d)",
-                                        st.bez.liebe, st.bez.freund or -1, st.bez.min))
+                          string.format("Romanze bestaetigt (%s = %d) - Flirt offen",
+                                        st.bez.welcher or "?", st.bez.fakt or 0))
+      elseif st.bez.fakt == nil then
+        ImGui.TextColored(1.0, 0.6, 0.3, 1.0,
+                          "Quest-Fakten nicht lesbar - Flirt gesperrt")
       else
-        ImGui.TextDisabled(string.format("Liebe %d / Freundschaft %d - Flirt gesperrt (ab %d)",
-                                         st.bez.liebe, st.bez.freund or -1, st.bez.min))
+        ImGui.TextDisabled("keine Romanze laut Quest-Fakt - Flirt gesperrt")
       end
+      ImGui.TextDisabled(string.format("   NCA-Fortschritt: Liebe %d / Freundschaft %d "
+                                       .. "(zaehlt NCAs eigene Posen, keine Sperre)",
+                                       st.bez.liebe or -1, st.bez.freund or -1))
       ImGui.Separator()
       if st.stimme.kennt then
         ImGui.TextDisabled("Judys Stimme erkannt  |  zuletzt von der KI: "
