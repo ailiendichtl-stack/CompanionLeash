@@ -292,7 +292,8 @@ end
 local STANCE = { Crouch = "Crouch", Stand = "Stand" }
 local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
-                  gesetzt = 0, korrekturen = 0, gemeldet = false }
+                  gesetzt = 0, korrekturen = 0, gemeldet = false,
+                  bauWeg = nil, setzWeg = nil }
 
 --  Was steht gerade in ihrem Zustands-Blackboard?
 local function haltungLesen(o)
@@ -320,12 +321,44 @@ local function haltungSetzen(o, name)
   local wert = ZUSTAND[name] or ZUSTAND.Stand
   local schritte = { feature = false, wrapper = false, blackboard = false }
 
-  pcall(function()
-    local feat = NewObject("AnimFeature_NPCState")
-    feat.state = wert
-    AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-    schritte.feature = true
-  end)
+  --  Der erste Anlauf umschloss Objektbau und Anwendung mit EINEM pcall und meldete nur
+  --  "Feature=false" - welcher der beiden Schritte scheiterte, blieb offen. Getrennt, und
+  --  mit den Schreibweisen durchprobiert: `AnimFeature` ist ein Handle-Typ, und CET
+  --  braucht dafuer unter Umstaenden das Praefix.
+  local feat
+  for _, wie in ipairs({ "handle:AnimFeature_NPCState", "AnimFeature_NPCState",
+                         "gameAnimFeature_NPCState" }) do
+    if not feat then
+      pcall(function()
+        local f = NewObject(wie)
+        if f then
+          f.state = wert
+          feat = f
+          haltung.bauWeg = wie
+        end
+      end)
+    end
+  end
+
+  if feat then
+    --  Statische Methoden einer Skriptklasse sind in CET direkt erreichbar - falls nicht,
+    --  bleibt der Weg ueber die Komponente am Objekt.
+    pcall(function()
+      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
+      schritte.feature = true
+      haltung.setzWeg = "statisch"
+    end)
+    if not schritte.feature then
+      pcall(function()
+        local comp = o:FindComponentByName(CName.new("AnimationController"))
+        if comp then
+          comp:ApplyFeature(CName.new("stanceState"), feat)
+          schritte.feature = true
+          haltung.setzWeg = "Komponente"
+        end
+      end)
+    end
+  end
 
   pcall(function()
     AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
@@ -344,8 +377,9 @@ local function haltungSetzen(o, name)
 
   if not haltung.gemeldet then
     haltung.gemeldet = true
-    log(string.format("HALTUNG Wege: Feature=%s Wrapper=%s Blackboard=%s",
-        tostring(schritte.feature), tostring(schritte.wrapper),
+    log(string.format("HALTUNG Wege: Feature=%s (bau=%s, setz=%s) Wrapper=%s Blackboard=%s",
+        tostring(schritte.feature), tostring(haltung.bauWeg),
+        tostring(haltung.setzWeg), tostring(schritte.wrapper),
         tostring(schritte.blackboard)))
   end
   return schritte.feature or schritte.wrapper
