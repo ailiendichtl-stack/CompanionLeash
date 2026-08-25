@@ -408,7 +408,8 @@ lastLine = function()
     local hash = ""
     pcall(function() hash = tostring(el.speaker:GetEntityID().hash) end)
     return { text = tostring(el.text or ""), dur = tonumber(el.duration) or 0,
-             name = tostring(el.speakerName or ""), hash = hash }
+             name = tostring(el.speakerName or ""), hash = hash,
+             obj = el.speaker }
   end)
   if ok then return res end
   return nil
@@ -717,7 +718,23 @@ registerForEvent("onDraw", function()
         ImGui.TextDisabled("Judys Entity noch unbekannt - einmal ansehen oder eine "
                            .. "Zeile abspielen")
       end
+      if st.stimme.greifbar then
+        ImGui.TextDisabled("Position greifbar")
+      else
+        ImGui.TextDisabled("Position nicht greifbar - despawnt oder ausser Reichweite")
+      end
       ImGui.Separator()
+
+      local re = ImGui.Checkbox("Warten##re", st.reibung.an)
+      if re ~= st.reibung.an then Triggers.Setzen("reibung", re) end
+      ImGui.SameLine()
+      if st.reibung.dist then
+        ImGui.TextDisabled(string.format("%.1f m  (weit ab %.0f)  %.1fs zu weit  |  %d Zeilen",
+                                         st.reibung.dist, st.reibung.weit,
+                                         st.reibung.seit, st.reibung.n))
+      else
+        ImGui.TextDisabled(string.format("Judy nicht greifbar  |  %d Zeilen", st.reibung.n))
+      end
 
       local fa = ImGui.Checkbox("Fahrzeug##fa", st.fahrt.an)
       if fa ~= st.fahrt.an then Triggers.Setzen("fahrzeug", fa) end

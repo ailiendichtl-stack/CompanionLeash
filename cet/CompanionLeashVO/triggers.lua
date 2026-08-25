@@ -154,6 +154,44 @@ local function istJudy(o)
   return false
 end
 
+--  ---------------------------------------------------------------- Wo ist Judy
+
+--  Eine Referenz auf sie, die sich selbst instand haelt.
+--
+--  Zwei Quellen liefern sie beilaeufig: der Blick, sobald V sie ansieht, und der
+--  Untertitel, sobald sie etwas sagt - dort steht das Sprecherobjekt, nicht nur ein Name.
+--  Beides passiert oft genug, dass eine verlorene Referenz von selbst zurueckkommt.
+--
+--  Gehalten wird sie nur, solange `IsAttached` das bestaetigt. NCA despawnt Begleiter bei
+--  Entfernung und in gesperrten Zonen; eine Referenz auf eine abgeraeumte Entity waere
+--  genau die Art Nullzeiger, die dieses Projekt schon zweimal abgestuerzt hat.
+local judy = { obj = nil, dist = nil }
+
+local function judyMerken(o)
+  if o then judy.obj = o end
+end
+
+local function judyHolen()
+  if not judy.obj then return nil end
+  local da = false
+  pcall(function() da = judy.obj:IsAttached() end)
+  if not da then
+    judy.obj, judy.dist = nil, nil
+    return nil
+  end
+  return judy.obj
+end
+
+--  Abstand V zu Judy, oder nil wenn sie gerade nicht greifbar ist.
+local function abstand(p)
+  local o = judyHolen()
+  if not o or not p then judy.dist = nil; return nil end
+  local w
+  pcall(function() w = Vector4.Distance(p:GetWorldPosition(), o:GetWorldPosition()) end)
+  judy.dist = w
+  return w
+end
+
 --  ---------------------------------------------------------------- Der lange Blick
 
 local GAZE = {
@@ -219,6 +257,7 @@ local function gazeTick(d, p)
   if passt then
     local id = tostring(o:GetEntityID().hash)
     stimme.judyId = id
+    judyMerken(o)
     if id ~= gaze.id then
       gaze.id, gaze.t, gaze.s1, gaze.s2 = id, 0.0, false, false
     end
@@ -306,12 +345,64 @@ local function stimmeTick()
 
   if Speaker.Spricht() then
     if dl.hash and dl.hash ~= "" then stimme.judyId = dl.hash end
+    judyMerken(dl.obj)
     return
   end
   if stimme.judyId and dl.hash == stimme.judyId then
+    judyMerken(dl.obj)
     Speaker.Fremd(dl.dur)
     stimme.zuletztFremd = dl.text
     log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
+  end
+end
+
+--  ---------------------------------------------------------------- Warten und Troedeln
+
+--  Zwei Schwellen statt einer. Eine einzelne wuerde flattern, sobald V an der Grenze
+--  entlanglaeuft: ein Schritt hin, ein Schritt zurueck, und sie faengt jedes Mal neu an.
+--  Ausgeloest wird ueber `weit`, zurueckgesetzt erst unter `nah`.
+--
+--  Und es muss ANHALTEN. Kurz durch eine Tuer zu gehen ist kein Zuruecklassen; sechs
+--  Sekunden Abstand sind eins.
+local REIBUNG = {
+  nah    =  6.0,
+  weit   = 14.0,
+  geduld =  6.0,
+  cd     = 90.0,
+}
+local reibung = { seit = 0.0, an = true }
+
+local function reibungTick(d, p)
+  if not reibung.an then return end
+
+  --  Im Wagen ist Abstand normal, im Gefecht redet sie ueber anderes.
+  local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end)
+  if imWagen ~= nil or psm("Combat") == 1 then
+    reibung.seit = 0.0
+    return
+  end
+
+  local w = abstand(p)
+  if not w then reibung.seit = 0.0; return end
+
+  if w < REIBUNG.nah then
+    reibung.seit = 0.0
+    return
+  end
+  if w < REIBUNG.weit then
+    --  Zwischen nah und weit passiert nichts, aber die Uhr laeuft auch nicht zurueck.
+    return
+  end
+
+  reibung.seit = reibung.seit + d
+  if reibung.seit < REIBUNG.geduld then return end
+  reibung.seit = 0.0
+
+  local k = pool("reibung")
+  if #k > 0 and Speaker.Frei("reibung") then
+    log(string.format("WARTEN %.0f m seit %.0fs", w, REIBUNG.geduld))
+    Speaker.Request({ situation = "reibung", pool = "reibung",
+                      kandidaten = k, cd = REIBUNG.cd })
   end
 end
 
@@ -467,6 +558,7 @@ function T.Tick(d)
   gazeTick(d, p)
   kampfTick(d)
   sorgeTick()
+  reibungTick(d, p)
   wiederTick(d, p)
   fahrtTick(d, p)
 end
@@ -484,7 +576,10 @@ function T.Status()
                seit = wieder.seitStart, nach = WIEDER.nachStart,
                n = #pool("wiedersehen") },
     fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
-    stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd },
+    stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd,
+               greifbar = judy.obj ~= nil },
+    reibung = { an = reibung.an, dist = judy.dist, seit = reibung.seit,
+                weit = REIBUNG.weit, n = #pool("reibung") },
   }
 end
 
@@ -494,6 +589,7 @@ function T.Setzen(was, an)
   if was == "sorge"    then sorge.an = an end
   if was == "wieder"   then wieder.an = an end
   if was == "fahrzeug" then fahrt.an = an end
+  if was == "reibung"  then reibung.an = an end
 end
 
 function T.Zuruecksetzen()
@@ -502,6 +598,7 @@ function T.Zuruecksetzen()
   sorge.war = 100.0
   wieder.startOffen, wieder.seitStart, wieder.seitSprung = true, 0.0, nil
   fahrt.seit = nil
+  reibung.seit = 0.0
 end
 
 return T
