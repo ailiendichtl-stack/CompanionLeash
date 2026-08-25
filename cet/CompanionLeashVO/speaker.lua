@@ -158,6 +158,16 @@ function Speaker.Request(a)
   return true
 end
 
+--  Waere ein Antrag fuer diesen Pool jetzt ueberhaupt aussichtsreich? Ein Ausloeser, der
+--  im Takt anfragt, soll nicht 15-mal je Abklingzeit abgelehnt werden - das flutet das
+--  Protokoll und macht die echten Ablehnungen unauffindbar.
+function Speaker.Frei(pool)
+  if S.aktiv then return false end
+  if S.jetzt < S.ruheBis then return false end
+  if pool and S.cdBis[pool] and S.jetzt < S.cdBis[pool] then return false end
+  return true
+end
+
 --  Alles Wartende einer Situation verwerfen. Fuer Zustandswechsel: wer den Kampf verlaesst,
 --  braucht die Kampfzeile nicht mehr.
 function Speaker.Verwerfen(situation)

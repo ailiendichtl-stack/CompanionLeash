@@ -370,7 +370,8 @@ registerForEvent("onInit", function()
       schreiben = log,
     })
     if Triggers then
-      Triggers.Init({ speaker = Speaker, lines = LINES, log = log })
+      Triggers.Init({ speaker = Speaker, lines = LINES, log = log,
+                      ziel = function() return target end })
     else
       log("ACHTUNG: triggers.lua nicht geladen - keine automatischen Zeilen")
     end
@@ -647,6 +648,16 @@ registerForEvent("onDraw", function()
                         string.format("%.1fs  %s", st.gaze.t,
                                       st.gaze.aktiv and "sieht sie an" or "-"))
       ImGui.TextDisabled("zuletzt: " .. st.gaze.zuletzt)
+      local av = Triggers.Anvisiert()
+      if av then
+        if av.judy then
+          ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "anvisiert: " .. av.name .. "  [Judy]")
+        else
+          ImGui.TextDisabled(string.format("anvisiert: %s   record=%s", av.name, av.record))
+        end
+      else
+        ImGui.TextDisabled("anvisiert: nichts")
+      end
 
       ImGui.Separator()
       local ka = ImGui.Checkbox("Kampf##kf", st.kampf.an)

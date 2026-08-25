@@ -10,7 +10,7 @@
 
 local T = {}
 
-local Speaker, LINES, log
+local Speaker, LINES, log, holeZiel
 
 --  ---------------------------------------------------------------- gemeinsame Hilfen
 
@@ -35,12 +35,50 @@ local function pool(situation, stufe)
   return p
 end
 
---  Ist das Judy? Der Anzeigename waere sprachabhaengig, die Record-Id nicht.
+--  Ist das Judy?
+--
+--  Auf die Record-Id allein war Verlass, solange die TweakDB-Namen aufloesbar sind - sind
+--  sie es nicht, liefert ToStringDBID nur einen Hash und die Pruefung schlaegt still fehl.
+--  Genau daran ist der Blick nach dem Umzug gestorben. Drei Wege statt einem:
+--
+--    1. das im Panel gesperrte Ziel        - sicher, aber von Hand
+--    2. die Record-Id                      - richtig, wenn die Namen da sind
+--    3. der Anzeigename                    - Eigennamen werden nicht uebersetzt,
+--                                            "Judy" heisst auch auf Deutsch Judy
+--
+--  Was nicht passt, wird einmal je Objekt protokolliert. Ohne das sucht man den Fehler
+--  wieder dort, wo er nicht ist.
+local gesehen = {}
+
+local function beschreibe(o)
+  local rec, name = "?", "?"
+  pcall(function() rec = tostring(TDBID.ToStringDBID(o:GetRecordID())) end)
+  pcall(function() name = tostring(o:GetDisplayName()) end)
+  return rec, name
+end
+
 local function istJudy(o)
   if not o then return false end
-  local rec = ""
-  pcall(function() rec = tostring(TDBID.ToStringDBID(o:GetRecordID())) end)
-  return rec:lower():find("judy", 1, true) ~= nil
+
+  local ziel = holeZiel and holeZiel() or nil
+  if ziel then
+    local a, b
+    pcall(function() a = tostring(ziel:GetEntityID().hash) end)
+    pcall(function() b = tostring(o:GetEntityID().hash) end)
+    if a and a == b then return true end
+  end
+
+  local rec, name = beschreibe(o)
+  if rec:lower():find("judy", 1, true) then return true end
+  if name:lower():find("judy", 1, true) then return true end
+
+  local h = "?"
+  pcall(function() h = tostring(o:GetEntityID().hash) end)
+  if not gesehen[h] then
+    gesehen[h] = true
+    log(string.format("BLICK nicht Judy: name=%s record=%s", name, rec))
+  end
+  return false
 end
 
 --  ---------------------------------------------------------------- Der lange Blick
@@ -149,14 +187,14 @@ local function kampfTick(d)
 
   if kampf.drin then
     kampf.seit = kampf.seit + d
-    if kampf.seit >= KAMPF.anlauf then
+    --  Erst fragen, wenn es auch etwas werden kann. Sonst prallt alle zwei Sekunden ein
+    --  Antrag an der Abklingzeit ab und begraebt die echten Ablehnungen im Protokoll.
+    if kampf.seit >= KAMPF.anlauf and Speaker.Frei("kampf") then
       local k = pool("kampf")
       if #k > 0 then
         Speaker.Request({ situation = "kampf", pool = "kampf",
                           kandidaten = k, cd = KAMPF.waehrend })
       end
-      --  Der Sprecher lehnt ab, solange die Abklingzeit laeuft; hier nur dafuer sorgen,
-      --  dass nicht in jedem Frame ein Antrag entsteht.
       kampf.seit = 0.0
     end
     return
@@ -178,9 +216,21 @@ end
 --  ---------------------------------------------------------------- aussen
 
 function T.Init(opts)
-  Speaker = opts.speaker
-  LINES   = opts.lines or {}
-  log     = opts.log or function() end
+  Speaker  = opts.speaker
+  LINES    = opts.lines or {}
+  log      = opts.log or function() end
+  holeZiel = opts.ziel
+end
+
+--  Fuer das Panel: was sieht V gerade an?
+function T.Anvisiert()
+  local o
+  pcall(function()
+    o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+  end)
+  if not o then return nil end
+  local rec, name = beschreibe(o)
+  return { name = name, record = rec, judy = istJudy(o) }
 end
 
 function T.Tick(d)
