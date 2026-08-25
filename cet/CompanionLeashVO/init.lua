@@ -197,6 +197,13 @@ do
   local ok, t = pcall(require, "lines")
   if ok and type(t) == "table" then LINES = t end
 end
+
+--  Der Sprecher entscheidet, wann geredet wird. Ausloeser stellen nur noch Antraege.
+local Speaker
+do
+  local ok, t = pcall(require, "speaker")
+  if ok and type(t) == "table" then Speaker = t end
+end
 local lineFilter = ""
 
 local MATRIX = {
@@ -230,15 +237,15 @@ local MATRIX = {
 --  faellt es ihr auf. Wer deutlich laenger schaut, bekommt die zweite Ebene, und die
 --  vertraegt keine Wiederholung.
 local GAZE = {
-  stufe1   =    5.0,   -- ab hier merkt sie es
-  stufe2   =   14.0,   -- ab hier nimmt sie es auf
-  cd1      =  180.0,   -- Abklingzeit der beilaeufigen Reaktion
-  cd2      = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
-  distanz  =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
-  nachlauf =    1.5,   -- Puffer nach einer Zeile, damit nichts hineinfaellt
+  stufe1  =    5.0,   -- ab hier merkt sie es
+  stufe2  =   14.0,   -- ab hier nimmt sie es auf
+  cd1     =  180.0,   -- Abklingzeit der beilaeufigen Reaktion
+  cd2     = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
+  distanz =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
 }
-local gaze = { t = 0.0, id = nil, s1 = false, s2 = false,
-               cd1 = 0.0, cd2 = 0.0, busy = 0.0, zuletzt = "-" }
+--  s1/s2 gehoeren dem Blick: sie verhindern, dass er innerhalb EINES Blicks nachlegt.
+--  Belegt-Sein und Abklingzeiten fuehrt der Sprecher.
+local gaze = { t = 0.0, id = nil, s1 = false, s2 = false, zuletzt = "-" }
 local gazeAn = true
 
 local STYLES, styleIdx = {}, -1
@@ -337,19 +344,21 @@ local function gazePool(stufe)
 end
 
 local function gazeFeuern(obj)
-  if gaze.busy > 0.0 then return end
   local stufe
-  if not gaze.s2 and gaze.t >= GAZE.stufe2 and gaze.cd2 <= 0.0 then
+  if not gaze.s2 and gaze.t >= GAZE.stufe2 then
     stufe = 2
-  elseif not gaze.s1 and gaze.t >= GAZE.stufe1 and gaze.cd1 <= 0.0 then
+  elseif not gaze.s1 and gaze.t >= GAZE.stufe1 then
     stufe = 1
   end
   if not stufe then return end
 
+  --  Ob angenommen oder nicht: innerhalb dieses Blicks nicht noch einmal anfragen. Ohne
+  --  das stellt der Ausloeser in jedem Frame denselben Antrag, solange V hinsieht.
+  if stufe == 2 then gaze.s1, gaze.s2 = true, true else gaze.s1 = true end
+
   local pool = gazePool(stufe)
   if #pool == 0 then
     log(string.format("BLICK Stufe %d - kein Eintrag mit st=%d in lines.lua", stufe, stufe))
-    if stufe == 2 then gaze.s2 = true else gaze.s1 = true end
     return
   end
   local l = pool[math.random(#pool)]
@@ -358,18 +367,21 @@ local function gazeFeuern(obj)
   for i, nm in ipairs(STYLES) do
     if nm:lower() == "regular" then styleIdx = i - 1 end
   end
-  log(string.format("BLICK Stufe %d nach %.1fs: %s  \"%s\"", stufe, gaze.t, l.n, l.t))
-  playBark(l.n, obj)
-
-  gaze.busy = (l.d or 2.0) + GAZE.nachlauf
-  gaze.zuletzt = string.format("Stufe %d, %s", stufe, l.t)
-  if stufe == 2 then
-    gaze.s2, gaze.cd2 = true, GAZE.cd2
-    --  Wer die zweite Ebene bekommen hat, braucht die erste in derselben Weile nicht mehr.
-    gaze.s1, gaze.cd1 = true, GAZE.cd1
+  log(string.format("BLICK Stufe %d nach %.1fs: %s", stufe, gaze.t, l.n))
+  if not Speaker then
+    playBark(l.n, obj)
   else
-    gaze.s1, gaze.cd1 = true, GAZE.cd1
+    Speaker.Request({
+      situation = "blick",
+      prio      = Speaker.PRIO.blick,
+      pool      = "blick" .. stufe,
+      line      = l.n,
+      dauer     = l.d or 2.0,
+      cd        = (stufe == 2) and GAZE.cd2 or GAZE.cd1,
+      ziel      = obj,
+    })
   end
+  gaze.zuletzt = string.format("Stufe %d, %s", stufe, l.t)
 end
 
 --  Laeuft eine Spielsitzung? Im Hauptmenue und waehrend des Ladens gibt es keinen
@@ -385,9 +397,6 @@ local function imSpiel()
 end
 
 local function gazeTick(d)
-  gaze.cd1  = math.max(0.0, gaze.cd1 - d)
-  gaze.cd2  = math.max(0.0, gaze.cd2 - d)
-  gaze.busy = math.max(0.0, gaze.busy - d)
   if not gazeAn or not imSpiel() then return end
 
   local spieler = Game.GetPlayer()
@@ -490,6 +499,11 @@ registerForEvent("onInit", function()
     if nm:lower() == "invisible" then styleIdx = i - 1 end
   end
   pcall(function() math.randomseed(os.time()) end)
+  if Speaker then
+    Speaker.Init({ spielen = playBark, schreiben = log })
+  else
+    log("ACHTUNG: speaker.lua nicht geladen - Ausloeser spielen ohne Schiedsstelle")
+  end
   log(string.format("bereit - %d Stile gelesen, invisible=%s, Blickzeilen=%d",
       #STYLES, tostring(styleIdx >= 0), #gazePool(1) + #gazePool(2)))
   local dv = dialogueVar()
@@ -529,6 +543,7 @@ end
 
 registerForEvent("onUpdate", function(dt)
   local d = dt or 0.016
+  if Speaker then Speaker.Tick(d) end
   gazeTick(d)
 
   --  Sweep: jeden Namen feuern, kurz auf die Zeile warten, Ergebnis mitschreiben.
@@ -722,25 +737,36 @@ registerForEvent("onDraw", function()
     end
   end
 
+  if ImGui.CollapsingHeader("Sprecher", ImGuiTreeNodeFlags.DefaultOpen) then
+    if not Speaker then
+      ImGui.TextColored(1.0, 0.4, 0.4, 1.0, "speaker.lua nicht geladen")
+    else
+      local st = Speaker.Status()
+      ImGui.Text("laeuft: " .. st.aktiv)
+      ImGui.Text(string.format("wartend %d   angenommen %d   abgelehnt %d",
+                               st.warten, st.angenommen, st.abgelehnt))
+      local g = {}
+      for k, v in pairs(st.gruende) do g[#g + 1] = string.format("%s %d", k, v) end
+      table.sort(g)
+      if #g > 0 then ImGui.TextDisabled("Gruende: " .. table.concat(g, ", ")) end
+      if ImGui.Button("alle Sperren loesen##sp") then
+        Speaker.Freigeben()
+        gaze.s1, gaze.s2 = false, false
+      end
+      ImGui.Separator()
+      for _, z in ipairs(st.buch) do ImGui.TextDisabled(z) end
+    end
+  end
+
   if ImGui.CollapsingHeader("Der lange Blick", ImGuiTreeNodeFlags.DefaultOpen) then
     gazeAn = ImGui.Checkbox("aktiv##gz", gazeAn)
     ImGui.SameLine()
-    ImGui.TextDisabled(string.format("Stufe 1 ab %.0fs  |  Stufe 2 ab %.0fs",
-                                     GAZE.stufe1, GAZE.stufe2))
+    ImGui.TextDisabled(string.format("Stufe 1 ab %.0fs  |  Stufe 2 ab %.0fs  |  %d + %d Zeilen",
+                                     GAZE.stufe1, GAZE.stufe2, #gazePool(1), #gazePool(2)))
     local frac = math.min(1.0, gaze.t / GAZE.stufe2)
     ImGui.ProgressBar(frac, 260, 14,
                       string.format("%.1fs  %s", gaze.t, gaze.id and "sieht sie an" or "-"))
-    ImGui.Text(string.format("Abklingzeit  Stufe 1 %.0fs   Stufe 2 %.0fs   belegt %.1fs",
-                             gaze.cd1, gaze.cd2, gaze.busy))
     ImGui.TextDisabled("zuletzt: " .. gaze.zuletzt)
-    if ImGui.Button("Abklingzeiten loeschen##gz") then
-      gaze.cd1, gaze.cd2, gaze.busy = 0.0, 0.0, 0.0
-      gaze.s1, gaze.s2 = false, false
-      log("BLICK Abklingzeiten geloescht")
-    end
-    ImGui.SameLine()
-    ImGui.TextDisabled(string.format("%d Zeilen Stufe 1, %d Stufe 2",
-                                     #gazePool(1), #gazePool(2)))
   end
 
   if ImGui.CollapsingHeader(string.format("Matrix-Zeilen - %d gebaut", #LINES)) then
