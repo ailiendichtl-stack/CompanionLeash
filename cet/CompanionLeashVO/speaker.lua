@@ -102,6 +102,12 @@ local function pruefen(a)
   --  Die Spiel-KI laesst Judy im Gefecht von sich aus reden, ueber dieselbe
   --  Voiceset-Infrastruktur. Wer da dazwischenfunkt, ueberschreibt ihre eigene Zeile.
   if S.jetzt < S.fremdBis then return "fremdeStimme" end
+
+  --  `erzwingen` ueberspringt die Wartezeiten, nicht die Ruecksichten. Ein Testknopf soll
+  --  nicht zwei Minuten Abklingzeit abwarten - aber er soll genauso wenig in einen
+  --  Questdialog hineinreden oder eine laufende Zeile zerschneiden.
+  if a.erzwingen then return nil end
+
   if S.jetzt < S.ruheBis then return "globalCooldown" end
   if a.pool and S.cdBis[a.pool] and S.jetzt < S.cdBis[a.pool] then return "cooldown" end
   if a.line and a.pool and S.zuletzt[a.pool] == a.line then return "duplicateLine" end

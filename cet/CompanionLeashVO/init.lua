@@ -655,6 +655,23 @@ registerForEvent("onDraw", function()
     end
   end
 
+  if Triggers and ImGui.CollapsingHeader("Ausloeser testen",
+                                         ImGuiTreeNodeFlags.DefaultOpen) then
+    ImGui.TextWrapped("Loest sofort aus, ohne die Bedingung herzustellen. Abklingzeiten "
+                      .. "werden uebersprungen und nicht gesetzt; laufende Zeilen und "
+                      .. "Questdialog werden weiter beachtet.")
+    local tests = Triggers.Tests()
+    for i, t in ipairs(tests) do
+      if t.n == 0 then
+        ImGui.TextDisabled(string.format("%s (leer)", t.name))
+      elseif ImGui.Button(string.format("%s (%d)##t%d", t.name, t.n, i)) then
+        Triggers.Test(i)
+      end
+      if i % 3 ~= 0 and i < #tests then ImGui.SameLine() end
+    end
+    ImGui.Text("")
+  end
+
   if ImGui.CollapsingHeader("Ausloeser", ImGuiTreeNodeFlags.DefaultOpen) then
     if not Triggers then
       ImGui.TextColored(1.0, 0.4, 0.4, 1.0, "triggers.lua nicht geladen")

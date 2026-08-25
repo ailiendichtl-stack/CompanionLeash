@@ -614,6 +614,52 @@ end
 
 --  ---------------------------------------------------------------- aussen
 
+--  ---------------------------------------------------------------- Testknoepfe
+
+--  Jeden Ausloeser sofort ausloesen, ohne seine Bedingung herzustellen. Sonst dauert eine
+--  Runde durch alle Situationen Minuten: drei Minuten stillstehen fuer Sprosse drei, eine
+--  halbe Stunde fuer die zweite Blickstufe.
+--
+--  Die Pools sind dieselben wie im echten Betrieb, und der Weg geht durch den Sprecher -
+--  ein Test zeigt also auch, ob Auswahl, Wiederholungsschutz und Ausgabe stimmen. Nur die
+--  Wartezeiten entfallen.
+local TESTS = {
+  { name = "Blick 1",     sit = "blick",       pool = "blick1",      q = "blick", st = 1 },
+  { name = "Blick 2",     sit = "blick",       pool = "blick2",      q = "blick", st = 2 },
+  { name = "Kampf",       sit = "kampf",       pool = "kampf",       q = "kampf" },
+  { name = "Kampfende",   sit = "kampf_ende",  pool = "kampf_ende",  q = "kampf_ende" },
+  { name = "Sorge",       sit = "sorge",       pool = "sorge",       q = "sorge" },
+  { name = "Wiedersehen", sit = "wiedersehen", pool = "wiedersehen", q = "wiedersehen" },
+  { name = "Fahrzeug",    sit = "fahrzeug",    pool = "fahrzeug",    q = "fahrzeug" },
+  { name = "Warten",      sit = "reibung",     pool = "reibung",     q = "reibung" },
+  { name = "Leiter 1",    sit = "leiter",      pool = "reibung",     q = "reibung" },
+  { name = "Leiter 2",    sit = "leiter",      pool = "alltag",      q = "alltag" },
+  { name = "Leiter 3",    sit = "leiter",      pool = "initiative",  q = "initiative" },
+}
+
+function T.Tests()
+  local out = {}
+  for i, t in ipairs(TESTS) do
+    out[i] = { name = t.name, n = #pool(t.q, t.st) }
+  end
+  return out
+end
+
+function T.Test(i)
+  local t = TESTS[i]
+  if not t then return end
+  local k = pool(t.q, t.st)
+  if #k == 0 then
+    log("TEST " .. t.name .. " - Pool leer")
+    return
+  end
+  log(string.format("TEST %s, %d Kandidaten", t.name, #k))
+  --  cd = 0: ein Test soll die echte Abklingzeit nicht setzen und damit den naechsten
+  --  Versuch blockieren.
+  Speaker.Request({ situation = t.sit, pool = t.pool, kandidaten = k,
+                    cd = 0.0, erzwingen = true })
+end
+
 function T.Init(opts)
   Speaker     = opts.speaker
   LINES       = opts.lines or {}
