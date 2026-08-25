@@ -372,27 +372,45 @@ local function gazeFeuern(obj)
   end
 end
 
+--  Laeuft eine Spielsitzung? Im Hauptmenue und waehrend des Ladens gibt es keinen
+--  Spieler, und ein `nil` an eine native Funktion zu reichen faengt kein pcall ab - das
+--  nimmt den Prozess mit. Genau das ist beim Druck auf "Fortfahren" passiert.
+local function imSpiel()
+  local vor = true
+  local ok = pcall(function() vor = Game.GetSystemRequestsHandler():IsPreGame() end)
+  if not ok or vor then return false end
+  local p
+  pcall(function() p = Game.GetPlayer() end)
+  return p ~= nil
+end
+
 local function gazeTick(d)
   gaze.cd1  = math.max(0.0, gaze.cd1 - d)
   gaze.cd2  = math.max(0.0, gaze.cd2 - d)
   gaze.busy = math.max(0.0, gaze.busy - d)
-  if not gazeAn then return end
+  if not gazeAn or not imSpiel() then return end
 
+  local spieler = Game.GetPlayer()
+  local ziel
   local o
   pcall(function()
-    o = Game.GetTargetingSystem():GetLookAtObject(Game.GetPlayer(), false, false)
+    ziel = Game.GetTargetingSystem()
+  end)
+  if not ziel then return end
+  pcall(function()
+    o = ziel:GetLookAtObject(spieler, false, false)
   end)
 
   local passt = istJudy(o)
   if passt then
     local kampf = false
-    pcall(function() kampf = Game.GetPlayer():IsInCombat() end)
+    pcall(function() kampf = spieler:IsInCombat() end)
     if kampf then passt = false end
   end
   if passt then
     local dist = 999.0
     pcall(function()
-      dist = Vector4.Distance(Game.GetPlayer():GetWorldPosition(), o:GetWorldPosition())
+      dist = Vector4.Distance(spieler:GetWorldPosition(), o:GetWorldPosition())
     end)
     if dist > GAZE.distanz then passt = false end
   end
