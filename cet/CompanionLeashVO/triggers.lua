@@ -453,7 +453,7 @@ end
 --  Penthouse, jede Teleportation. Ein Sprung ist schlicht eine Strecke, fuer die in einem
 --  Bild keine Zeit war; das braucht kein Blackboard und faellt auch nicht mit ihm aus.
 local WIEDER = {
-  nachStart =  1.0,    -- direkt nach dem Laden; 25 s fuehlten sich an wie Vergessen
+  nachStart =  3.0,    -- 25 s las sich als Vergessen, 1 s als zu fix - dazwischen
   sprung    = 150.0,   -- Meter in EINEM Bild = teleportiert
   nachSprung = 8.0,
   cd        = 300.0,
