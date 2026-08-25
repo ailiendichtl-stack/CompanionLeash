@@ -621,6 +621,8 @@ def main():
                         encoding="utf-8"), ensure_ascii=False, indent=1)
     print("Bauliste: %d Questzeilen -> data/matrix_lines.json" % len(bau))
 
+    _pool_liste(bau, d)
+
     p = os.path.join(HERE, "DIALOG_MATRIX.md")
     open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
     print("Situationen %d | Judy %d | V %d | Wortwechsel %d"
@@ -634,6 +636,51 @@ def main():
         for t, n in st["namen"]:
             print("   %-12s %s" % (n, t[:60]))
     print("geschrieben: DIALOG_MATRIX.md (%d KB)" % (os.path.getsize(p) // 1024))
+
+
+def _pool_liste(bau, d):
+    """Schreibt alle einsetzbaren Eintraege als Lua-Tabelle fuer die Ausloeser.
+
+    Barks UND gebaute Questzeilen, je mit Situation, Dauer und - wo vergeben - Stufe.
+    Ein Ausloeser filtert darauf und reicht den Pool an den Sprecher weiter; er muss keine
+    Namen kennen und nichts von Hand pflegen.
+    """
+    def esc(t):
+        return (t or "").replace("\\", "").replace('"', "'").replace("|", "/").strip()
+
+    zeilen = []
+    #  Barks: Name ist der Voiceset-Eintrag selbst, Dauer im Spiel gemessen.
+    for c in CATEGORIES:
+        for name in _fam_barks(c["fams"], d):
+            e = d["barkj"][name]
+            zeilen.append((c["key"], 0, name, e["dur"], esc(e["text"]), "b"))
+    #  Questzeilen: gebaut als cl_<id>, Dauer aus der Szene.
+    for b in bau:
+        key = str(int(b["hex"], 16))
+        rec = d["dur"].get(key)
+        ms = rec["dur"] if rec and rec["dur"] > 200 else None
+        if not ms:
+            a = d["anim"].get("f_%016X" % int(key))
+            ms = a["ms"] if a else 2000
+        txt = (d["jud"].get(key, {}).get("text") or "")
+        zeilen.append((b["situation"], b.get("stufe", 0), "cl_" + b["hex"],
+                       ms / 1000.0, esc(txt), "q"))
+
+    out = ["--  Erzeugt von tools/build_matrix.py. Nicht von Hand aendern.",
+           "--  Alles, was ein Ausloeser abspielen kann: Barks und gebaute Questzeilen.",
+           "--  n = Voiceset-Eintrag, s = Situation, d = Dauer, st = Stufe, a = b|q",
+           "return {"]
+    for sit, stufe, name, dur_s, txt, art in sorted(zeilen,
+                                                    key=lambda z: (z[0], z[1], -z[3])):
+        st = ", st = %d" % stufe if stufe else ""
+        out.append('  { n = "%s", s = "%s", d = %.1f%s, a = "%s", t = "%s" },'
+                   % (name, sit, dur_s, st, art, txt[:78]))
+    out.append("}")
+    p = os.path.join(HERE, "cet", "CompanionLeashVO", "lines.lua")
+    open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
+    barks = sum(1 for z in zeilen if z[5] == "b")
+    print("Pool-Liste: %d Eintraege (%d Barks, %d Zeilen) -> cet/CompanionLeashVO/lines.lua"
+          % (len(zeilen), barks, len(zeilen) - barks))
 
 
 def _load():

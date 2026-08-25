@@ -130,7 +130,6 @@ def main():
         print("Bauliste aus der Matrix: %d Zeilen" % len(wanted))
 
     zaehl = {"gebaut": 0, "leih": 0, "platzhalter": 0, "ohne_anim": 0}
-    gebaut = []
     anims_needed = {}   # Szene -> {Zielname: Spezifikation fuer merge_anims}
     for w in wanted:
         name, hexid = w["name"], w["hex"]
@@ -172,7 +171,7 @@ def main():
         _add_entry(root, st, name, hexid, duration, lipsync)
         anims_needed.setdefault(lip_scene, {})[lipsync] = lipsync
         zaehl["gebaut"] += 1
-        gebaut.append((name, w.get("sit", ""), hexid, duration, w.get("stufe", 0)))
+
         if "geliehen" in note:
             zaehl["leih"] += 1
         if "Platzhalter" in note:
@@ -187,7 +186,7 @@ def main():
         print("  gebaut %d | geliehenes Lipsync %d | Platzhalter-Dauer %d | ohne Anim %d"
               % (zaehl["gebaut"], zaehl["leih"], zaehl["platzhalter"],
                  zaehl["ohne_anim"]))
-        _panel_liste(gebaut, durations)
+
 
     print()
     print("Einstiege %d = startNodes %d | Knoten %d = Symbole %d | Zeilen %d"

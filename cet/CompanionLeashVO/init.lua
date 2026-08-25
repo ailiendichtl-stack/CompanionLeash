@@ -199,10 +199,12 @@ do
 end
 
 --  Der Sprecher entscheidet, wann geredet wird. Ausloeser stellen nur noch Antraege.
-local Speaker
+local Speaker, Triggers
 do
   local ok, t = pcall(require, "speaker")
   if ok and type(t) == "table" then Speaker = t end
+  local ok2, t2 = pcall(require, "triggers")
+  if ok2 and type(t2) == "table" then Triggers = t2 end
 end
 local lineFilter = ""
 
@@ -225,28 +227,6 @@ local MATRIX = {
     hint = "unangetastet - der Nullpunkt" },
 }
 
---  Der lange Blick.
---
---  `GetLookAtObject` liefert, was V gerade anvisiert - dieselbe Abfrage, mit der das Panel
---  sein Ziel sperrt. NCAs `OnLookAtCompanion` haette dasselbe geleistet, uns aber an
---  fremden Code gebunden; hier haengt nichts an NCA ausser dem Companion-Tag, den wir
---  ohnehin schon benutzen.
---
---  Zwei Stufen, nicht eine. Unter fuenf Sekunden passiert nichts - man visiert seine
---  Begleiterin beim Laufen staendig an, und alles darunter wuerde dauernd feuern. Ab fuenf
---  faellt es ihr auf. Wer deutlich laenger schaut, bekommt die zweite Ebene, und die
---  vertraegt keine Wiederholung.
-local GAZE = {
-  stufe1  =    5.0,   -- ab hier merkt sie es
-  stufe2  =   14.0,   -- ab hier nimmt sie es auf
-  cd1     =  180.0,   -- Abklingzeit der beilaeufigen Reaktion
-  cd2     = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
-  distanz =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
-}
---  s1/s2 gehoeren dem Blick: sie verhindern, dass er innerhalb EINES Blicks nachlegt.
---  Belegt-Sein und Abklingzeiten fuehrt der Sprecher.
-local gaze = { t = 0.0, id = nil, s1 = false, s2 = false, zuletzt = "-" }
-local gazeAn = true
 
 local STYLES, styleIdx = {}, -1
 local target, targetName = nil, "-"
@@ -317,127 +297,6 @@ local function playBark(name, obj)
   lastPlayed = name
   if not ok then log("BARK " .. name .. " FEHLER: " .. tostring(err)) end
 end
-
---  Ist das Judy? Das gesperrte Ziel zaehlt, sonst entscheidet die Record-Id. Der
---  Anzeigename waere sprachabhaengig und damit unbrauchbar.
-local function istJudy(o)
-  if not o then return false end
-  local h
-  pcall(function() h = o:GetEntityID().hash end)
-  if not h then return false end
-  if target then
-    local th
-    pcall(function() th = target:GetEntityID().hash end)
-    if th and tostring(th) == tostring(h) then return true end
-  end
-  local rec = ""
-  pcall(function() rec = tostring(TDBID.ToStringDBID(o:GetRecordID())) end)
-  return rec:lower():find("judy", 1, true) ~= nil
-end
-
-local function gazePool(stufe)
-  local p = {}
-  for _, l in ipairs(LINES) do
-    if l.st == stufe then p[#p + 1] = l end
-  end
-  return p
-end
-
-local function gazeFeuern(obj)
-  local stufe
-  if not gaze.s2 and gaze.t >= GAZE.stufe2 then
-    stufe = 2
-  elseif not gaze.s1 and gaze.t >= GAZE.stufe1 then
-    stufe = 1
-  end
-  if not stufe then return end
-
-  --  Ob angenommen oder nicht: innerhalb dieses Blicks nicht noch einmal anfragen. Ohne
-  --  das stellt der Ausloeser in jedem Frame denselben Antrag, solange V hinsieht.
-  if stufe == 2 then gaze.s1, gaze.s2 = true, true else gaze.s1 = true end
-
-  local pool = gazePool(stufe)
-  if #pool == 0 then
-    log(string.format("BLICK Stufe %d - kein Eintrag mit st=%d in lines.lua", stufe, stufe))
-    return
-  end
-
-  speaker = 0
-  for i, nm in ipairs(STYLES) do
-    if nm:lower() == "regular" then styleIdx = i - 1 end
-  end
-  log(string.format("BLICK Stufe %d nach %.1fs, %d Kandidaten", stufe, gaze.t, #pool))
-  if not Speaker then
-    playBark(pool[math.random(#pool)].n, obj)
-  else
-    --  Der ganze Pool geht mit, nicht eine gewuerfelte Zeile: der Sprecher waehlt erst
-    --  beim Sprechen und kann dabei die zuletzt gespielte auslassen.
-    Speaker.Request({
-      situation  = "blick",
-      prio       = Speaker.PRIO.blick,
-      pool       = "blick" .. stufe,
-      kandidaten = pool,
-      cd         = (stufe == 2) and GAZE.cd2 or GAZE.cd1,
-      ziel       = obj,
-    })
-  end
-  gaze.zuletzt = string.format("Stufe %d, %d Kandidaten", stufe, #pool)
-end
-
---  Laeuft eine Spielsitzung? Im Hauptmenue und waehrend des Ladens gibt es keinen
---  Spieler, und ein `nil` an eine native Funktion zu reichen faengt kein pcall ab - das
---  nimmt den Prozess mit. Genau das ist beim Druck auf "Fortfahren" passiert.
-local function imSpiel()
-  local vor = true
-  local ok = pcall(function() vor = Game.GetSystemRequestsHandler():IsPreGame() end)
-  if not ok or vor then return false end
-  local p
-  pcall(function() p = Game.GetPlayer() end)
-  return p ~= nil
-end
-
-local function gazeTick(d)
-  if not gazeAn or not imSpiel() then return end
-
-  local spieler = Game.GetPlayer()
-  local ziel
-  local o
-  pcall(function()
-    ziel = Game.GetTargetingSystem()
-  end)
-  if not ziel then return end
-  pcall(function()
-    o = ziel:GetLookAtObject(spieler, false, false)
-  end)
-
-  local passt = istJudy(o)
-  if passt then
-    local kampf = false
-    pcall(function() kampf = spieler:IsInCombat() end)
-    if kampf then passt = false end
-  end
-  if passt then
-    local dist = 999.0
-    pcall(function()
-      dist = Vector4.Distance(spieler:GetWorldPosition(), o:GetWorldPosition())
-    end)
-    if dist > GAZE.distanz then passt = false end
-  end
-
-  if passt then
-    local id = tostring(o:GetEntityID().hash)
-    if id ~= gaze.id then
-      gaze.id, gaze.t, gaze.s1, gaze.s2 = id, 0.0, false, false
-    end
-    gaze.t = gaze.t + d
-    gazeFeuern(o)
-  elseif gaze.id then
-    --  Wegsehen setzt die Uhr zurueck. Sonst liesse sich die Schwelle aus lauter kurzen
-    --  Blicken zusammensammeln, und das ist nicht dasselbe wie jemanden anzusehen.
-    gaze.id, gaze.t, gaze.s1, gaze.s2 = nil, 0.0, false, false
-  end
-end
-
 local function dialogueVar()
   local ok, v = pcall(function()
     return Game.GetSettingsSystem():GetVar("/audio/volume", "DialogueVolume")
@@ -500,12 +359,26 @@ registerForEvent("onInit", function()
   end
   pcall(function() math.randomseed(os.time()) end)
   if Speaker then
-    Speaker.Init({ spielen = playBark, schreiben = log })
+    Speaker.Init({
+      spielen = function(name, obj)
+        speaker = 0
+        for i, nm in ipairs(STYLES) do
+          if nm:lower() == "regular" then styleIdx = i - 1 end
+        end
+        playBark(name, obj)
+      end,
+      schreiben = log,
+    })
+    if Triggers then
+      Triggers.Init({ speaker = Speaker, lines = LINES, log = log })
+    else
+      log("ACHTUNG: triggers.lua nicht geladen - keine automatischen Zeilen")
+    end
   else
     log("ACHTUNG: speaker.lua nicht geladen - Ausloeser spielen ohne Schiedsstelle")
   end
-  log(string.format("bereit - %d Stile gelesen, invisible=%s, Blickzeilen=%d",
-      #STYLES, tostring(styleIdx >= 0), #gazePool(1) + #gazePool(2)))
+  log(string.format("bereit - %d Stile gelesen, invisible=%s, Pool %d Eintraege",
+      #STYLES, tostring(styleIdx >= 0), #LINES))
   local dv = dialogueVar()
   if dv and dv:GetValue() == 0 then
     log("ACHTUNG: DialogueVolume steht auf 0 - im Panel steht ein Knopf zum Zuruecksetzen")
@@ -544,7 +417,7 @@ end
 registerForEvent("onUpdate", function(dt)
   local d = dt or 0.016
   if Speaker then Speaker.Tick(d) end
-  gazeTick(d)
+  if Triggers then Triggers.Tick(d) end
 
   --  Sweep: jeden Namen feuern, kurz auf die Zeile warten, Ergebnis mitschreiben.
   --  Ein Treffer steht nach ~0.25s fest, ein Blindgaenger kostet nur den Timeout.
@@ -751,22 +624,38 @@ registerForEvent("onDraw", function()
       if #g > 0 then ImGui.TextDisabled("Gruende: " .. table.concat(g, ", ")) end
       if ImGui.Button("alle Sperren loesen##sp") then
         Speaker.Freigeben()
-        gaze.s1, gaze.s2 = false, false
+        if Triggers then Triggers.Zuruecksetzen() end
       end
       ImGui.Separator()
       for _, z in ipairs(st.buch) do ImGui.TextDisabled(z) end
     end
   end
 
-  if ImGui.CollapsingHeader("Der lange Blick", ImGuiTreeNodeFlags.DefaultOpen) then
-    gazeAn = ImGui.Checkbox("aktiv##gz", gazeAn)
-    ImGui.SameLine()
-    ImGui.TextDisabled(string.format("Stufe 1 ab %.0fs  |  Stufe 2 ab %.0fs  |  %d + %d Zeilen",
-                                     GAZE.stufe1, GAZE.stufe2, #gazePool(1), #gazePool(2)))
-    local frac = math.min(1.0, gaze.t / GAZE.stufe2)
-    ImGui.ProgressBar(frac, 260, 14,
-                      string.format("%.1fs  %s", gaze.t, gaze.id and "sieht sie an" or "-"))
-    ImGui.TextDisabled("zuletzt: " .. gaze.zuletzt)
+  if ImGui.CollapsingHeader("Ausloeser", ImGuiTreeNodeFlags.DefaultOpen) then
+    if not Triggers then
+      ImGui.TextColored(1.0, 0.4, 0.4, 1.0, "triggers.lua nicht geladen")
+    else
+      local st = Triggers.Status()
+
+      local an = ImGui.Checkbox("Blick##gz", st.gaze.an)
+      if an ~= st.gaze.an then Triggers.Setzen("blick", an) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(string.format("Stufe 1 ab %.0fs (%d)  |  Stufe 2 ab %.0fs (%d)",
+                                       st.gaze.stufe1, st.gaze.n1,
+                                       st.gaze.stufe2, st.gaze.n2))
+      ImGui.ProgressBar(math.min(1.0, st.gaze.t / st.gaze.stufe2), 260, 14,
+                        string.format("%.1fs  %s", st.gaze.t,
+                                      st.gaze.aktiv and "sieht sie an" or "-"))
+      ImGui.TextDisabled("zuletzt: " .. st.gaze.zuletzt)
+
+      ImGui.Separator()
+      local ka = ImGui.Checkbox("Kampf##kf", st.kampf.an)
+      if ka ~= st.kampf.an then Triggers.Setzen("kampf", ka) end
+      ImGui.SameLine()
+      ImGui.TextDisabled(string.format("%s  |  %d Zeilen im Kampf, %d danach",
+                                       st.kampf.drin and "IM GEFECHT" or "ruhig",
+                                       st.kampf.n, st.kampf.nEnde))
+    end
   end
 
   if ImGui.CollapsingHeader(string.format("Matrix-Zeilen - %d gebaut", #LINES)) then

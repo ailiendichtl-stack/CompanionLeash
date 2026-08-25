@@ -1,0 +1,212 @@
+--  Die Ausloeser. Jeder beobachtet einen Zustand und stellt Antraege beim Sprecher.
+--
+--  Keiner spielt selbst ab, keiner kennt Voiceset-Namen, keiner fuehrt eine eigene
+--  Belegt-Fahne. Sie kennen nur ihren Pool und ihre Bedingungen; wann tatsaechlich geredet
+--  wird, entscheidet `speaker.lua` allein.
+--
+--  Einen neuen Ausloeser anzulegen heisst: eine Beobachtung schreiben und
+--  `Speaker.Request` aufrufen. Die Zeilen kommen aus `lines.lua`, das die Matrix erzeugt -
+--  hier steht kein einziger Zeilentext.
+
+local T = {}
+
+local Speaker, LINES, log
+
+--  ---------------------------------------------------------------- gemeinsame Hilfen
+
+--  Laeuft eine Spielsitzung? Im Hauptmenue und waehrend des Ladens gibt es keinen Spieler,
+--  und ein nil an eine native Funktion zu reichen faengt kein pcall ab - das nimmt den
+--  Prozess mit. Genau daran ist der erste Anlauf gestorben.
+local function imSpiel()
+  local vor = true
+  local ok = pcall(function() vor = Game.GetSystemRequestsHandler():IsPreGame() end)
+  if not ok or vor then return false end
+  local p
+  pcall(function() p = Game.GetPlayer() end)
+  return p ~= nil
+end
+
+--  Alle Eintraege einer Situation, wahlweise nur einer Stufe.
+local function pool(situation, stufe)
+  local p = {}
+  for _, l in ipairs(LINES) do
+    if l.s == situation and (not stufe or l.st == stufe) then p[#p + 1] = l end
+  end
+  return p
+end
+
+--  Ist das Judy? Der Anzeigename waere sprachabhaengig, die Record-Id nicht.
+local function istJudy(o)
+  if not o then return false end
+  local rec = ""
+  pcall(function() rec = tostring(TDBID.ToStringDBID(o:GetRecordID())) end)
+  return rec:lower():find("judy", 1, true) ~= nil
+end
+
+--  ---------------------------------------------------------------- Der lange Blick
+
+local GAZE = {
+  stufe1  =    5.0,   -- ab hier merkt sie es
+  stufe2  =   14.0,   -- ab hier nimmt sie es auf
+  cd1     =  180.0,   -- Abklingzeit der beilaeufigen Reaktion
+  cd2     = 1800.0,   -- die zweite Ebene hoechstens halbstuendlich
+  distanz =    8.0,   -- ueber die Strasse hinweg ist kein Anschauen
+}
+--  s1/s2 gehoeren dem Blick: sie verhindern, dass er innerhalb EINES Blicks nachlegt.
+--  Belegt-Sein und Abklingzeiten fuehrt der Sprecher.
+local gaze = { t = 0.0, id = nil, s1 = false, s2 = false, an = true, zuletzt = "-" }
+
+local function gazeFeuern(obj)
+  local stufe
+  if not gaze.s2 and gaze.t >= GAZE.stufe2 then
+    stufe = 2
+  elseif not gaze.s1 and gaze.t >= GAZE.stufe1 then
+    stufe = 1
+  end
+  if not stufe then return end
+
+  --  Ob angenommen oder nicht: innerhalb dieses Blicks nicht noch einmal anfragen. Ohne
+  --  das stellt der Ausloeser in jedem Frame denselben Antrag, solange V hinsieht.
+  if stufe == 2 then gaze.s1, gaze.s2 = true, true else gaze.s1 = true end
+
+  local k = pool("blick", stufe)
+  if #k == 0 then
+    log(string.format("BLICK Stufe %d - kein Eintrag mit st=%d in lines.lua", stufe, stufe))
+    return
+  end
+  log(string.format("BLICK Stufe %d nach %.1fs, %d Kandidaten", stufe, gaze.t, #k))
+  Speaker.Request({
+    situation  = "blick",
+    pool       = "blick" .. stufe,
+    kandidaten = k,
+    cd         = (stufe == 2) and GAZE.cd2 or GAZE.cd1,
+    ziel       = obj,
+  })
+  gaze.zuletzt = string.format("Stufe %d, %d Kandidaten", stufe, #k)
+end
+
+local function gazeTick(d)
+  if not gaze.an then return end
+  local spieler = Game.GetPlayer()
+  local ts
+  pcall(function() ts = Game.GetTargetingSystem() end)
+  if not ts then return end
+  local o
+  pcall(function() o = ts:GetLookAtObject(spieler, false, false) end)
+
+  local passt = istJudy(o)
+  if passt then
+    local kampf = false
+    pcall(function() kampf = spieler:IsInCombat() end)
+    if kampf then passt = false end
+  end
+  if passt then
+    local dist = 999.0
+    pcall(function()
+      dist = Vector4.Distance(spieler:GetWorldPosition(), o:GetWorldPosition())
+    end)
+    if dist > GAZE.distanz then passt = false end
+  end
+
+  if passt then
+    local id = tostring(o:GetEntityID().hash)
+    if id ~= gaze.id then
+      gaze.id, gaze.t, gaze.s1, gaze.s2 = id, 0.0, false, false
+    end
+    gaze.t = gaze.t + d
+    gazeFeuern(o)
+  elseif gaze.id then
+    --  Wegsehen setzt die Uhr zurueck. Sonst liesse sich die Schwelle aus lauter kurzen
+    --  Blicken zusammensammeln, und das ist nicht dasselbe wie jemanden anzusehen.
+    gaze.id, gaze.t, gaze.s1, gaze.s2 = nil, 0.0, false, false
+  end
+end
+
+--  ---------------------------------------------------------------- Kampf
+
+local KAMPF = {
+  anlauf   =  2.0,    -- erst ein Moment Gefecht, dann redet sie
+  waehrend = 30.0,    -- Abstand zwischen Zeilen im laufenden Kampf
+  nachlauf =  2.5,    -- nach dem letzten Schuss, bevor sie es kommentiert
+  cd_ende  = 45.0,    -- damit ein zweiter Schwung nicht sofort wieder quittiert wird
+}
+local kampf = { drin = false, seit = 0.0, seitEnde = nil, an = true }
+
+local function kampfTick(d)
+  if not kampf.an then return end
+  local drin = false
+  pcall(function() drin = Game.GetPlayer():IsInCombat() end)
+
+  if drin and not kampf.drin then
+    kampf.drin, kampf.seit, kampf.seitEnde = true, 0.0, nil
+    log("KAMPF beginnt")
+  elseif not drin and kampf.drin then
+    kampf.drin, kampf.seitEnde = false, 0.0
+    --  Was noch fuer den Kampf anstand, ist keine Kampfzeile mehr.
+    Speaker.Verwerfen("kampf")
+    log("KAMPF vorbei")
+  end
+
+  if kampf.drin then
+    kampf.seit = kampf.seit + d
+    if kampf.seit >= KAMPF.anlauf then
+      local k = pool("kampf")
+      if #k > 0 then
+        Speaker.Request({ situation = "kampf", pool = "kampf",
+                          kandidaten = k, cd = KAMPF.waehrend })
+      end
+      --  Der Sprecher lehnt ab, solange die Abklingzeit laeuft; hier nur dafuer sorgen,
+      --  dass nicht in jedem Frame ein Antrag entsteht.
+      kampf.seit = 0.0
+    end
+    return
+  end
+
+  if kampf.seitEnde then
+    kampf.seitEnde = kampf.seitEnde + d
+    if kampf.seitEnde >= KAMPF.nachlauf then
+      kampf.seitEnde = nil
+      local k = pool("kampf_ende")
+      if #k > 0 then
+        Speaker.Request({ situation = "kampf_ende", pool = "kampf_ende",
+                          kandidaten = k, cd = KAMPF.cd_ende })
+      end
+    end
+  end
+end
+
+--  ---------------------------------------------------------------- aussen
+
+function T.Init(opts)
+  Speaker = opts.speaker
+  LINES   = opts.lines or {}
+  log     = opts.log or function() end
+end
+
+function T.Tick(d)
+  if not Speaker or not imSpiel() then return end
+  gazeTick(d)
+  kampfTick(d)
+end
+
+function T.Status()
+  return {
+    gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
+              stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2,
+              n1 = #pool("blick", 1), n2 = #pool("blick", 2) },
+    kampf = { an = kampf.an, drin = kampf.drin, seit = kampf.seit,
+              n = #pool("kampf"), nEnde = #pool("kampf_ende") },
+  }
+end
+
+function T.Setzen(was, an)
+  if was == "blick" then gaze.an = an end
+  if was == "kampf" then kampf.an = an end
+end
+
+function T.Zuruecksetzen()
+  gaze.s1, gaze.s2, gaze.t, gaze.id = false, false, 0.0, nil
+  kampf.seit = 0.0
+end
+
+return T
