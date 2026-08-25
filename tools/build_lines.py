@@ -59,6 +59,11 @@ gewuenschten Zeilen enthaelt. Die Laufzeit laedt es nicht ueber die Szenenrefere
 ueber einen aus dem Szenenpfad abgeleiteten Konventionspfad.
 
     python tools/build_lines.py            # baut die Testauswahl unten
+    python tools/build_lines.py --alle     # baut alles Gesichtete aus der Matrix
+
+Im vollen Lauf heisst jeder Eintrag `cl_<id>`. Das ist unschoen zu lesen, aber eindeutig
+und unveraenderlich - ein Name aus Situation und laufender Nummer haette sich verschoben,
+sobald eine Zeile dazukommt, und damit die Verdrahtung gebrochen.
 """
 import copy
 import glob
@@ -96,6 +101,7 @@ WANTED = [
 
 
 def main():
+    alle = "--alle" in sys.argv
     durations = json.load(open(os.path.join(HERE, "data", "durations.json"),
                                encoding="utf-8"))
     anims = json.load(open(os.path.join(HERE, "data", "anim_durations.json"),
@@ -114,12 +120,27 @@ def main():
     }
 
     donors = _donors(anims, durations)
+    wanted = WANTED
+    if alle:
+        bau = json.load(open(os.path.join(HERE, "data", "matrix_lines.json"),
+                             encoding="utf-8"))
+        wanted = [dict(name="cl_" + b["hex"], hex=b["hex"], sit=b["situation"])
+                  for b in bau]
+        print("Bauliste aus der Matrix: %d Zeilen" % len(wanted))
+
+    zaehl = {"gebaut": 0, "leih": 0, "platzhalter": 0, "ohne_anim": 0}
+    gebaut = []
     anims_needed = {}   # Szene -> {Zielname: Spezifikation fuer merge_anims}
-    for w in WANTED:
+    for w in wanted:
         name, hexid = w["name"], w["hex"]
         rec = durations.get(str(int(hexid, 16)))
         if not rec:
             print("!! keine Dauer bekannt: %s" % name)
+            continue
+        if rec["dur"] <= PLATZHALTER_MS and not anims.get("f_" + hexid.upper()):
+            #  Weder Szenendauer noch Animation - dann gibt es nichts, woran sich die
+            #  Laenge festmachen liesse. Lieber auslassen als raten.
+            print("!! keine belastbare Dauer, ausgelassen: %s" % name)
             continue
         src = "f_" + hexid.upper()
         anim = anims.get(src)
@@ -149,7 +170,23 @@ def main():
 
         _add_entry(root, st, name, hexid, duration, lipsync)
         anims_needed.setdefault(lip_scene, {})[lipsync] = lipsync
-        print("  %-12s %5d ms  %-24s %s" % (name, duration, rec["scene"][:24], note))
+        zaehl["gebaut"] += 1
+        gebaut.append((name, w.get("sit", ""), hexid, duration))
+        if "geliehen" in note:
+            zaehl["leih"] += 1
+        if "Platzhalter" in note:
+            zaehl["platzhalter"] += 1
+        if "kein Anim" in note:
+            zaehl["ohne_anim"] += 1
+        if not alle:
+            print("  %-12s %5d ms  %-24s %s"
+                  % (name, duration, rec["scene"][:24], note))
+
+    if alle:
+        print("  gebaut %d | geliehenes Lipsync %d | Platzhalter-Dauer %d | ohne Anim %d"
+              % (zaehl["gebaut"], zaehl["leih"], zaehl["platzhalter"],
+                 zaehl["ohne_anim"]))
+        _panel_liste(gebaut, durations)
 
     print()
     print("Einstiege %d = startNodes %d | Knoten %d = Symbole %d | Zeilen %d"
@@ -208,6 +245,34 @@ def _donor(donors, target, scene):
         if abs(best[0] - target) <= NAH_GENUG_MS:
             return best[1]
     return min(donors, key=lambda d: abs(d[0] - target))[1]
+
+
+def _panel_liste(gebaut, durations):
+    """Schreibt die gebauten Zeilen als Lua-Tabelle fuer das Testpanel.
+
+    170 Knoepfe ohne Gruppierung waeren unbenutzbar, und die Namen sind absichtlich
+    unleserlich. Das Panel braucht deshalb den Text dazu - und der kommt von hier, damit
+    er nicht neben dem Bau von Hand gepflegt werden muss.
+    """
+    import json as _json
+    jall = _json.load(open(os.path.join(HERE, "data", "judy_ALL_de.json"),
+                           encoding="utf-8"))["files"]
+    txt = {str(r["id"]): (r.get("text") or "") for r in jall}
+
+    def esc(t):
+        return t.replace("\\", "").replace('"', "'").replace("\n", " ").strip()
+
+    out = ["--  Erzeugt von tools/build_lines.py --alle. Nicht von Hand aendern.",
+           "--  %d Zeilen aus der gesichteten Matrix." % len(gebaut),
+           "return {"]
+    for name, sit, hexid, ms in sorted(gebaut, key=lambda g: (g[1], -g[3])):
+        t = esc(txt.get(str(int(hexid, 16)), ""))[:78]
+        out.append('  { n = "%s", s = "%s", d = %.1f, t = "%s" },'
+                   % (name, sit, ms / 1000.0, t))
+    out.append("}")
+    p = os.path.join(HERE, "cet", "CompanionLeashVO", "lines.lua")
+    open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
+    print("  Panel-Liste: %s" % os.path.relpath(p, HERE))
 
 
 def _add_entry(root, st, name, hexid, duration, lipsync):

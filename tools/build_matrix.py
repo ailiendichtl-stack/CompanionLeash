@@ -547,6 +547,21 @@ def main():
     out.append("* **Dauern fuer Vs Zeilen** fehlen groesstenteils: `durations.json` deckt"
                " bisher nur die Szenen mit Judy ab.")
 
+    #  Die gesichteten Judy-Questzeilen als Bauliste weggeben. Ohne das kennt der
+    #  Generator die Sichtung nicht und man muesste jede Id zweimal pflegen.
+    bau = []
+    for c in CATEGORIES:
+        refs = list(c["judy"])
+        for cat in c["picks"]:
+            refs += d["picks"].get(cat, [])
+        for h in refs:
+            k, ref = _normalize("q", h, d)
+            if k == "q" and ref not in [b["hex"] for b in bau]:
+                bau.append({"hex": ref, "situation": c["key"]})
+    json.dump(bau, open(os.path.join(HERE, "data", "matrix_lines.json"), "w",
+                        encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("Bauliste: %d Questzeilen -> data/matrix_lines.json" % len(bau))
+
     p = os.path.join(HERE, "DIALOG_MATRIX.md")
     open(p, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
     print("Situationen %d | Judy %d | V %d | Wortwechsel %d"

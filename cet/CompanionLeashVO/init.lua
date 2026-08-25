@@ -192,6 +192,13 @@ local speaker = 0
 local sweep = nil
 
 --  name/ziel getrennt; hint sagt, was zu erwarten ist.
+local LINES = {}
+do
+  local ok, t = pcall(require, "lines")
+  if ok and type(t) == "table" then LINES = t end
+end
+local lineFilter = ""
+
 local MATRIX = {
   -- Die ersten drei haben Animationen, die zu ihrer Laenge passen. Sollten sitzen.
   { label = "1 Gut dass du da bist", name = "cl_froh",         player = false,
@@ -568,6 +575,47 @@ registerForEvent("onDraw", function()
       end
       ImGui.SameLine()
       ImGui.TextDisabled(t.hint)
+    end
+  end
+
+  if ImGui.CollapsingHeader(string.format("Matrix-Zeilen - %d gebaut", #LINES)) then
+    if #LINES == 0 then
+      ImGui.TextDisabled("lines.lua fehlt - tools/build_lines.py --alle laufen lassen")
+    else
+      ImGui.TextWrapped("Die gesichtete Auswahl aus DIALOG_MATRIX.md, als Voiceset " ..
+                        "gebaut. Namen sind absichtlich die Zeilen-Id: sie bleiben " ..
+                        "gleich, auch wenn Zeilen dazukommen.")
+      local changed
+      lineFilter, changed = ImGui.InputText("Suche##lf", lineFilter, 64)
+      ImGui.Separator()
+
+      local sit, shown = nil, 0
+      local f = lineFilter:lower()
+      for _, l in ipairs(LINES) do
+        if f == "" or l.t:lower():find(f, 1, true) or l.s:find(f, 1, true) then
+          if l.s ~= sit then
+            sit = l.s
+            ImGui.Spacing()
+            ImGui.TextDisabled(sit)
+          end
+          if ImGui.Button(string.format("%.1fs##%s", l.d, l.n)) then
+            speaker = 0
+            for i, nm in ipairs(STYLES) do
+              if nm:lower() == "regular" then styleIdx = i - 1 end
+            end
+            log(string.format("ZEILE   name=%s  sit=%s  %s", l.n, l.s, l.t))
+            if not target then
+              log("        !! kein Ziel gesperrt - Aufruf uebersprungen")
+            else
+              playBark(l.n)
+            end
+          end
+          ImGui.SameLine()
+          ImGui.TextWrapped(l.t)
+          shown = shown + 1
+        end
+      end
+      if shown == 0 then ImGui.TextDisabled("nichts gefunden") end
     end
   end
 
