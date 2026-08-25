@@ -295,14 +295,22 @@ local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
                   gesetzt = 0, korrekturen = 0, gemeldet = false,
                   gemeldetOk = false }
 
---  Was steht gerade in ihrem Zustands-Blackboard?
+--  Der ECHTE Zustand, nicht der gespiegelte.
+--
+--  `GetCurrentStanceState` liest `GetReplicatedStanceState` - das ist der Wert, den die
+--  Zustandsmaschine wirklich fuehrt. Das Blackboard daneben ist nur eine Kopie, die
+--  `UpdateStanceState` mitschreibt; wer sie selbst setzt, prueft sich gegen sich selbst.
 local function haltungLesen(o)
   local v
   pcall(function()
-    local defs = Game.GetAllBlackboardDefs()
-    local bb = o:GetPuppetStateBlackboard()
-    if bb then v = bb:GetInt(defs.PuppetState.Stance) end
+    local comp = o:GetStatesComponent()
+    if comp then v = comp:GetCurrentStanceState() end
   end)
+  if v ~= nil then
+    local n
+    pcall(function() n = EnumInt(v) end)
+    if n ~= nil then return n end
+  end
   return v
 end
 
@@ -344,14 +352,15 @@ local function haltungSetzen(o, name)
     schritte.wrapper = true
   end)
 
-  pcall(function()
-    local defs = Game.GetAllBlackboardDefs()
-    local bb = o:GetPuppetStateBlackboard()
-    if bb then
-      bb:SetInt(defs.PuppetState.Stance, wert)
-      schritte.blackboard = true
-    end
-  end)
+  --  Frueher wurde hier auch das Blackboard geschrieben. Zwei Gruende, es zu lassen:
+  --
+  --  Es machte die Rueckmessung wertlos - wir lasen zurueck, was wir selbst gesetzt hatten,
+  --  der Korrekturzaehler konnte gar nicht anschlagen und stand auf 0, waehrend sichtbar
+  --  nichts geschah.
+  --
+  --  Und es luegt. `UpdateStanceState` schreibt den Wert als SPIEGEL des echten Zustands.
+  --  Ihn ohne den echten Zustand zu setzen erzaehlt jeder KI-Bedingung und jedem Prereq,
+  --  sie hocke - und die entscheiden danach.
 
   if not haltung.gemeldet then
     haltung.gemeldet = true
@@ -397,7 +406,8 @@ local function haltungTick(d)
         end
       else
         haltung.gesetzt = haltung.gesetzt + 1
-        log(string.format("HALTUNG %s (V %s)", ziel, hockt and "hockt" or "steht"))
+        log(string.format("HALTUNG %s gesetzt - echter Zustand vorher: %s",
+            ziel, tostring(istWert)))
       end
     elseif haltung.ziel ~= ziel then
       log("HALTUNG konnte nicht gesetzt werden - GetStatesComponent oder Signal fehlt")
