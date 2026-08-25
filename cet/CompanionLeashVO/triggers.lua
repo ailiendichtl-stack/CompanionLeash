@@ -30,6 +30,25 @@ local function imSpiel()
   return spieler() ~= nil
 end
 
+--  Steht das Spiel? Im Pausenmenue, im Inventar und auf der Karte laeuft `onUpdate`
+--  weiter, das Spiel aber nicht. Ohne diese Sperre zaehlen alle Uhren durch: die
+--  Standuhr der Leiter (im Menue bewegt sich niemand), der Zufallstimer, die Blickdauer.
+--  Nach dem Schliessen waeren mehrere Sprossen gleichzeitig faellig und wuerden sich
+--  aufeinander stapeln.
+local function pausiert()
+  local p = false
+  pcall(function() p = Game.GetSystemRequestsHandler():IsGamePaused() end)
+  if p == true then return true end
+  pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb = Game.GetBlackboardSystem():Get(defs.UI_System)
+    if bb then p = bb:GetBool(defs.UI_System.IsInMenu) end
+  end)
+  return p == true
+end
+
+function T.Pausiert() return pausiert() end
+
 --  Ein Wert aus der Spieler-Zustandsmaschine.
 --
 --  `Game.GetPlayer():IsInCombat()` sah naheliegend aus und lieferte nie etwas - der Aufruf
@@ -919,6 +938,8 @@ function T.Tick(d)
   if not Speaker then return end
   local p = spieler()
   if not p then return end
+  --  Im Menue steht die Zeit fuer den Spieler still, also auch fuer sie.
+  if pausiert() then return end
   --  Unabhaengig von jedem Ausloeser: der Abstand wird auch angezeigt und spaeter vom
   --  Teleport-Fix gebraucht. Frueher rechnete ihn nur reibungTick, und der steigt im
   --  Wagen und im Gefecht sofort aus - dann stand im Panel ein alter Wert.

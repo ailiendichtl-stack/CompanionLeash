@@ -427,7 +427,10 @@ end
 
 registerForEvent("onUpdate", function(dt)
   local d = dt or 0.016
-  if Speaker then Speaker.Tick(d) end
+  --  Auch der Sprecher haelt an: seine Uhr treibt die Abklingzeiten, und die sollen im
+  --  Menue nicht ablaufen. Eine laufende Zeile ist dort ohnehin stumm.
+  local pause = Triggers and Triggers.Pausiert()
+  if Speaker and not pause then Speaker.Tick(d) end
   if Triggers then Triggers.Tick(d) end
 
   --  Sweep: jeden Namen feuern, kurz auf die Zeile warten, Ergebnis mitschreiben.
@@ -635,6 +638,9 @@ registerForEvent("onDraw", function()
       ImGui.TextColored(1.0, 0.4, 0.4, 1.0, "speaker.lua nicht geladen")
     else
       local st = Speaker.Status()
+      if Triggers and Triggers.Pausiert() then
+        ImGui.TextColored(1.0, 0.8, 0.3, 1.0, "Spiel pausiert - alle Uhren stehen")
+      end
       ImGui.Text("laeuft: " .. st.aktiv)
       ImGui.Text(string.format("wartend %d   angenommen %d   abgelehnt %d",
                                st.warten, st.angenommen, st.abgelehnt))
