@@ -429,6 +429,24 @@ local HWEGE = {
         o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
       return "angewandt"
     end },
+  { name = "9 Zustand + Anim zusammen", fn = function(o, st)
+      --  `UpdateStanceState` macht beides nacheinander. Route 1 sollte das intern tun -
+      --  falls nicht, holt das hier es nach.
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      local feat = NewObject("animAnimFeature_NPCState")
+      feat.state = (st == "Crouch") and 2 or 3
+      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
+      AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
+        o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
+      return "beides"
+    end },
+  { name = "10 Zustand, dann 3s nachmessen", fn = function(o, st)
+      --  Bleibt der Zustand stehen, oder dreht die KI ihn zurueck? Der Einzelmesswert
+      --  direkt nach dem Setzen sagt das nicht.
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      haltung.nachmessen = { o = o, rest = 3.0, takt = 0.0 }
+      return "messe 3s nach"
+    end },
   { name = "8 Cover statt Crouch", fn = function(o, st)
       NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState",
                                               (st == "Crouch") and "Cover" or "Stand"))
@@ -455,6 +473,20 @@ function T.HaltungTest(i, hocken)
   log(string.format("HTEST %s -> %s | %s | vorher %s, nachher %s",
       w.name, st, ok and tostring(ergebnis) or "FEHLER",
       tostring(vorher), tostring(nachher)))
+end
+
+--  Laeuft nach einem Test drei Sekunden mit und schreibt den echten Zustand mit. Ein
+--  Wert direkt nach dem Setzen sagt nur, dass er ankam - nicht, ob er bleibt.
+local function nachmessen(d)
+  local n = haltung.nachmessen
+  if not n then return end
+  n.rest = n.rest - d
+  n.takt = n.takt + d
+  if n.takt >= 0.5 then
+    n.takt = 0.0
+    log(string.format("   nachher %.1fs: %s", 3.0 - n.rest, tostring(haltungLesen(n.o))))
+  end
+  if n.rest <= 0.0 then haltung.nachmessen = nil end
 end
 
 local function haltungTick(d)
@@ -615,6 +647,7 @@ local function gazeTick(d, p)
     local id = tostring(o:GetEntityID().hash)
     stimme.judyId = id
     judyMerken(o)
+    T.Blickkontakt()
     if id ~= gaze.id then
       gaze.id, gaze.t, gaze.s1, gaze.s2, gaze.s3 = id, 0.0, false, false, false
     end
@@ -922,14 +955,22 @@ end
 --  Naeherungen: der Beginn einer Sitzung, und ein Ortssprung - Schnellreise, Aufzug ins
 --  Penthouse, jede Teleportation. Ein Sprung ist schlicht eine Strecke, fuer die in einem
 --  Bild keine Zeit war; das braucht kein Blackboard und faellt auch nicht mit ihm aus.
+--  Die Begruessung haengt jetzt am ersten BLICKKONTAKT, nicht an einer Uhr. Eine feste
+--  Verzoegerung nach dem Laden trifft den Moment nie: mal steht sie schon da, mal kommt
+--  sie erst um die Ecke. Sich anzusehen ist der Moment, in dem ein Hallo faellig ist.
 local WIEDER = {
-  nachStart =  6.0,    -- 25 s las sich als Vergessen, 1 s zu fix, 3 s unzuverlaessig
+  nachBlick =  0.2,    -- so kurz, dass es zum Blick gehoert und nicht danach kommt
   sprung    = 150.0,   -- Meter in EINEM Bild = teleportiert
   nachSprung = 8.0,
   cd        = 300.0,
 }
-local wieder = { seitStart = 0.0, startOffen = true, letztePos = nil,
+local wieder = { startOffen = true, letztePos = nil, seitBlick = nil,
                  seitSprung = nil, an = true }
+
+--  Vom Blick-Ausloeser gemeldet, sobald er sie zum ersten Mal erkennt.
+function T.Blickkontakt()
+  if wieder.startOffen and not wieder.seitBlick then wieder.seitBlick = 0.0 end
+end
 
 local function wiederTick(d, p)
   if not wieder.an then return end
@@ -948,10 +989,10 @@ local function wiederTick(d, p)
   wieder.letztePos = pos
 
   local faellig = false
-  if wieder.startOffen then
-    wieder.seitStart = wieder.seitStart + d
-    if wieder.seitStart >= WIEDER.nachStart then
-      wieder.startOffen, faellig = false, true
+  if wieder.seitBlick then
+    wieder.seitBlick = wieder.seitBlick + d
+    if wieder.seitBlick >= WIEDER.nachBlick then
+      wieder.startOffen, wieder.seitBlick, faellig = false, nil, true
     end
   end
   if wieder.seitSprung then
@@ -1092,6 +1133,7 @@ function T.Tick(d)
   abstand(p)
   beziehungLesen()
   stimmeTick()
+  nachmessen(d)
   gazeTick(d, p)
   kampfTick(d)
   sorgeTick()
@@ -1118,7 +1160,7 @@ function T.Status()
     sorge = { an = sorge.an, hp = sorge.war, schwelle = SORGE.schwelle,
               n = #pool("sorge") },
     wieder = { an = wieder.an, offen = wieder.startOffen,
-               seit = wieder.seitStart, nach = WIEDER.nachStart,
+               seit = wieder.seitBlick, nach = WIEDER.nachBlick,
                n = #pool("wiedersehen") },
     fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
     abschied = { an = abschied.an, da = abschied.warDa, n = #pool("abschied") },
@@ -1154,7 +1196,7 @@ function T.Zuruecksetzen()
   gaze.s1, gaze.s2, gaze.s3, gaze.t, gaze.id = false, false, false, 0.0, nil
   kampf.seit = 0.0
   sorge.war = 100.0
-  wieder.startOffen, wieder.seitStart, wieder.seitSprung = true, 0.0, nil
+  wieder.startOffen, wieder.seitBlick, wieder.seitSprung = true, nil, nil
   fahrt.seit = nil
   reibung.seit = 0.0
   leiter.stufe, leiter.stehtSeit, leiter.bewegtSeit = 1, 0.0, 0.0

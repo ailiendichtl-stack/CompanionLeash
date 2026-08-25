@@ -63,7 +63,10 @@ def pruefen(pfad):
 
     treffer = []
     for name, wo in deklariert.items():
-        for m in re.finditer(r"\b%s\b" % re.escape(name), rein):
+        #  Ein Punkt oder Doppelpunkt davor macht daraus einen FELDzugriff - `haltung.x`
+        #  ist keine Nutzung des lokalen `x`. Ohne diese Bedingung meldet der Pruefer
+        #  Namen, die zufaellig auch als Tabellenfeld vorkommen.
+        for m in re.finditer(r"(?<![.:\w])%s\b" % re.escape(name), rein):
             if m.start() >= wo:
                 break
             #  Die Deklarationszeile selbst nicht als Nutzung werten.
