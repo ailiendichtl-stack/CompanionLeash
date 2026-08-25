@@ -6,16 +6,20 @@ geschaetzt.
 
 ## Die kurze Antwort
 
-**189 von 272 Zeilen (69 %) lassen sich heute verdrahten, ohne ein einziges neues Signal zu
-bauen.** Weitere 22 kosten einen Blackboard-Listener. Der Rest haengt an drei Dingen, von
-denen nur eines wirklich Arbeit ist.
+**242 von 302 Zeilen (80 %) lassen sich heute verdrahten, ohne ein einziges neues Signal zu
+bauen.** Weitere 23 kosten einen Blackboard-Listener. Was wirklich fehlt, sind 37 Zeilen -
+und davon braucht nur ein Teil echte Arbeit.
 
 | | Zeilen | woran es haengt |
 |---|---|---|
-| sofort verdrahtbar | **189** | vorhandene Ereignisse, nichts zu bauen |
-| ein Listener noetig | 22 | Spielerzustand aus dem Blackboard |
-| Ortserkennung noetig | 36 | *welche* Wohnung, nicht nur *eine* |
-| noch ohne Konzept | 25 | Aussicht, Zustimmung, Verabredung, gemeinsame Arbeit |
+| sofort verdrahtbar | **242** | vorhandene Ereignisse, nichts zu bauen |
+| ein Listener noetig | 23 | Hocken und Schwimmen aus dem Blackboard |
+| Judys Wohnung | 11 | ein Lua-Ortsmodul, kein Code |
+| noch ohne Konzept | 26 | Aussicht, Zustimmung, Verabredung, gemeinsame Arbeit |
+
+Die Zahl ist gegenueber der ersten Fassung gestiegen, aus zwei Gruenden: *Fahrzeug* und
+*Der lange Blick* sind als Situationen dazugekommen, und die Wohnungsfrage war kleiner als
+gedacht - Vs fuenf Apartments erkennt NCA bereits.
 
 ## Woher die Signale kommen
 
@@ -37,6 +41,15 @@ Begleitung OnCompanionJoinSquad/Leave
 Blick      OnLookAtCompanion, OnLookAtCompanionEnd
 Sitzung    OnSessionStart/End, OnFastTravelStart/Complete
 Sonstiges  OnQuestStart/Complete, OnConversationFinished, OnAction, OnTick(deltaTime)
+```
+
+**NCAs Kontext** fuehrt ausserdem einen Zustand mit, der einiges umsonst mitliefert:
+
+```
+isInCombat  isInCar  isInMenu  isInElevator  isInInteraction  isRestrictedTier
+day  hour  minute        <- Tageszeit, ohne eigenen Zaehler
+district  location       <- location ist ein CName, kein Bezirk
+vehicle                  <- das Fahrzeug selbst, nicht nur "in einem"
 ```
 
 **Das Spiel selbst**, ueber Blackboards und Systeme:
@@ -76,19 +89,28 @@ Sortiert nach Zeilenzahl - da liegt der Ertrag.
 | Stealth | 13 | `Locomotion == Crouch` plus Entdeckungszustand |
 | Wasser | 9 | `Swimming == Surface / Diving` |
 
-### Ortserkennung noetig
+### Ortserkennung - billiger als gedacht
 
-`OnEnterApartment` liefert nur einen **Bezirk**, nicht *welche* Wohnung. Fuer *Kaffee, Pizza,
-Zuhause* und *Wohnung und Uebernachtung* ist aber genau das der Unterschied - dieselbe Zeile
-in Vs Apartment und in Judys sagt nicht dasselbe.
+Hier lag ich zuerst daneben. `OnEnterApartment` liefert zwar nur einen Bezirk, aber
+`Context().location` ist ein **CName**, und NCA registriert bereits neun Orte:
 
-| Situation | Zeilen |
-|---|---|
-| Alltag *(mit Ortsbezug)* | 26 |
-| Wohnung und Uebernachtung | 10 |
+```
+Afterlife   Lizzies   Red Dirt   Totentaz
+CorpoPlaza_Apartment   Glen_Apartment   H10_Apartment
+JapanTown_Apartment    Northside_Apartment
+```
 
-NCAs Location-Module sind der vorgesehene Weg dafuer; Lizzies ist mit 261 Zeilen ausgebaut,
-Judys Revier nur angefangen.
+**Alle fuenf Wohnungen von V sind also schon erkennbar.** Was fehlt, ist Judys - und ein
+Ortsmodul ist reines Lua: `nca_location_apartment_glen.lua` hat **77 Zeilen**, im Kern
+Weltkoordinaten fuer Sofa und Kueche. Kein Redscript, keine NCA-Aenderung.
+
+| Situation | Zeilen | Lage |
+|---|---|---|
+| Alltag | 26 | in Vs Wohnung heute schon moeglich |
+| Wohnung und Uebernachtung | 10 | braucht Judys Ort - ein Lua-Modul, kein Code |
+
+Der Aufwand steckt nicht im Bauen, sondern im Beschaffen der Koordinaten. Das geht im Spiel
+ueber eine Positionsanzeige, die unser Panel bekommen kann.
 
 ### Noch ohne Konzept
 
@@ -100,6 +122,11 @@ Judys Revier nur angefangen.
 | Gemeinsame Arbeit | 5 | braucht eine Taetigkeit (Virtu, Tauchgang), nicht nur eine Zeile. |
 
 ## Drei Funde, die die Planung aendern
+
+**Der Blick braucht nicht einmal einen Patch.** `EventBus` ist eine `ScriptableSystem` mit
+`public final func`-Methoden - die lassen sich mit `@wrapMethod` umschliessen, ohne NCAs
+Quelltext anzufassen. Unsere Mod patcht heute genau eine NCA-Datei; der Blick-Trigger kommt
+ohne aus und kostet damit auch keinen Merge-Aufwand bei NCA-Updates.
 
 **Der Blick ist schon da.** `OnLookAtCompanion` haengt am Namensschild-Controller und feuert,
 sobald V Judy anvisiert; `OnLookAtCompanionEnd` beim Wegsehen. Die Dauer messen wir selbst

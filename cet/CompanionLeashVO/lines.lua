@@ -1,5 +1,5 @@
 --  Erzeugt von tools/build_lines.py --alle. Nicht von Hand aendern.
---  170 Zeilen aus der gesichteten Matrix.
+--  181 Zeilen aus der gesichteten Matrix.
 return {
   { n = "cl_1897d495012b6000", s = "abschied", d = 1.5, t = "Bis dann, V." },
   { n = "cl_18982e23922b6000", s = "abschied", d = 1.5, t = "Bis dahaaaann!" },
@@ -23,9 +23,21 @@ return {
   { n = "cl_1806ce4c842fc000", s = "alltag", d = 1.4, t = "Was machen wir?" },
   { n = "cl_1afc0918ac2fc000", s = "alltag", d = 1.2, t = "Was gibt’s Neues?" },
   { n = "cl_189d4f49e02b6000", s = "arbeit", d = 3.5, t = "Du, meine Liebe, wirst mit mir eine Virtu machen. | Du, Kumpel, wirst mit mir " },
+  { n = "cl_18ff52f8fd2b6000", s = "blick", d = 4.3, t = "Schon besser. Dachte für ’n Moment, du bist ’ne Langweilerin. | Schon besser. " },
+  { n = "cl_1a676ce3032fc000", s = "blick", d = 4.2, t = "Außen tough ... und innen süß." },
+  { n = "cl_3966891225a4e000", s = "blick", d = 3.2, t = "Hmmm … Außen tough und innen süß." },
+  { n = "cl_1bde5efe6529f000", s = "blick", d = 1.1, t = "Was denn?" },
+  { n = "cl_39669645a8a4e000", s = "blick", d = 1.0, t = "Alles in Ordnung, V?" },
+  { n = "cl_3966964c69a4e000", s = "blick", d = 0.8, t = "Alles in Ordnung bei dir?" },
   { n = "cl_1a9f0c7fe02fc000", s = "einladung", d = 4.5, t = "Cool. Heute Abend in der Hütte am See. Lass mich nicht warten." },
   { n = "cl_1a9f085b672fc000", s = "einladung", d = 4.1, t = "Klar. Heute Abend in der Hütte am See. Wir sehen uns dort?" },
   { n = "cl_39675ce5d69ce000", s = "einladung", d = 1.4, t = "Lass mich nicht warten." },
+  { n = "cl_18fa35b1a12b6000", s = "fahrzeug", d = 6.3, t = "Fahr hin, wenn du willst. Ich denke, ich bleib noch ein bisschen hier." },
+  { n = "cl_1a4e3b3a374ea000", s = "fahrzeug", d = 2.4, t = "Ich warte im Auto. Beeil dich, okay?" },
+  { n = "cl_1bde5d7e5429f000", s = "fahrzeug", d = 2.1, t = "Mhm. Ich komm mit." },
+  { n = "cl_16bf05739e2b6000", s = "fahrzeug", d = 2.0, t = "Ja. Fahren wir zusammen?" },
+  { n = "cl_1bde5dd1d429f000", s = "fahrzeug", d = 1.3, t = "Ich komm mit." },
+  { n = "cl_157e1b71452fc000", s = "fahrzeug", d = 1.1, t = "Steig ein." },
   { n = "cl_18a6e78c9e2b6000", s = "flirt", d = 5.5, t = "Und das andere ... Na ja, ich tauch nicht mit jeder. | Und das andere ... Na j" },
   { n = "cl_1897f7fb1a2b6000", s = "flirt", d = 5.2, t = "Jetzt mach keinen Rückzieher mehr. Benutz einfach deine Fantasie." },
   { n = "cl_1a67403cc92fc004", s = "flirt", d = 5.0, t = "Ich hab gerade was Komisches gehört ... Klang wie Nörgelei ...?" },
@@ -65,7 +77,6 @@ return {
   { n = "cl_18fe75e7ff3bc000", s = "naehe", d = 6.8, t = "Und solltest du je Hilfe brauchen, du weißt, dass ich für dich da bin, ja? Imm" },
   { n = "cl_1878a052fd2fc000", s = "naehe", d = 5.5, t = "Ist es dein, ähm, blinder Passagier? Wird es schlimmer?" },
   { n = "cl_197a02720e2b6000", s = "naehe", d = 5.4, t = "Ich ... will einfach nicht über irgendwas davon nachdenken. Nicht heute." },
-  { n = "cl_1a676ce3032fc000", s = "naehe", d = 4.2, t = "Außen tough ... und innen süß." },
   { n = "cl_1401fd943a2fc000", s = "naehe", d = 4.0, t = "Scheiße ... Ich hab Angst, V." },
   { n = "cl_19dbc1edd129f000", s = "naehe", d = 3.1, t = "Hab davon geträumt, wie es wird, wenn wir’s endlich schaffen ..." },
   { n = "cl_175e1a1cba386000", s = "naehe", d = 2.9, t = "Ich weiß nicht, was ich mache, wenn du nicht mehr da bist." },

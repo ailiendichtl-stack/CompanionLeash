@@ -7,8 +7,8 @@ Text, Dauer und Lipsync-Lage werden nachgeschlagen, nicht gepflegt. Erweitern
 heisst: eine Id in `tools/build_matrix.py` eintragen und neu erzeugen. Eine
 unbekannte Id bricht den Lauf ab - hier steht nichts Unbelegtes.
 
-**Bestand:** 246 Judy-Eintraege und 38 V-Zeilen in 18 Situationen, dazu 63
-Wortwechsel. Alle 63 Judy-Barks sind einsortiert; 6 Judy-Zeilen
+**Bestand:** 262 Judy-Eintraege und 40 V-Zeilen in 20 Situationen, dazu 68
+Wortwechsel. Alle 63 Judy-Barks sind einsortiert; 9 Judy-Zeilen
 brauchen geliehenes Lipsync, der Rest sitzt.
 
 ## Woher eine Zeile stammt, zaehlt nicht
@@ -1003,6 +1003,94 @@ Drei Zeilen, die zusammen einen ganzen Abend andeuten.
 - **JUDY:** Wenn du willst, kannst du auf der Couch schlafen.  <sub>2.3 s &middot; `18a2fa98762fc00c`</sub>
 
 Die Feststellung und das Angebot. Dazwischen gehoert eine Pause.
+
+
+## Fahrzeug
+
+**Wann:** Ein- und Aussteigen, Warten am Wagen, gemeinsam fahren
+
+Die Ausloeser liegen bereit - `OnEnterVehicle`, `OnExitVehicle`, `OnCompanionMounted` -, aber keines der drei Vorgaengerdokumente hatte eine Kategorie dafuer. Der Bestand ist duenn: Judy redet kaum uebers Fahren. Was da ist, sitzt dafuer genau.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Ja. Fahren wir zusammen? | 2.0 s | `Zeile` | `16bf05739e2b6000 q105_06c_finding_studio` |
+| Ich warte im Auto. Beeil dich, okay? | 2.4 s | `Zeile` | `1a4e3b3a374ea000 q105_04a_judy_holocall` |
+| Steig ein. | 1.1 s | `Zeile` | `157e1b71452fc000 q105_06c_finding_studio` |
+| Ich komm mit. | 1.3 s | `Zeile` | `1bde5dd1d429f000 q203_02c_judy` |
+| Mhm. Ich komm mit. | 2.1 s | `Zeile` | `1bde5d7e5429f000 q203_02c_judy` |
+| Gern. Passt mir gut, ich sitz grad eh am Steuer. | 3.7 s | `Zeile` | `1b07df75762b6000 mq055_05_downtown` |
+| Fahr hin, wenn du willst. Ich denke, ich bleib noch ein bisschen hier. | 6.3 s | `Zeile` | `18fa35b1a12b6000 sq030_11_morning` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Mega! Bleibst du im Auto? | ? | `VVF frei` | `1241e3e7202b6000 q204_04_to_music_store` |
+| Wohin fahren wir? | ? | `VVF frei` | `1288ecf312404000 q114_03b_training` |
+
+### Wortwechsel
+
+**Fahren wir zusammen**
+
+- **JUDY:** Ja. Fahren wir zusammen?  <sub>2.0 s &middot; `16bf05739e2b6000`</sub>
+- **V:** Wohin fahren wir?  <sub>? &middot; `1288ecf312404000`</sub>
+
+Ihre Frage, Vs Rueckfrage - passt auf jede Fahrt.
+
+**Sie bleibt im Wagen**
+
+- **V:** Mega! Bleibst du im Auto?  <sub>? &middot; `1241e3e7202b6000`</sub>
+- **JUDY:** Ich warte im Auto. Beeil dich, okay?  <sub>2.4 s &middot; `1a4e3b3a374ea000`</sub>
+
+V fragt, sie antwortet mit einer Bedingung. Beim Aussteigen ohne sie.
+
+**Steig ein**  <sub>Zeilenfolge, nur Judy</sub>
+
+- **JUDY:** Steig ein.  <sub>1.1 s &middot; `157e1b71452fc000`</sub>
+- **JUDY:** Ich komm mit.  <sub>1.3 s &middot; `1bde5dd1d429f000`</sub>
+
+Kurz und beilaeufig, fuer den Moment am offenen Wagen.
+
+
+## Der lange Blick
+
+**Wann:** V sieht Judy laenger an, ohne etwas zu tun
+
+`OnLookAtCompanion` und `OnLookAtCompanionEnd` gibt es fertig - sie haengen am Namensschild-Controller. Zu bauen ist nur die Uhr dazwischen.
+
+Zwei Stufen, nicht eine. Unter fuenf Sekunden passiert nichts: man sieht seine Begleiterin staendig an, waehrend man laeuft. Ab etwa fuenf faellt es ihr auf und sie fragt nach - kurz, beilaeufig. Wer deutlich laenger schaut und die Beziehung hat, bekommt die zweite Ebene. Die vertraegt keine Wiederholung.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Was denn? | 1.1 s | `Zeile` | `1bde5efe6529f000 q203_02c_judy` |
+| Gefällt’s dir? | 1.2 s | `Zeile` | `1362da25582fc000 sq030_05_lake_test` |
+| Alles in Ordnung, V? | 1.0 s | `Zeile+Leih` | `39669645a8a4e000 mq055_05_downtown` |
+| Alles in Ordnung bei dir? | 0.8 s | `Zeile+Leih` | `3966964c69a4e000 mq055_05_downtown` |
+| Schon besser. Dachte für ’n Moment, du bist ’ne Langweilerin. / Schon besser. Dachte für ’n Moment, du bist ’n Langweiler. | 4.3 s | `Zeile` | `18ff52f8fd2b6000 sq030_09_pier` |
+| Hmmm … Außen tough und innen süß. | 3.2 s | `Zeile+Leih` | `3966891225a4e000 mq055_01_megabuilding` |
+| Außen tough ... und innen süß. | 4.2 s | `Zeile` | `1a676ce3032fc000 sq030_09_pier` |
+| Wenn man das bedenkt, siehst du sogar sensationell aus. / Ach, komm schon, red keinen Blödsinn. | 3.9 s | `Zeile` | `189c5847c42b6000 sq030_01_dam_meetup` |
+| Oh, heißt das, mein Timing war perfekt, oder denkst du immer an mich? | 4.7 s | `Zeile` | `18830b966a2b6000 sq030_00_holocall` |
+
+### Wortwechsel
+
+**Stufe eins - sie merkt es**  <sub>Zeilenfolge, nur Judy</sub>
+
+- **JUDY:** Was denn?  <sub>1.1 s &middot; `1bde5efe6529f000`</sub>
+- **JUDY:** Gefällt’s dir?  <sub>1.2 s &middot; `1362da25582fc000`</sub>
+
+Zwei kurze Zeilen als Pool, nicht als Folge. Ab etwa fuenf Sekunden.
+
+**Stufe zwei - sie nimmt es auf**  <sub>Zeilenfolge, nur Judy</sub>
+
+- **JUDY:** Schon besser. Dachte für ’n Moment, du bist ’ne Langweilerin. / Schon besser. Dachte für ’n Moment, du bist ’n Langweiler.  <sub>4.3 s &middot; `18ff52f8fd2b6000`</sub>
+- **JUDY:** Außen tough ... und innen süß.  <sub>4.2 s &middot; `1a676ce3032fc000`</sub>
+
+Deutlich laenger, und nur mit Beziehung. Hoechstens einmal je Sitzung.
 
 
 ## Tiefe Naehe

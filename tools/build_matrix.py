@@ -384,6 +384,47 @@ CATEGORIES = [
               [("J", "q", "18a2fa98762fc004"), ("J", "q", "18a2fa98762fc00c")],
               "Die Feststellung und das Angebot. Dazwischen gehoert eine Pause.")]),
 
+ dict(key="fahrzeug", title="Fahrzeug",
+      when="Ein- und Aussteigen, Warten am Wagen, gemeinsam fahren",
+      note="Die Ausloeser liegen bereit - `OnEnterVehicle`, `OnExitVehicle`,"
+           " `OnCompanionMounted` -, aber keines der drei Vorgaengerdokumente hatte eine"
+           " Kategorie dafuer. Der Bestand ist duenn: Judy redet kaum uebers Fahren."
+           " Was da ist, sitzt dafuer genau.",
+      fams=[], picks=[],
+      judy=["16bf05739e2b6000", "1a4e3b3a374ea000", "157e1b71452fc000",
+            "1bde5dd1d429f000", "1bde5d7e5429f000", "1b07df75762b6000",
+            "18fa35b1a12b6000"],
+      v=["1241e3e7202b6000", "1288ecf312404000"],
+      pairs=[("Fahren wir zusammen",
+              [("J", "q", "16bf05739e2b6000"), ("V", "qv", "1288ecf312404000")],
+              "Ihre Frage, Vs Rueckfrage - passt auf jede Fahrt."),
+             ("Sie bleibt im Wagen",
+              [("V", "qv", "1241e3e7202b6000"), ("J", "q", "1a4e3b3a374ea000")],
+              "V fragt, sie antwortet mit einer Bedingung. Beim Aussteigen ohne sie."),
+             ("Steig ein",
+              [("J", "q", "157e1b71452fc000"), ("J", "q", "1bde5dd1d429f000")],
+              "Kurz und beilaeufig, fuer den Moment am offenen Wagen.")]),
+
+ dict(key="blick", title="Der lange Blick",
+      when="V sieht Judy laenger an, ohne etwas zu tun",
+      note="`OnLookAtCompanion` und `OnLookAtCompanionEnd` gibt es fertig - sie haengen am"
+           " Namensschild-Controller. Zu bauen ist nur die Uhr dazwischen.\n\n"
+           "Zwei Stufen, nicht eine. Unter fuenf Sekunden passiert nichts: man sieht seine"
+           " Begleiterin staendig an, waehrend man laeuft. Ab etwa fuenf faellt es ihr auf"
+           " und sie fragt nach - kurz, beilaeufig. Wer deutlich laenger schaut und die"
+           " Beziehung hat, bekommt die zweite Ebene. Die vertraegt keine Wiederholung.",
+      fams=[], picks=[],
+      judy=["1bde5efe6529f000", "1362da25582fc000", "39669645a8a4e000",
+            "3966964c69a4e000", "18ff52f8fd2b6000", "3966891225a4e000",
+            "1a676ce3032fc000", "189c5847c42b6000", "18830b966a2b6000"],
+      v=[],
+      pairs=[("Stufe eins - sie merkt es",
+              [("J", "q", "1bde5efe6529f000"), ("J", "q", "1362da25582fc000")],
+              "Zwei kurze Zeilen als Pool, nicht als Folge. Ab etwa fuenf Sekunden."),
+             ("Stufe zwei - sie nimmt es auf",
+              [("J", "q", "18ff52f8fd2b6000"), ("J", "q", "1a676ce3032fc000")],
+              "Deutlich laenger, und nur mit Beziehung. Hoechstens einmal je Sitzung.")]),
+
  dict(key="naehe", title="Tiefe Naehe",
       when="Nur nach abgeschlossener Romanze - nie im Ambient-Pool",
       note="Diese Zeilen tragen Gewicht und vertragen keine Wiederholung. Sie gehoeren an"
