@@ -733,6 +733,10 @@ registerForEvent("onDraw", function()
                                          st.leiter.stufe, st.leiter.stufen,
                                          st.leiter.naechste, st.leiter.steht,
                                          st.leiter.ruhe, st.leiter.ruheMin))
+        if st.leiter.bewegt > 0.0 then
+          ImGui.TextDisabled(string.format("   bewegt sich seit %.1fs - Reset bei %.0fs",
+                                           st.leiter.bewegt, st.leiter.karenz))
+        end
       else
         ImGui.TextDisabled(string.format("durch - alle %d Sprossen gespielt",
                                          st.leiter.stufen))

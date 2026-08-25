@@ -378,17 +378,23 @@ end
 --
 --  Die Sprossen wachsen. Gleiche Abstaende erzeugen ein Ticken, und ein Ticken merkt man
 --  beim dritten Mal. Ist die letzte gespielt, bleibt sie still, bis V sich bewegt.
+--  `cd` je Sprosse, nicht global. Sprosse eins ist die billigste und wuerde sich sonst
+--  bei "ein Schritt, warten, ein Schritt, warten" alle halbe Minute wiederholen.
 local LEITER = {
-  { steht =  25.0, pool = "reibung"    },   -- V steht rum: Ungeduld
-  { steht =  75.0, pool = "alltag"     },   -- laenger: Smalltalk
-  { steht = 180.0, pool = "initiative" },   -- sehr lange: sie faengt etwas an
+  { steht =  25.0, pool = "reibung",    cd = 120.0 },   -- V steht rum: Ungeduld
+  { steht =  75.0, pool = "alltag",     cd =  60.0 },   -- laenger: Smalltalk
+  { steht = 180.0, pool = "initiative", cd =  60.0 },   -- sehr lange: sie faengt etwas an
 }
 --  In Metern JE SEKUNDE. Der erste Anlauf verglich die Strecke EINES BILDES mit einem
 --  festen Wert; bei 60 Bildern waren das knapp ein Meter pro Bild, und damit haette
 --  Sprinten noch als Stehen gezaehlt. 0,5 m/s ist langsamer als Schleichen.
 local STILL_TEMPO = 0.5
 local RUHE_MIN    = 15.0   -- so lange muss sie mindestens geschwiegen haben
-local leiter = { stufe = 1, an = true, stehtSeit = 0.0, letztePos = nil }
+--  Karenz: erst ANHALTENDE Bewegung setzt die Leiter zurueck. Sich umzudrehen oder einen
+--  Schritt zur Seite zu machen ist kein Weitergehen - ohne die Karenz reichte eine
+--  Sekunde, um von vorn zu beginnen, und dann faengt sie alle 25 s wieder an.
+local KARENZ      = 4.0
+local leiter = { stufe = 1, an = true, stehtSeit = 0.0, bewegtSeit = 0.0, letztePos = nil }
 
 local function leiterTick(d, p)
   if not leiter.an then return end
@@ -397,7 +403,7 @@ local function leiterTick(d, p)
   local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end,
                         true)
   if psm("Combat") == 1 or imWagen ~= nil then
-    leiter.stufe, leiter.stehtSeit = 1, 0.0
+    leiter.stufe, leiter.stehtSeit, leiter.bewegtSeit = 1, 0.0, 0.0
     return
   end
 
@@ -408,9 +414,14 @@ local function leiterTick(d, p)
     pcall(function() w = Vector4.Distance(pos, leiter.letztePos) end)
     local tempo = (d > 0.0) and (w / d) or 0.0
     if tempo > STILL_TEMPO then
-      --  Bewegung ist Aktivitaet. Danach faengt die Leiter wieder vorn an.
-      leiter.stufe, leiter.stehtSeit = 1, 0.0
+      --  Waehrend der Karenz laeuft die Standuhr weder weiter noch zurueck: ein Schritt
+      --  ist kein Stehen, aber auch kein Weitergehen.
+      leiter.bewegtSeit = leiter.bewegtSeit + d
+      if leiter.bewegtSeit >= KARENZ then
+        leiter.stufe, leiter.stehtSeit = 1, 0.0
+      end
     else
+      leiter.bewegtSeit = 0.0
       leiter.stehtSeit = leiter.stehtSeit + d
     end
   end
@@ -426,7 +437,7 @@ local function leiterTick(d, p)
   log(string.format("LEITER Sprosse %d nach %.0fs Stillstand, Pool %s (%d)",
       leiter.stufe, leiter.stehtSeit, st.pool, #k))
   Speaker.Request({ situation = "leiter", prio = Speaker.PRIO.alltag,
-                    pool = st.pool, kandidaten = k, cd = 30.0 })
+                    pool = st.pool, kandidaten = k, cd = st.cd or 60.0 })
   leiter.stufe = leiter.stufe + 1
 end
 
@@ -662,6 +673,7 @@ function T.Status()
     leiter = { an = leiter.an, stufe = leiter.stufe, stufen = #LEITER,
                steht = leiter.stehtSeit,
                ruhe = Speaker and Speaker.StillSeit() or 0.0, ruheMin = RUHE_MIN,
+               bewegt = leiter.bewegtSeit, karenz = KARENZ,
                naechste = LEITER[leiter.stufe] and LEITER[leiter.stufe].steht or nil },
     reibung = { an = reibung.an, dist = judy.dist, seit = reibung.seit,
                 nah = REIBUNG.nah, weit = REIBUNG.weit, geduld = REIBUNG.geduld,
@@ -686,7 +698,7 @@ function T.Zuruecksetzen()
   wieder.startOffen, wieder.seitStart, wieder.seitSprung = true, 0.0, nil
   fahrt.seit = nil
   reibung.seit = 0.0
-  leiter.stufe, leiter.stehtSeit = 1, 0.0
+  leiter.stufe, leiter.stehtSeit, leiter.bewegtSeit = 1, 0.0, 0.0
 end
 
 return T
