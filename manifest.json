@@ -30,7 +30,7 @@
   "cet_files": {
     "CompanionLeashVO/init.lua": "33a3bc249e8c79bae07d34ce2fe95b4f",
     "CompanionLeashVO/speaker.lua": "351960ce90c183f971a87182a7b8b2e7",
-    "CompanionLeashVO/triggers.lua": "b5cdc8bf6c3ae182a1493263c27dbade",
+    "CompanionLeashVO/triggers.lua": "f1dd00258215824540db46beda086746",
     "CompanionLeashVO/lines.lua": "f3040ddc3244a33794acefe6efb2255d"
   }
 }

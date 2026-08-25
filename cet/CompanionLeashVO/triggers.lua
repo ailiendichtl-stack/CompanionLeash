@@ -44,12 +44,17 @@ local sondeTot = {}
 --  Eine Abfrage, die still nichts liefert, kostet mehr Zeit als jeder laute Fehler -
 --  genau daran ist der Kampf-Ausloeser einen ganzen Abend lang gescheitert. Jede Sonde
 --  meldet darum ihren ersten Fehlschlag, danach schweigt sie.
-local function sonde(name, fn)
+--  `nilIstOk`, weil nil oft die richtige Antwort ist: wer nicht im Wagen sitzt, hat kein
+--  Fahrzeug. Ohne die Unterscheidung meldet die Sonde einen Fehlschlag, wo nur nichts war -
+--  und eine Warnung, die faelschlich kommt, macht die echten wertlos.
+local function sonde(name, fn, nilIstOk)
   local wert
   local ok = pcall(function() wert = fn() end)
-  if (not ok or wert == nil) and not sondeTot[name] then
-    sondeTot[name] = true
-    log("SONDE " .. name .. " nicht lesbar")
+  if not ok or (wert == nil and not nilIstOk) then
+    if not sondeTot[name] then
+      sondeTot[name] = true
+      log("SONDE " .. name .. (ok and " liefert nichts" or " nicht aufrufbar"))
+    end
   end
   return wert
 end
@@ -192,6 +197,39 @@ local function abstand(p)
   return w
 end
 
+--  ---------------------------------------------------------------- Judys eigene Stimme
+
+--  Die Spiel-KI laesst Judy im Gefecht selbst reden - dieselbe Voiceset-Infrastruktur, die
+--  wir benutzen. Wer da dazwischenspricht, ersetzt ihre Zeile statt sie zu ergaenzen.
+--
+--  Eine direkte Abfrage "spricht sie gerade" gibt es nicht. Was es gibt, ist der
+--  Untertitel: `UIGameData.ShowDialogLine` fuehrt die zuletzt gezeigte Zeile samt Sprecher
+--  und Dauer. Erscheint dort eine Zeile von ihr, waehrend WIR nichts gestartet haben, war
+--  es die KI.
+--
+--  Nebenbei loest das ein zweites Problem: laeuft eine unserer Zeilen, ist der Sprecher im
+--  Untertitel zwangslaeufig sie - so lernen wir ihre Entity-Id, ohne sie ansehen zu muessen.
+local stimme = { judyId = nil, letzter = "", zuletztFremd = "-" }
+
+local function stimmeTick()
+  if not letzteZeile then return end
+  local dl = letzteZeile()
+  if not dl or dl.text == "" or dl.text == stimme.letzter then return end
+  stimme.letzter = dl.text
+
+  if Speaker.Spricht() then
+    if dl.hash and dl.hash ~= "" then stimme.judyId = dl.hash end
+    judyMerken(dl.obj)
+    return
+  end
+  if stimme.judyId and dl.hash == stimme.judyId then
+    judyMerken(dl.obj)
+    Speaker.Fremd(dl.dur)
+    stimme.zuletztFremd = dl.text
+    log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
+  end
+end
+
 --  ---------------------------------------------------------------- Der lange Blick
 
 local GAZE = {
@@ -323,39 +361,6 @@ local function kampfTick(d)
   end
 end
 
---  ---------------------------------------------------------------- Judys eigene Stimme
-
---  Die Spiel-KI laesst Judy im Gefecht selbst reden - dieselbe Voiceset-Infrastruktur, die
---  wir benutzen. Wer da dazwischenspricht, ersetzt ihre Zeile statt sie zu ergaenzen.
---
---  Eine direkte Abfrage "spricht sie gerade" gibt es nicht. Was es gibt, ist der
---  Untertitel: `UIGameData.ShowDialogLine` fuehrt die zuletzt gezeigte Zeile samt Sprecher
---  und Dauer. Erscheint dort eine Zeile von ihr, waehrend WIR nichts gestartet haben, war
---  es die KI.
---
---  Nebenbei loest das ein zweites Problem: laeuft eine unserer Zeilen, ist der Sprecher im
---  Untertitel zwangslaeufig sie - so lernen wir ihre Entity-Id, ohne sie ansehen zu muessen.
-local stimme = { judyId = nil, letzter = "", zuletztFremd = "-" }
-
-local function stimmeTick()
-  if not letzteZeile then return end
-  local dl = letzteZeile()
-  if not dl or dl.text == "" or dl.text == stimme.letzter then return end
-  stimme.letzter = dl.text
-
-  if Speaker.Spricht() then
-    if dl.hash and dl.hash ~= "" then stimme.judyId = dl.hash end
-    judyMerken(dl.obj)
-    return
-  end
-  if stimme.judyId and dl.hash == stimme.judyId then
-    judyMerken(dl.obj)
-    Speaker.Fremd(dl.dur)
-    stimme.zuletztFremd = dl.text
-    log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
-  end
-end
-
 --  ---------------------------------------------------------------- Warten und Troedeln
 
 --  Zwei Schwellen statt einer. Eine einzelne wuerde flattern, sobald V an der Grenze
@@ -376,7 +381,8 @@ local function reibungTick(d, p)
   if not reibung.an then return end
 
   --  Im Wagen ist Abstand normal, im Gefecht redet sie ueber anderes.
-  local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end)
+  local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end,
+                    true)
   if imWagen ~= nil or psm("Combat") == 1 then
     reibung.seit = 0.0
     return
@@ -500,7 +506,8 @@ local fahrt = { drin = false, seit = nil, an = true }
 
 local function fahrtTick(d, p)
   if not fahrt.an then return end
-  local v = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end)
+  local v = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end,
+                    true)
   local drin = v ~= nil
 
   if drin and not fahrt.drin then
