@@ -313,7 +313,9 @@ local function gazeFeuern(obj)
   log(string.format("BLICK Stufe %d nach %.1fs, %d Kandidaten", stufe, gaze.t, #k))
   Speaker.Request({
     situation  = (stufe == 3) and "flirt" or "blick",
-    pool       = "blick" .. stufe,
+    --  Stufe 3 zieht aus dem Flirt-Pool und teilt sich dessen Abklingzeit mit der
+    --  Leitersprosse und dem Zufallstimer: Flirt soll selten sein, egal woher er kommt.
+    pool       = (stufe == 3) and "flirt" or ("blick" .. stufe),
     kandidaten = k,
     cd         = (stufe == 3) and GAZE.cd3 or (stufe == 2) and GAZE.cd2 or GAZE.cd1,
     ziel       = obj,
@@ -487,6 +489,42 @@ local function leiterTick(d, p)
   Speaker.Request({ situation = "leiter", prio = Speaker.PRIO.alltag,
                     pool = st.pool, kandidaten = k, cd = st.cd or 60.0 })
   leiter.stufe = leiter.stufe + 1
+end
+
+--  ---------------------------------------------------------------- Zufallsflirt
+
+--  Ein seltener Timer, der auch beim Laufen zuschlaegt.
+--
+--  Blick und Leiter setzen beide Stillstand voraus - wer durch die Stadt laeuft, erreicht
+--  keine der beiden. Genau dort fehlt aber etwas: sie geht neben V her, und irgendwann
+--  sagt sie einfach etwas. Der Abstand ist absichtlich weit und zufaellig, damit sich kein
+--  Takt einstellt.
+local ZUFALL = { min = 600.0, max = 1200.0 }
+local zufall = { rest = nil, an = true }
+
+local function zufallNeu()
+  zufall.rest = ZUFALL.min + math.random() * (ZUFALL.max - ZUFALL.min)
+end
+
+local function zufallTick(d, p)
+  if not zufall.an then return end
+  if zufall.rest == nil then zufallNeu() end
+
+  --  Im Gefecht laeuft die Uhr nicht weiter - sonst haette sie nach einem langen Kampf
+  --  sofort etwas offen, und ein Flirt direkt nach dem letzten Schuss sitzt falsch.
+  if psm("Combat") == 1 then return end
+
+  zufall.rest = zufall.rest - d
+  if zufall.rest > 0.0 then return end
+
+  if not verliebtGenug() then return end
+  local k = pool("flirt")
+  if #k == 0 or not Speaker.Frei("flirt") then return end
+
+  zufallNeu()
+  log(string.format("ZUFALLSFLIRT faellig, %d Kandidaten, naechster in %.0f min",
+      #k, zufall.rest / 60.0))
+  Speaker.Request({ situation = "flirt", pool = "flirt", kandidaten = k, cd = 300.0 })
 end
 
 --  ---------------------------------------------------------------- Warten und Troedeln
@@ -685,6 +723,7 @@ local TESTS = {
   { name = "Leiter 3",    sit = "leiter",      pool = "initiative",  q = "initiative" },
   { name = "Blick 3",     sit = "flirt",       pool = "blick3",      q = "flirt" },
   { name = "Leiter 4",    sit = "leiter",      pool = "flirt",       q = "flirt" },
+  { name = "Zufallsflirt", sit = "flirt",      pool = "flirt",       q = "flirt" },
 }
 
 function T.Tests()
@@ -748,6 +787,7 @@ function T.Tick(d)
   sorgeTick()
   reibungTick(d, p)
   leiterTick(d, p)
+  zufallTick(d, p)
   wiederTick(d, p)
   fahrtTick(d, p)
 end
@@ -759,6 +799,8 @@ function T.Status()
               n1 = #pool("blick", 1), n2 = #pool("blick", 2), n3 = #pool("flirt") },
     bez = { liebe = bez.liebe, freund = bez.freund, min = LIEBE_MIN,
             offen = verliebtGenug() },
+    zufall = { an = zufall.an, rest = zufall.rest,
+               min = ZUFALL.min, max = ZUFALL.max, n = #pool("flirt") },
     kampf = { an = kampf.an, drin = kampf.drin, seit = kampf.seit,
               n = #pool("kampf"), nEnde = #pool("kampf_ende") },
     sorge = { an = sorge.an, hp = sorge.war, schwelle = SORGE.schwelle,
@@ -788,6 +830,7 @@ function T.Setzen(was, an)
   if was == "fahrzeug" then fahrt.an = an end
   if was == "reibung"  then reibung.an = an end
   if was == "leiter"   then leiter.an = an end
+  if was == "zufall"   then zufall.an = an end
 end
 
 function T.Zuruecksetzen()
@@ -798,6 +841,7 @@ function T.Zuruecksetzen()
   fahrt.seit = nil
   reibung.seit = 0.0
   leiter.stufe, leiter.stehtSeit, leiter.bewegtSeit = 1, 0.0, 0.0
+  zufall.rest = nil
 end
 
 return T

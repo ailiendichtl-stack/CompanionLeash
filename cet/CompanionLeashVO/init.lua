@@ -772,6 +772,17 @@ registerForEvent("onDraw", function()
                                          st.leiter.stufen))
       end
 
+      local zu = ImGui.Checkbox("Zufallsflirt##zu", st.zufall.an)
+      if zu ~= st.zufall.an then Triggers.Setzen("zufall", zu) end
+      ImGui.SameLine()
+      if st.zufall.rest then
+        ImGui.TextDisabled(string.format("in %.1f min  (%.0f-%.0f min)  |  %d Zeilen",
+                                         st.zufall.rest / 60.0, st.zufall.min / 60.0,
+                                         st.zufall.max / 60.0, st.zufall.n))
+      else
+        ImGui.TextDisabled(string.format("wird gewuerfelt  |  %d Zeilen", st.zufall.n))
+      end
+
       local re = ImGui.Checkbox("Warten##re", st.reibung.an)
       if re ~= st.reibung.an then Triggers.Setzen("reibung", re) end
       ImGui.SameLine()

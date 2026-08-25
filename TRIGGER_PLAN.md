@@ -236,6 +236,17 @@ steht im Panel, ein stiller Riegel waere nach dieser Woche genau das falsche Ver
 Die Schwelle von 25 ist geraten - der Wert geht in NCAs Oberflaeche an einen Balken und
 sieht nach 0..100 aus, geprueft ist das nicht.
 
+Dazu ein **Zufallstimer, alle 10 bis 20 Minuten**. Blick und Leiter setzen beide Stillstand
+voraus - wer durch die Stadt laeuft, erreicht keinen von beiden, und genau dort fehlt etwas:
+sie geht neben V her, und irgendwann sagt sie einfach etwas. Der Abstand ist zufaellig, damit
+sich kein Takt einstellt, und im Gefecht laeuft die Uhr nicht weiter - sonst haette sie nach
+einem langen Kampf sofort etwas offen, und ein Flirt direkt nach dem letzten Schuss sitzt
+falsch.
+
+Alle drei Quellen ziehen aus **demselben Pool** und teilen sich dessen Abklingzeit. Getrennt
+gefuehrt koennten sie sich kurz hintereinander bedienen, und Flirt soll selten sein - egal,
+woher er kommt.
+
 ### Was sich sonst anbietet
 
 **Nah und still.** V steht dicht bei ihr und bewegt sich nicht - das ist etwas anderes als
