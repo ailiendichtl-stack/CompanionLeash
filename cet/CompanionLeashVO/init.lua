@@ -200,14 +200,13 @@ local MATRIX = {
     hint = "2502 ms, Animation -135" },
   { label = "3 Zugang zur Wohnung",  name = "cl_lang",         player = false,
     hint = "5005 ms, Animation -305" },
-  -- Dieselbe Zeile dreimal: 2922 ms Ton gegen 4267 ms Animation. Welcher Hebel hilft?
+  -- Dieselbe Zeile zweimal: 2922 ms Ton gegen 4267 ms Animation.
+  -- Die Animation traegt 1345 ms Mimik VOR dem Sprechen - daher hinkt der Mund nach.
   { label = "4 froh ROH",            name = "cl_v_roh",        player = false,
-    hint = "unveraendert - der bekannte Versatz, als Vergleichsmass" },
-  { label = "5 froh BESCHNITTEN",    name = "cl_v_trim",       player = false,
-    hint = "Animation faengt erst bei Bild 40 an - hilft, wenn der Vorlauf vorne sitzt" },
-  { label = "6 froh GEDEHNT",        name = "cl_v_lang",       player = false,
-    hint = "Zeilendauer auf 4267 ms - hilft, wenn die Laufzeit die Animation streckt" },
-  { label = "7 Vanilla-Bark",        name = "danger_var_1",    player = false,
+    hint = "unveraendert - Mund setzt bei 'da bist' ein. Das Vergleichsmass." },
+  { label = "5 froh VERSCHOBEN",     name = "cl_v_shift",      player = false,
+    hint = "Ton faengt 1345 ms spaeter an, damit der Vorlauf ins Leere laeuft" },
+  { label = "6 Vanilla-Bark",        name = "danger_var_1",    player = false,
     hint = "unangetastet - der Nullpunkt" },
 }
 

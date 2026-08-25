@@ -20,15 +20,24 @@ Vor dem Bau wird jede Zeile gegen `data/anim_durations.json` geprueft. Eine Anim
 traegt kein Versatzfeld, laeuft also ab Ereignisbeginn; ist sie deutlich laenger als die
 Zeile, hinkt der Mund dem Ton hinterher. Genau daran lag das beobachtete Delay - die
 Animation war 4267 ms lang, die Zeile 2922. Betroffen sind 3 % der Zeilen (44 von 1375),
-und die sollen nicht verloren gehen. Zwei Hebel stehen dagegen bereit:
+und die sollen nicht verloren gehen.
 
-    trim=True       die Animation kommt beschnitten ins Set, ab Bild `delta`. Wenn der
-                    Vorlauf vorne sitzt, faengt der Mund damit zum Ton an.
-    anim_dur=True   die Zeile bekommt die Laenge der ANIMATION statt ihre eigene. Wenn die
-                    Laufzeit die Animation auf die Ereignisdauer streckt, passt es damit.
+Woher der Vorlauf kommt, steht in der Herkunftsszene. Dort beginnt das Dialogereignis bei
+4312 ms, und 2967 + 4267 = 7234 = 4312 + 2922: die Animation endet genau mit der Zeile und
+faengt 1345 ms vor ihr an - exakt der Ueberhang. Sie enthaelt also Mimik VOR dem Sprechen.
 
-Welcher greift, entscheidet das Spiel. Darum liegt dieselbe Zeile unten dreimal im Set -
-einmal roh als Vergleich, einmal je Hebel.
+Zwei Hebel dagegen sind durchgefallen: `frameClamping` auf das Startbild aendert nichts, es
+schneidet nicht. Die Zeile auf die Animationslaenge zu dehnen auch nicht - die Laufzeit
+streckt die Animation also nicht auf die Ereignisdauer. In beiden Faellen setzte der Mund
+erst nach knapp der Haelfte des Satzes ein.
+
+Bleibt der dritte:
+
+    shift=True   das Ereignis rueckt um `delta` in den Abschnitt hinein, per `startTime`.
+                 Faengt die Animation am ABSCHNITT an und nicht am Ereignis, laeuft ihr
+                 Vorlauf damit ins Leere und der Mund trifft den Ton.
+
+Das ist zugleich die Probe, woran die Animation ueberhaupt haengt.
 
 Dazu wird ein `judy.anims` erzeugt, das die 55 Bark-Animationen und die Animationen aller
 gewuenschten Zeilen enthaelt. Die Laufzeit laedt es nicht ueber die Szenenreferenz, sondern
@@ -60,11 +69,10 @@ WANTED = [
     dict(name="cl_kurz", hex="1812474b462b6000"),   # 2502 ms, q105_06c     Anim  -135
     dict(name="cl_lang", hex="18795a0a822fc000"),   # 5005 ms, sq030_11     Anim  -305
     #  Dreimal dieselbe Zeile aus mq055 - 2922 ms Ton gegen 4267 ms Animation.
-    dict(name="cl_v_roh",  hex="39669188b9a4e000"),
-    dict(name="cl_v_trim", hex="39669188b9a4e000", trim=True),
-    dict(name="cl_v_lang", hex="39669188b9a4e000", anim_dur=True),
+    dict(name="cl_v_roh",   hex="39669188b9a4e000"),
+    dict(name="cl_v_shift", hex="39669188b9a4e000", shift=True),
 ]
-FPS = 30            # 129 Bilder auf 4,26667 s - alle geprueften Sets laufen mit 30
+
 
 
 def main():
@@ -96,25 +104,20 @@ def main():
         anim = anims.get(src)
         delta = (anim["ms"] - rec["dur"]) if anim else None
 
-        duration, lipsync, spec, note = rec["dur"], src, src, ""
+        start = 0
         if delta is None:
             note = "kein Anim-Eintrag"
-        elif w.get("trim"):
-            frame = int(round(delta / 1000.0 * FPS))
-            lipsync = src + "_T"
-            spec = "%s>%s@%d" % (src, lipsync, frame)
-            note = "Anim ab Bild %d beschnitten" % frame
-        elif w.get("anim_dur"):
-            duration = anim["ms"]
-            note = "Dauer auf Animationslaenge %d" % anim["ms"]
+        elif w.get("shift"):
+            start = delta
+            note = "Ereignis %+d ms in den Abschnitt geschoben" % delta
         else:
             note = "Anim %+d ms" % delta
             if delta > WARN_MS:
                 note += "  << Mund hinkt nach"
 
-        _add_entry(root, st, name, hexid, duration, lipsync)
-        anims_needed.setdefault(rec["scene"], {})[lipsync] = spec
-        print("  %-11s %5d ms  %-24s %s" % (name, duration, rec["scene"][:24], note))
+        _add_entry(root, st, name, hexid, rec["dur"], src, start)
+        anims_needed.setdefault(rec["scene"], {})[src] = src
+        print("  %-12s %5d ms  %-24s %s" % (name, rec["dur"], rec["scene"][:24], note))
 
     print()
     print("Einstiege %d = startNodes %d | Knoten %d = Symbole %d | Zeilen %d"
@@ -143,7 +146,7 @@ def main():
                                        os.path.getsize(p) // 1024))
 
 
-def _add_entry(root, st, name, hexid, duration, lipsync):
+def _add_entry(root, st, name, hexid, duration, lipsync, start_time):
     graph = root["sceneGraph"]["Data"]["graph"]
     lines = root["screenplayStore"]["lines"]
     starts = root["sceneGraph"]["Data"]["startNodes"]
@@ -185,7 +188,8 @@ def _add_entry(root, st, name, hexid, duration, lipsync):
     ev["Data"]["screenplayLineId"]["id"] = item_id
     tail = sec["Data"]["sectionDuration"]["stu"] - ev["Data"]["duration"]
     ev["Data"]["duration"] = duration
-    sec["Data"]["sectionDuration"]["stu"] = duration + tail
+    ev["Data"]["startTime"] = start_time
+    sec["Data"]["sectionDuration"]["stu"] = start_time + duration + tail
     graph.append(sec)
 
     start = copy.deepcopy(w_start)
