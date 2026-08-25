@@ -130,10 +130,9 @@ staging copy, and a purge/redeploy restores the stock file.
 - Untested on multi-companion squads; each behaviour instance holds its own state, so it
   should be fine, but it has not been verified.
 
-- [RELATIONSHIP.md](RELATIONSHIP.md) - der gesichtete Beziehungsdialog, Judy und V
-- [MATRIX.md](MATRIX.md) - Bark- und Zeilen-Matrix pro Situation
-- [LINES.md](LINES.md) - vollstaendiger Zeilenbestand
-- [data/judy_ALL_de.md](data/judy_ALL_de.md) - alle Sprachdateien
-- [data/v_ALL_de.md](data/v_ALL_de.md)
-- [PAIRS.md](PAIRS.md) - erste Wortwechsel, von RELATIONSHIP.md abgeloest
+- [MATRIX.md](MATRIX.md) - **der eine Bestand**: Zeilen, Wortwechsel und Barks je
+  Situation, Judy und V. Fasst die frueheren MATRIX, PAIRS und RELATIONSHIP zusammen.
+- [LINES.md](LINES.md) - vollstaendiger Zeilenbestand Judy
+- [data/judy_ALL_de.md](data/judy_ALL_de.md) - alle Sprachdateien Judy
+- [data/v_ALL_de.md](data/v_ALL_de.md) - alle Zeilen V
 - [BUILD_VOICESET.md](BUILD_VOICESET.md)

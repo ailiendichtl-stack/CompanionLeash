@@ -1,292 +1,951 @@
 # Bark- und Zeilen-Matrix
 
-Bestandsaufnahme vor dem Verdrahten.
+Der **eine** Bestand: welche Zeile in welcher Situation, Judy und V.
+Fruehere MATRIX, PAIRS und RELATIONSHIP sind hier zusammengefuehrt.
 
-**Barks** aus `vset_judy.scene` - benannt, im Spiel gemessen, ueber den
-Quest-Voiceset-Knoten sofort spielbar. 55 Zeilen, vollstaendig.
+Text, Dauer und Lipsync-Lage werden nachgeschlagen, nicht gepflegt. Erweitern
+heisst: eine Id in `tools/build_matrix.py` eintragen und neu erzeugen. Eine
+unbekannte Id bricht den Lauf ab - hier steht nichts Unbelegtes.
 
-**Quest-Zeilen** sind **noch nicht spielbar** - dafuer braucht es Fake-Lipsync
-ueber Audioware oder eine eigene Szene. Ihre Dauer ist aus der Zeichenzahl
-geschaetzt, nicht gemessen.
+**Bestand:** 223 Judy-Eintraege und 30 V-Zeilen in 17 Situationen, dazu 49
+Wortwechsel. 63 Eintraege sind sofort spielbare Barks, 6 Judy-Zeilen brauchen
+geliehenes Lipsync.
+
+## Woher eine Zeile stammt, zaehlt nicht
+
+Der Ordner sagt nichts ueber die Eignung - nur der Wortlaut tut das. Vs
+"Ich hab dich echt vermisst" wurde fuer Panams Quest aufgenommen, nennt aber
+keinen Namen und kann ebenso gut Judy gelten. Ausgeschlossen wird deshalb
+maschinell: nennt eine Zeile eine andere Figur, faellt sie heraus. Geprueft
+wird gegen 20 Namen.
 
 ## Was die Sichtung ergeben hat
 
-Alle 816 eigenstaendigen Szenen-Zeilen wurden durchgelesen, dazu 111 weitere, die erst
-durch den erweiterten Untertitel-Bestand sichtbar wurden. Brauchbar als Begleiter-Zeile
-sind davon rund **110**.
+Alle 816 eigenstaendigen Szenen-Zeilen wurden durchgelesen. Brauchbar als
+Begleiter-Zeile sind davon rund **110**. Der Rest handelt **von der Quest** -
+Evelyn, Fingers, Maiko, das Clouds - und funktioniert ausserhalb seines
+Zusammenhangs nicht, egal wie gut er klingt. Die 1104 Quest-Zeilen sind also
+kein Reservoir von 1104 einsetzbaren Zeilen.
 
-**`mq055` ist der beste Fund.** Das ist die Hangout-Quest, und ihre Zeilen sind fuer genau
-diese Art Begleiter-Interaktion geschrieben - "Komm schon, V. Bleib bei mir.", "Geniesst
-du die Aussicht?", "Ich bin froh, dass du da bist." Sie fehlten bis eben komplett, weil
-der Untertitel-Filter in `voice_inventory.py` sie nie erfasst hat. **`q202`** (Epilog)
-fuellt die Kategorie Aussicht, die vorher gar keine Zeile hatte.
+Der vollstaendige Bestand steht in [LINES.md](LINES.md) und
+[data/v_ALL_de.md](data/v_ALL_de.md) - hier ist nur, was gesichtet ist.
 
-Der Rest handelt **von der Quest** - Evelyn, Fingers, Maiko, das Clouds, der
-Braindance-Job - und funktioniert ausserhalb seines Zusammenhangs nicht, egal wie
-gut er klingt. Das ist die wichtigste Einschraenkung fuer die Planung: die 1104
-Quest-Zeilen sind kein Reservoir von 1104 einsetzbaren Zeilen.
+## Lesart
 
-Die vorherige Stichwortsuche war untauglich - sie beruehrte 20% der Zeilen, zeigte
-davon sechs pro Kategorie und stellte dabei "Zusammen mit meinen Grosseltern"
-unter Zuneigung. Der vollstaendige Bestand steht in [LINES.md](LINES.md).
+| Kennung | Bedeutung |
+|---|---|
+| `Bark` | liegt in `vset_judy` bzw. `vset_v` - sofort abspielbar |
+| `Zeile` | Questzeile, per Generator baubar, Lipsync sitzt |
+| `Zeile+Leih` | Animation laeuft ueber eine Sekunde nach - fremdes Lipsync |
+| `Zeile?` | keine Animation im Bestand - Lipsync ungeprueft |
+| `VVF` | Vs Seite, ueber das V Voice Framework - kein Lipsync noetig |
 
----
+## Ankunft und Wiedersehen
 
-## Ankunft / Wiedersehen
+**Wann:** V kommt an, kehrt zurueck oder meldet sich
 
-| Bark | s | Zeile |
-|---|---|---|
-| `return_answer_var_1` | 2.00 | Worüber hatten wir geredet? |
-| `return_answer` | 1.40 | Du bist zurück. |
-| `greeting_var_1` | 1.35 | Oh, hey! |
-| `greeting` | 1.11 | Hey, V. |
+Die Barks decken das Funktionale ab. Was fehlte, ist die Fassung, in der sie zugibt, dass sie V vermisst hat - die steht jetzt daneben.
 
-Quest-Zeilen (gesichtet, 10):
+### Judy
 
-- ~3.3s V! Siehst gut aus! | V, du bist echt gekommen.  <sub>`sq030_01_dam_meetup`</sub>
-- ~2.5s Hey V, danke dass du gekommen bist.  <sub>`sq026_04_maiko`</sub>
-- ~2.1s Ich bin froh, dass du da bist.  <sub>`judy_mq055_01_megabuilding`</sub>
-- ~1.5s Gut, dass du da bist.  <sub>`q105_07_judy_braindance`</sub>
-- ~1.4s Hey, da bist du ja.  <sub>`q004_03_this_is_judy`</sub>
-- ~1.3s V! Siehst gut aus.  <sub>`judy_mq055_01_megabuilding`</sub>
-- ~1.2s Hey, V! Was geht?  <sub>`fb_judy`</sub>
-- ~1.2s Okay, ich bin da.  <sub>`q105_07_judy_braindance`</sub>
-- ~1.2s V, da bist du ja!  <sub>`judy_q202`</sub>
-- ~1.1s Wird auch Zeit.  <sub>`q105_02_lizzy_meet_judy`</sub>
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Worüber hatten wir geredet? | 2.0 s | `Bark` | `return_answer_var_1` |
+| Du bist zurück. | 1.4 s | `Bark` | `return_answer` |
+| Du bist zurück. | 1.4 s | `Bark` | `return_answer_var_2` |
+| Oh, hey! | 1.4 s | `Bark` | `greeting_var_1` |
+| Hey, V. | 1.1 s | `Bark` | `greeting` |
+| Hey, V. | 1.1 s | `Bark` | `greeting_var_2` |
+| Hey, V! Was geht? | 2.1 s | `Zeile` | `18d9a13a264ea004 fb_judy` |
+| Hey, da bist du ja. | 2.5 s | `Zeile` | `0f339c53952e3010 q004_03_this_is_judy` |
+| Gut, dass du da bist. | 1.9 s | `Zeile` | `1b2f276faf2fc000 q105_07_judy_braindance` |
+| Okay, ich bin da. | 1.5 s | `Zeile` | `16bf49d3352fc000 q105_07_judy_braindance` |
+| Hey V, danke dass du gekommen bist. | 2.8 s | `Zeile` | `1a7712a0b22fc000 sq026_04_maiko` |
+| V! Siehst gut aus! / V, du bist echt gekommen. | 2.6 s | `Zeile` | `1826c0c4492fc000 sq030_01_dam_meetup` |
+| Wird auch Zeit. | 1.8 s | `Zeile` | `17c0a2ca2c610000 q105_02_lizzy_meet_judy` |
+| V! Siehst gut aus. | 3.1 s | `Zeile` | `39668f23c9a4e000 mq055_05_downtown` |
+| Ich bin froh, dass du da bist. | 2.9 s | `Zeile+Leih` | `39669188b9a4e000 mq055_01_megabuilding` |
+| V, da bist du ja! | 2.2 s | `Zeile` | `1ee881e18b42f000 q202_05_convoy` |
+| Woher weißt du immer, wenn du mir fehlst? | 3.1 s | `Zeile` | `2ffdc7962d571000 judy_default` |
+| Hoo, ich bin nur froh, dass du überhaupt an mich denkst. | 4.2 s | `Zeile` | `1893611d242b6000 sq030_00_holocall` |
+| Mich auch. Ich wurde sogar schon gefragt, warum ich so strahle. | 4.8 s | `Zeile` | `1b07d5a1472b6000 mq055_05_downtown` |
+| Ich lass es langsam angehen. Aber ich mach mich bald wieder an die Arbeit. Hab ’ne Idee für ’ne experimentelle Virtu-Serie. | 7.0 s | `Zeile` | `1b07ecef852b6000 mq055_05_downtown` |
 
-## Spieler bleibt zurueck
+### V
 
-| Bark | s | Zeile |
-|---|---|---|
-| `follow_me_1` | 2.70 | Was ist los? Hör auf zu trödeln. |
-| `follow_me` | 2.26 | Komm schon, V, bleib bei mir. |
-| `hurry_up_var_2` | 2.53 | Wir haben was vor, schon vergessen? |
-| `hurry_up_var_3` | 2.11 | Konzentration, V. |
-| `hurry_up_var_1` | 1.90 | Na? Los jetzt! |
-| `urge_var_1` | 1.78 | Was ist mit dir los? |
-| `urge` | 1.64 | Komm schon, V. |
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Hey, Judy. Wie geht’s dir? | 3.4 s | `VVF` | `1811545ef42fc000 sq026_02_holocall_judy` |
+| Ich wollte nur mal hören, wie’s dir geht. Alles okay? | ? | `VVF` | `1ab41f674b2ef000 sq018_00_mama_welles_holocall` |
+| Ich hab dich echt vermisst. | ? | `VVF` | `1a04d435ff2c5000 sq027_04_preparations_panam` |
+| Ach, nichts Besonderes. Würde lieber wissen, wie’s dir so ergangen ist. | 4.0 s | `VVF` | `1b06fde31b2b6000 judy_default` |
 
-Quest-Zeilen (gesichtet, 16):
+### Wortwechsel
 
-- ~2.7s Deine Entscheidung, aber trödel nicht.  <sub>`q105_07_judy_braindance`</sub>
-- ~2.7s Na dann komm. Ich will dir was zeigen.  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.6s Jepp. Bin sofort da. Warte auf mich.  <sub>`q105_07_judy_braindance`</sub>
-- ~2.6s Jepp, bin sofort da. Warte auf mich.  <sub>`judy_mq055_01_megabuilding`</sub>
-- ~2.3s Komm schon! Keine falsche Scheu.  <sub>`sq030_01_dam_meetup`</sub>
-- ~2.1s Komm schon, V. Bleib bei mir.  <sub>`judy_mq055_04_heywood`</sub>
-- ~1.9s V, warte. Ich bin ganz nah.  <sub>`q105_07_judy_braindance`</sub>
-- ~1.9s Aye aye, Käpt’n – mir nach.  <sub>`sq030_06_lake_exploration`</sub>
-- ~1.9s Wart ’ne Sekunde auf mich.  <sub>`q105_07_judy_braindance`</sub>
-- ~1.9s Na los, worauf wartest du?  <sub>`q105_02_lizzy_meet_judy`</sub>
-- ~1.6s Lass mich nicht warten.  <sub>`judy_mq055_04_heywood`</sub>
-- ~1.5s V? Worauf wartest du?  <sub>`q004_03_this_is_judy`</sub>
-- ~1.4s V, lass uns abhauen.  <sub>`sq026_05a_leave`</sub>
-- ~1.1s Komm, gehen wir.  <sub>`sq026_04_maiko`</sub>
-- ~1.1s Schon unterwegs.  <sub>`sq030_06_lake_exploration`</sub>
-- ~1.0s V, warte noch.  <sub>`sq026_05a_leave`</sub>
+**Sie gibt es zuerst zu**
 
-## Warten / Ungeduld
+- **JUDY:** Woher weißt du immer, wenn du mir fehlst?  <sub>3.1 s &middot; `2ffdc7962d571000`</sub>
+- **V:** Hey, Judy. Wie geht’s dir?  <sub>3.4 s &middot; `1811545ef42fc000`</sub>
 
-| Bark | s | Zeile |
-|---|---|---|
-| `interrupt_var_1` | 2.54 | Okay, wir setzen das später fort. |
-| `interrupt` | 1.85 | Hab ich dich gelangweilt? |
-| `phone_urge_var_2` | 2.68 | Bist du da? Kannst du mich hören? |
-| `phone_urge_var_1` | 1.76 | Äh ... V? |
+Judy fragt, V antwortet beilaeufig - der Kontrast macht die Zeile.
 
-Quest-Zeilen (gesichtet, 6):
+**V ruft nur so an**
 
-- ~3.3s Sei vorsichtig, okay? Ich warte hier auf dich.  <sub>`judy_q115`</sub>
-- ~3.0s Okay ... Aber lass dir nicht zu viel Zeit.  <sub>`q105_06c_finding_studio`</sub>
-- ~2.6s Sag Bescheid, wenn du weiter willst.  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.3s Was sagst du, wollen wir weiter?  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.1s Okay, ich warte hier auf dich.  <sub>`judy_q202`</sub>
-- ~1.9s So lang hat das nicht Zeit.  <sub>`q105_06a_fingers_escape`</sub>
+- **V:** Ich wollte nur mal hören, wie’s dir geht. Alles okay?  <sub>? &middot; `1ab41f674b2ef000`</sub>
+- **JUDY:** Hoo, ich bin nur froh, dass du überhaupt an mich denkst.  <sub>4.2 s &middot; `1893611d242b6000`</sub>
+
+Ein Anruf ohne Anlass ist die Geste; ihre Antwort quittiert sie.
+
+**Beide geben es zu**
+
+- **V:** Ich hab dich echt vermisst.  <sub>? &middot; `1a04d435ff2c5000`</sub>
+- **JUDY:** Mich auch. Ich wurde sogar schon gefragt, warum ich so strahle.  <sub>4.8 s &middot; `1b07d5a1472b6000`</sub>
+
+Ihre Antwort setzt Vs Gestaendnis voraus - hier bekommt sie es.
+
+**V weicht aus, Judy laesst es zu**
+
+- **V:** Ach, nichts Besonderes. Würde lieber wissen, wie’s dir so ergangen ist.  <sub>4.0 s &middot; `1b06fde31b2b6000`</sub>
+- **JUDY:** Ich lass es langsam angehen. Aber ich mach mich bald wieder an die Arbeit. Hab ’ne Idee für ’ne experimentelle Virtu-Serie.  <sub>7.0 s &middot; `1b07ecef852b6000`</sub>
+
+V dreht die Frage weg, Judy geht darauf ein statt nachzubohren.
+
+**Zurueck im Gespraech**
+
+- **V:** Also, wo waren wir?  <sub>2.0 s &middot; `return_var_2`</sub>
+- **JUDY:** Du bist zurück.  <sub>1.4 s &middot; `return_answer`</sub>
+
+Der knappste Wiedereinstieg, beide Seiten als Bark.
+
+**Zurueck im Gespraech, laenger**
+
+- **V:** Okay, wieder da. Schieß los.  <sub>2.4 s &middot; `return_var_4`</sub>
+- **JUDY:** Worüber hatten wir geredet?  <sub>2.0 s &middot; `return_answer_var_1`</sub>
+
+Dieselbe Figur mit mehr Luft.
+
+**Dank nach Hilfe**
+
+- **V:** Weiß ich zu schätzen. Danke.  <sub>2.0 s &middot; `scene_thanks_var_2`</sub>
+- **JUDY:** Du bist zurück.  <sub>1.4 s &middot; `return_answer`</sub>
+
+Funktioniert auch ausserhalb des Wiedersehens.
+
+
+## Judy meldet sich von selbst
+
+**Wann:** Selten, ohne Anlass - sie ruft an, weil sie an V gedacht hat
+
+Die groesste Luecke im bisherigen Bestand. Judy war fast immer die Reagierende. Keine Bark deckt das ab.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Hab grad an dich gedacht. Und ehe du fragst ... In meinen Gedanken warst du nackt. | 5.7 s | `Zeile` | `1afc08ecff2fc000 mq055_04_heywood` |
+| Für dich hab ich den ganzen Tag. | 2.3 s | `Zeile` | `1b07e0e36d2b6000 mq055_05_downtown` |
+| Wir haben alle Zeit der Welt. | 1.9 s | `Zeile` | `1b0791cfae2b6000 mq055_05_downtown` |
+| Ich bin für dich da, V. Ruf jederzeit an. | 3.2 s | `Zeile` | `1b0b9169282b6000 judy_default` |
+| Kommst du vorbei? | 1.3 s | `Zeile` | `181ba067292fc000 sq026_09_holocall_judy` |
+| Wenn du das willst ... Oder komm einfach vorbei, wenn du magst. | 4.9 s | `Zeile` | `18795a9ae52fc000 sq030_11_morning` |
+| Oh, eh ich’s vergesse: Da hat so ’ne Elizabeth angerufen. Hat wohl einen Job für jemanden, der ein Auge für Virtus hat. | 7.6 s | `Zeile` | `1afc12f00d2fc000 judy_default` |
+| Wollte dich um ’nen Gefallen bitten. | 2.4 s | `Zeile` | `1974ca6f6d2b6000 sq030_00_holocall` |
+| Aber deswegen ruf ich nicht an. Ich will dich um einen Gefallen bitten. | 5.3 s | `Zeile` | `1a67b32f202b6000 sq030_00_holocall` |
+| Gern. Passt mir gut, ich sitz grad eh am Steuer. | 3.7 s | `Zeile` | `1b07df75762b6000 mq055_05_downtown` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Und? Was treibst du so? | 2.1 s | `VVF` | `187e5cd1722fc000 mq055_05_downtown` |
+| Was gibt’s Neues bei den Mox? | 1.7 s | `VVF` | `1a9f1202962fc004 mq055_05_downtown` |
+| Lass uns noch ein bisschen reden, bevor ich wieder irgendwohin muss. | 4.4 s | `VVF` | `1afc00a4fb2fc004 mq055_05_downtown` |
+| Wenn ich nicht ständig unterwegs wäre, hätten wir beide mehr Zeit zusammen, mehr Spaß ... | 5.6 s | `VVF` | `1afbfff4872fc004 mq055_05_downtown` |
+
+### Wortwechsel
+
+**V hat wenig Zeit, Judy nimmt sie sich**
+
+- **V:** Lass uns noch ein bisschen reden, bevor ich wieder irgendwohin muss.  <sub>4.4 s &middot; `1afc00a4fb2fc004`</sub>
+- **JUDY:** Für dich hab ich den ganzen Tag.  <sub>2.3 s &middot; `1b07e0e36d2b6000`</sub>
+
+Vs Zeile bittet um Zeit, Judys Antwort gibt sie ohne Bedingung.
+
+**V bedauert die Entfernung**
+
+- **V:** Wenn ich nicht ständig unterwegs wäre, hätten wir beide mehr Zeit zusammen, mehr Spaß ...  <sub>5.6 s &middot; `1afbfff4872fc004`</sub>
+- **JUDY:** Wir haben alle Zeit der Welt.  <sub>1.9 s &middot; `1b0791cfae2b6000`</sub>
+
+Vs Bedauern, ihr Trost - zwei Zeilen, die sich nie begegnet sind.
+
+**Sehr selten: der Flirt vorweg**
+
+- **JUDY:** Hab grad an dich gedacht. Und ehe du fragst ... In meinen Gedanken warst du nackt.  <sub>5.7 s &middot; `1afc08ecff2fc000`</sub>
+- **JUDY:** Für dich hab ich den ganzen Tag.  <sub>2.3 s &middot; `1b07e0e36d2b6000`</sub>
+
+Hoechstens einmal pro Spieltag. Haeufiger verliert die Zeile alles.
+
+
+## Flirt und Necken
+
+**Wann:** Beziehung steht, Lage ist ruhig
+
+Judy neckt lieber, als dass sie schwaermt. Der Ton bleibt trocken.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Interessante Leute langweilen sich eben selten. | 2.7 s | `Zeile` | `189736fe942b6000 sq030_00_holocall` |
+| Da haben sich zwei gefunden. | 2.5 s | `Zeile` | `1812474b462b6000 q105_06c_finding_studio` |
+| Wenn man das bedenkt, siehst du sogar sensationell aus. / Ach, komm schon, red keinen Blödsinn. | 3.9 s | `Zeile` | `189c5847c42b6000 sq030_01_dam_meetup` |
+| Du hast echt Talent, Kleines. | 2.1 s | `Zeile` | `39675dc8759ce000 mq055_04_heywood` |
+| Du hast meine Pläne ruiniert, weißt du? | 2.8 s | `Zeile` | `1a9f63e7252b6000 sq030_11_morning` |
+| Aber vertrau mir, es wird sich lohnen. | 2.7 s | `Zeile` | `189806a8512b6000 sq030_00_holocall` |
+| Ich hab gerade was Komisches gehört ... Klang wie Nörgelei ...? | 5.0 s | `Zeile` | `1a67403cc92fc004 sq030_09_pier` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Hey, gilt dein Angebot vom Damm noch? | 4.5 s | `VVF` | `1a9f07a2ab2fc000 judy_default` |
+| Vielleicht nur ein Zimmer? | ? | `VVF` | `1532045272401000 q103_15_roadhouse_bar` |
+
+### Wortwechsel
+
+**Lob und Abwehr**
+
+- **JUDY:** Du hast echt Talent, Kleines.  <sub>2.1 s &middot; `39675dc8759ce000`</sub>
+- **V:** Du bist die Beste.  <sub>? &middot; `172a8c16fb502000`</sub>
+
+Ihr Lob ist beilaeufig - genau deshalb sitzt es.
+
+**Zwei, die sich verdient haben**
+
+- **JUDY:** Da haben sich zwei gefunden.  <sub>2.5 s &middot; `1812474b462b6000`</sub>
+- **JUDY:** Interessante Leute langweilen sich eben selten.  <sub>2.7 s &middot; `189736fe942b6000`</sub>
+
+Funktioniert nach etwas, das die beiden zusammen geschafft haben.
+
+**Nur ein Zimmer**
+
+- **V:** Vielleicht nur ein Zimmer?  <sub>? &middot; `1532045272401000`</sub>
+- **JUDY:** Aber vertrau mir, es wird sich lohnen.  <sub>2.7 s &middot; `189806a8512b6000`</sub>
+
+Vs Zeile ist eine Frage ohne Namen - sie traegt in jede Richtung.
+
+
+## Alltag - Kaffee, Pizza, Zuhause
+
+**Wann:** V ist bei ihr, nichts Dringendes liegt an
+
+Der staerkste Fund der Beziehungssichtung. Alltag traegt eine Beziehung glaubhafter als weitere Liebeserklaerungen - und das Material ist da, samt Vs Antworten.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Komm schon, ernsthaft? | 2.0 s | `Bark` | `bump_var_2` |
+| Hey, pass auf ... | 1.7 s | `Bark` | `bump_var_1` |
+| Was ist sonst so in deinem Leben los? | 2.2 s | `Zeile` | `1afc15dc392fc004 judy_default` |
+| Was gibt’s Neues? | 1.2 s | `Zeile` | `1afc0918ac2fc000 judy_default` |
+| Was machen wir? | 1.4 s | `Zeile` | `1806ce4c842fc000 q105_07_judy_braindance` |
+| Wie sieht’s aus? | 1.5 s | `Zeile` | `18552511902fc000 sq026_12_penthouse_gameplay` |
+| Was auch immer du jetzt vorhast ... Kann ich irgendwie helfen? | 7.1 s | `Zeile` | `14ab207df129f000 q203_02c_judy` |
+| Hast du ’ne Kippe? | 3.9 s | `Zeile` | `1786566a832fc000 sq026_01b_roof` |
+| Schon gelangweilt? Wir können weiter, wenn du willst. | 3.1 s | `Zeile` | `1a6cd20de02fc004 sq030_06_lake_exploration` |
+| Willst du schon weg? Kein Sightseeing? | 2.7 s | `Zeile` | `1a6cd20dde2fc000 sq030_06_lake_exploration` |
+| Mal sehen, was wir noch so alles finden. | 2.8 s | `Zeile` | `1a6c24d46f2fc000 sq030_06_lake_exploration` |
+| Sieh dich um ... | 2.4 s | `Zeile` | `1a716d4e8a2b6000 sq030_06_lake_exploration` |
+| Wie geht’s so? | 1.7 s | `Zeile` | `396b7ccf489ce000 mq055_05_downtown` |
+| Wie trinkst du deinen? Heh, genau wie ich. | 3.8 s | `Zeile` | `396871fa77a71000 mq055_05_downtown` |
+| Machen wir weiter. | 1.4 s | `Zeile` | `15a89ee0355ae010 q004_04a_bd_tutorial_robbery` |
+| Und? Was sagst du? | 1.8 s | `Zeile` | `15a8a4c8875ae000 q004_04a_bd_tutorial_robbery` |
+| Ooooh, ausgefallen. | 2.3 s | `Zeile` | `3968769546a71000 mq055_05_downtown` |
+| Ich brüh was auf. | 2.1 s | `Zeile` | `3968743729a71000 mq055_05_downtown` |
+| Ich hab was richtig Großes. Sag’s dir heute Abend. Ach so – was willst du auf deine Pizza? | 6.8 s | `Zeile` | `1a0fbd86992b6000 sq026_07_judys` |
+| Igitt. Das sind zwei Wörter, die nicht in denselben Satz gehören. Schon gar nicht auf dieselbe Pizza. Du machst Witze, oder? | 6.5 s | `Zeile` | `1a0fe8a4772b6000 sq026_07_judys` |
+| Was?! Und als Nächstes sagst du mir, du atmest nicht gern? Wie kann man keine Pizza mögen? | 5.6 s | `Zeile` | `1a0fe9bfde2b6000 sq026_07_judys` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Schwarz, bitte. | 1.7 s | `VVF` | `1a6769eccf2fc000 sq030_09_pier` |
+| Mit ein bisschen Milch. | 1.6 s | `VVF` | `1a676a6b122fc000 sq030_09_pier` |
+| Heuschreckensalami. Und ganz viel extra Käse. | 3.9 s | `VVF` | `1a0fd4447d2b6000 sq026_07_judys` |
+| Tofu-Thunfisch und Ananasgeschmack. | 2.7 s | `VVF` | `1a0fd5b3d22b6000 sq026_07_judys` |
+| Ich könnte die ganze Nacht hierbleiben. | 2.9 s | `VVF` | `39b494eb948bb000 mq055_05_downtown` |
+
+### Wortwechsel
+
+**Kaffee, schwarz**
+
+- **JUDY:** Ich brüh was auf.  <sub>2.1 s &middot; `3968743729a71000`</sub>
+- **V:** Schwarz, bitte.  <sub>1.7 s &middot; `1a6769eccf2fc000`</sub>
+- **JUDY:** Wie trinkst du deinen? Heh, genau wie ich.  <sub>3.8 s &middot; `396871fa77a71000`</sub>
+
+Ihre Pointe setzt voraus, dass V vorher geantwortet hat - hier geht sie auf.
+
+**Kaffee, mit Milch**
+
+- **JUDY:** Ich brüh was auf.  <sub>2.1 s &middot; `3968743729a71000`</sub>
+- **V:** Mit ein bisschen Milch.  <sub>1.6 s &middot; `1a676a6b122fc000`</sub>
+- **JUDY:** Wie trinkst du deinen? Heh, genau wie ich.  <sub>3.8 s &middot; `396871fa77a71000`</sub>
+
+Dieselbe Pointe, andere Antwort. Beide Wege muessen funktionieren.
+
+**Streit um Pizza**
+
+- **JUDY:** Ich hab was richtig Großes. Sag’s dir heute Abend. Ach so – was willst du auf deine Pizza?  <sub>6.8 s &middot; `1a0fbd86992b6000`</sub>
+- **V:** Tofu-Thunfisch und Ananasgeschmack.  <sub>2.7 s &middot; `1a0fd5b3d22b6000`</sub>
+- **JUDY:** Igitt. Das sind zwei Wörter, die nicht in denselben Satz gehören. Schon gar nicht auf dieselbe Pizza. Du machst Witze, oder?  <sub>6.5 s &middot; `1a0fe8a4772b6000`</sub>
+
+Der laengste vollstaendige Wortwechsel im ganzen Bestand.
+
+**Streit um Pizza, kurze Fassung**
+
+- **JUDY:** Ich hab was richtig Großes. Sag’s dir heute Abend. Ach so – was willst du auf deine Pizza?  <sub>6.8 s &middot; `1a0fbd86992b6000`</sub>
+- **V:** Heuschreckensalami. Und ganz viel extra Käse.  <sub>3.9 s &middot; `1a0fd4447d2b6000`</sub>
+
+Wenn die lange Empoerung zu viel ist.
+
+**Bleib noch**
+
+- **V:** Ich könnte die ganze Nacht hierbleiben.  <sub>2.9 s &middot; `39b494eb948bb000`</sub>
+- **JUDY:** Für dich hab ich den ganzen Tag.  <sub>2.3 s &middot; `1b07e0e36d2b6000`</sub>
+
+Vs Zeile stammt aus dem Hangout und meint genau das.
+
+**Anrempeln**
+
+- **JUDY:** Hey, pass auf ...  <sub>1.7 s &middot; `bump_var_1`</sub>
+- **V:** Was zum ...  <sub>1.6 s &middot; `reaction_surprise_var_2`</sub>
+
+Kleinster moeglicher Wortwechsel, rein koerperlich.
+
+
+## Einladung und Verabredung
+
+**Wann:** Judy schlaegt etwas vor, V sagt zu
+
+Diese Kategorie fehlte bisher ganz - in allen drei Dokumenten.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Klar. Heute Abend in der Hütte am See. Wir sehen uns dort? | 4.1 s | `Zeile` | `1a9f085b672fc000 judy_default` |
+| Cool. Heute Abend in der Hütte am See. Lass mich nicht warten. | 4.5 s | `Zeile` | `1a9f0c7fe02fc000 judy_default` |
+| Lass mich nicht warten. | 1.4 s | `Zeile` | `39675ce5d69ce000 mq055_04_heywood` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Hey, gilt dein Angebot vom Damm noch? | 4.5 s | `VVF` | `1a9f07a2ab2fc000 judy_default` |
+| Ich könnte die ganze Nacht hierbleiben. | 2.9 s | `VVF` | `39b494eb948bb000 mq055_05_downtown` |
+
+### Wortwechsel
+
+**Gilt das Angebot noch**
+
+- **V:** Hey, gilt dein Angebot vom Damm noch?  <sub>4.5 s &middot; `1a9f07a2ab2fc000`</sub>
+- **JUDY:** Klar. Heute Abend in der Hütte am See. Wir sehen uns dort?  <sub>4.1 s &middot; `1a9f085b672fc000`</sub>
+
+Vs Zeile fragt woertlich nach - der sauberste Anschluss im Bestand.
+
+**Lass mich nicht warten**
+
+- **JUDY:** Cool. Heute Abend in der Hütte am See. Lass mich nicht warten.  <sub>4.5 s &middot; `1a9f0c7fe02fc000`</sub>
+- **V:** Ich könnte die ganze Nacht hierbleiben.  <sub>2.9 s &middot; `39b494eb948bb000`</sub>
+
+Ihre Ungeduld und Vs Zusage schliessen die Verabredung ab.
+
+
+## Sorge und Nachsorge
+
+**Wann:** V ist verletzt, erschoepft oder lange weg gewesen
+
+Erst schimpft sie aus Angst, dann wird sie weich. Diese Reihenfolge ist glaubwuerdiger als reine Fuersorge - und beide Haelften liegen vor.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| V, pass besser auf! Tot nützt du niemandem! | 3.5 s | `Bark` | `player_fallback_var_2` |
+| Pass auf, verdammt! Schalt dein Hirn ein. | 2.8 s | `Bark` | `player_fallback_var_1` |
+| Alles okay? Schnauf mal kurz durch. | 2.8 s | `Bark` | `player_fallback_var_3` |
+| Ungh ... Aaargh ... Lass ... los! | 3.9 s | `Bark` | `grapple` |
+| Hab Schüsse gehört. Lebst du noch? | 2.2 s | `Zeile` | `1bd4dab9c42b6000 q105_07_judy_braindance` |
+| Was zum Teufel, V? Bist du ... krank? | 3.5 s | `Zeile` | `18a2feb32f2fc004 sq026_08_plan` |
+| V? Du siehst nicht gut aus ... | 2.5 s | `Zeile` | `1a33ace66d2b6000 sq026_08_plan` |
+| Ganz ruhig, ist alles okay? | 2.1 s | `Zeile` | `28aa62967b4ea000 sq026_08_plan` |
+| Alles in Ordnung bei dir? | 1.6 s | `Zeile` | `1f46421f852b6008 sq030_01_dam_meetup` |
+| Hey, langsam ... Ganz ruhig. | 2.3 s | `Zeile` | `1a7b4c53a32b6000 sq030_09_pier` |
+| Du solltest langsam machen. | 2.2 s | `Zeile` | `1a95b684a12b6000 sq030_09_pier` |
+| Geht’s dir wirklich gut? | 1.4 s | `Zeile` | `1f45f63cf42b6000 sq030_09_pier` |
+| Oh, ich kenne diese Stimme, V. Alles ... okay? | 4.8 s | `Zeile` | `1892e2683e2b6000 sq030_00_holocall` |
+| Pass auf dich auf, V. Komm in einem Stück zurück. | 4.3 s | `Zeile` | `14ab1431b629f000 q203_02c_judy` |
+| Pass auf dich auf da draußen, V. | 2.3 s | `Zeile` | `1f0c4ccf9242f000 q203_02c_judy` |
+| Pass auf dich auf, V. | 1.7 s | `Zeile` | `19f164ba6d2b6004 sq030_11_morning` |
+| Tief durchatmen. | 2.0 s | `Zeile` | `396692eeb0a4e000 mq055_01_megabuilding` |
+| Schön langsam atmen. Ruhig. Alles okay, dir geht’s gut. | 4.5 s | `Zeile+Leih` | `1ef8b0c1f442f000 q004_04b_after_tutorial` |
+| Sag schon, wie fühlst du dich? | 1.8 s | `Zeile` | `1ef8b0825f42f000 q004_04b_after_tutorial` |
+| Alles in Ordnung, V? | 1.6 s | `Zeile` | `1ef8b0186b42f000 q004_04b_after_tutorial` |
+| Scheiße, V. Ich dachte, du bist tot. | 4.3 s | `Zeile` | `175e197aaa386000 q201_05_cabin_day_7` |
+| Hey, es war ja nicht deine Schuld ... | 2.7 s | `Zeile` | `185efbe0f5502008 q115_02b_ripperdoc_roof` |
+| Ganz ruhig, ist alles okay? | 1.9 s | `Zeile+Leih` | `1f45f8b07b2b6008 sq030_09_pier` |
+| Denk nicht zu viel drüber nach, okay? | 2.0 s | `Zeile` | `1f4640da642b6000 sq030_01_dam_meetup` |
+| Wenn ich irgendwie helfen kann ... egal, wie ... musst du’s nur sagen. | 5.5 s | `Zeile` | `1a33ca85c72b6000 sq026_08_plan` |
+| Du kommst mir ... anders vor. Bist irgendwie ... abwesend. Denkst du an Mikoshi? Oder ist es der Job? | 9.9 s | `Zeile` | `14aaba91a329f000 q203_02c_judy` |
+| Du bist schon seit ’ner Woche so, V. Ich hab das Gefühl ... du verschweigst mir was. | 5.2 s | `Zeile` | `14aabd878129f000 q203_02c_judy` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Wenn irgendwas ist, ruf mich an, okay? | 2.2 s | `VVF` | `1a0a374e852fc000 sq026_01b_roof` |
+| Aber denk dran: Ich bin für dich da, wenn du mich brauchst. Jederzeit. | ? | `VVF` | `198e76d299521000 sq021_11_finale` |
+
+### Wortwechsel
+
+**Schimpfen, dann weich werden**
+
+- **JUDY:** V, pass besser auf! Tot nützt du niemandem!  <sub>3.5 s &middot; `player_fallback_var_2`</sub>
+- **JUDY:** Denk nicht zu viel drüber nach, okay?  <sub>2.0 s &middot; `1f4640da642b6000`</sub>
+
+Der Umschlag von Wut zu Sorge ist die ganze Wirkung.
+
+**Ruhig atmen**
+
+- **JUDY:** Alles in Ordnung, V?  <sub>1.6 s &middot; `1ef8b0186b42f000`</sub>
+- **JUDY:** Schön langsam atmen. Ruhig. Alles okay, dir geht’s gut.  <sub>4.5 s &middot; `1ef8b0c1f442f000`</sub>
+
+Nur nach echtem Schaden. Sonst wirkt sie uebergriffig.
+
+**Sie merkt, dass etwas nicht stimmt**
+
+- **JUDY:** Du kommst mir ... anders vor. Bist irgendwie ... abwesend. Denkst du an Mikoshi? Oder ist es der Job?  <sub>9.9 s &middot; `14aaba91a329f000`</sub>
+- **V:** Wenn irgendwas ist, ruf mich an, okay?  <sub>2.2 s &middot; `1a0a374e852fc000`</sub>
+- **JUDY:** Wenn ich irgendwie helfen kann ... egal, wie ... musst du’s nur sagen.  <sub>5.5 s &middot; `1a33ca85c72b6000`</sub>
+
+Vs Zeile stammt aus Judys eigener Quest und passt woertlich.
+
+**Judy sorgt sich um V**
+
+- **JUDY:** Alles okay? Schnauf mal kurz durch.  <sub>2.8 s &middot; `player_fallback_var_3`</sub>
+- **V:** Weiß ich zu schätzen. Danke.  <sub>2.0 s &middot; `scene_thanks_var_2`</sub>
+
+Die Bark-Fassung, ohne Vorbedingung einsetzbar.
+
+
+## Anerkennung und Stolz
+
+**Wann:** V hat etwas gut gemacht - nicht zwingend im Kampf
+
+Bisher gab es Lob fast nur nach Gefechten.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Du verschwendest keine Munition. Bin beeindruckt. | 3.4 s | `Zeile` | `16bf45bffc2fc000 q105_07_judy_braindance` |
+| Du hast echt Talent, Kleines. | 2.1 s | `Zeile` | `39675dc8759ce000 mq055_04_heywood` |
+| Genial, oder? | 1.7 s | `Zeile` | `39675eebd79ce000 mq055_05_downtown` |
+| Wenn man das bedenkt, siehst du sogar sensationell aus. / Ach, komm schon, red keinen Blödsinn. | 3.9 s | `Zeile` | `189c5847c42b6000 sq030_01_dam_meetup` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Du bist die Beste. | ? | `VVF` | `172a8c16fb502000 q115_04_plan` |
+| Du kannst dich auf mich verlassen. | ? | `VVF` | `18c1d0f46c4e6004 mq021_01_briefing` |
+
+### Wortwechsel
+
+**Beeindruckt**
+
+- **JUDY:** Du verschwendest keine Munition. Bin beeindruckt.  <sub>3.4 s &middot; `16bf45bffc2fc000`</sub>
+- **V:** Du kannst dich auf mich verlassen.  <sub>? &middot; `18c1d0f46c4e6004`</sub>
+
+Trockenes Lob, trockene Antwort.
+
+
+## Gemeinsame Arbeit
+
+**Wann:** Virtu, Tauchen, Technik - sie laesst V an ihrer Arbeit teilhaben
+
+Judy zeigt Zuneigung, indem sie jemanden in ihre Arbeit laesst. Das ist ihr eigentlicher Liebesbeweis, und dafuer gibt es viel Material.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Du, meine Liebe, wirst mit mir eine Virtu machen. / Du, Kumpel, wirst mit mir eine Virtu machen. | 3.5 s | `Zeile` | `189d4f49e02b6000 sq030_01_dam_meetup` |
+| Genial, oder? | 1.7 s | `Zeile` | `39675eebd79ce000 mq055_05_downtown` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Klingt nova. Tun wir’s. | 2.4 s | `VVF` | `1a6181b1812fc000 sq030_05_lake_test` |
+| Was immer du vorhast, Judy. Ich bin dabei. | 4.3 s | `VVF` | `19c6ddabf55b3000 sq030_05_lake_test` |
+| Na gut, ich bin dabei. | 1.8 s | `VVF` | `189793991b2b6000 sq030_00_holocall` |
+| Du kannst dich auf mich verlassen. | ? | `VVF` | `18c1d0f46c4e6004 mq021_01_briefing` |
+
+### Wortwechsel
+
+**Sie fragt, V sagt zu**
+
+- **JUDY:** Du, meine Liebe, wirst mit mir eine Virtu machen. / Du, Kumpel, wirst mit mir eine Virtu machen.  <sub>3.5 s &middot; `189d4f49e02b6000`</sub>
+- **V:** Klingt nova. Tun wir’s.  <sub>2.4 s &middot; `1a6181b1812fc000`</sub>
+
+Vs Zusage ist aus derselben Questreihe - Ton und Wortwahl passen.
+
+**V vertraut ihr blind**
+
+- **V:** Was immer du vorhast, Judy. Ich bin dabei.  <sub>4.3 s &middot; `19c6ddabf55b3000`</sub>
+- **JUDY:** Genial, oder?  <sub>1.7 s &middot; `39675eebd79ce000`</sub>
+
+Vs Zeile nennt Judy beim Namen. Der beste Anschluss im ganzen V-Bestand.
+
 
 ## Kampf
 
-| Bark | s | Zeile |
-|---|---|---|
-| `battlecry_morale_var_1` | 2.55 | Jetzt bin ich richtig sauer! |
-| `battlecry_morale_var_3` | 2.10 | Jetzt mach ich ernst! |
-| `battlecry_morale` | 1.75 | Hast es so gewollt! |
-| `combat_aggro_bark_var_1` | 1.42 | Echt jetzt?! |
-| `combat_aggro_bark_var_2` | 1.34 | Aaah! |
-| `enemy_warning_var_2` | 2.06 | Sie sind hier. Bleib wachsam. |
-| `enemy_warning_var_1` | 1.41 | Da kommen sie! |
-| `battlecry_curse_var_3` | 2.89 | Hey, V! Mach was, verdammte Scheiße! |
-| `battlecry_curse_var_2` | 1.65 | Was zur Hölle? |
-| `battlecry_curse` | 1.18 | Fuuuck! |
-| `danger_var_1` | 1.88 | Oh, Scheiße! |
-| `danger_var_3` | 1.38 | Bin bei dir. |
-| `danger` | 1.22 | Achtung! |
-| `elite_warning_var_1` | 2.72 | Wo haben die nur diese Ausrüstung her? |
-| `elite_warning_var_2` | 2.32 | Ordentlich ausgestattet, die Typen! |
-| `grenade_enemy_var_3` | 2.23 | In Deckung! Granate! |
-| `grenade_enemy_var_2` | 1.92 | Achtung, Granate! |
-| `grenade_enemy_var_1` | 1.45 | Granate! |
-| `grenade_throw` | 2.28 | Na, wie schmeckt dir das?! |
-| `reloading_var_3` | 2.07 | Warte kurz, muss nachladen. |
-| `reloading_var_2` | 2.01 | Deck mich, ich lade nach! |
-| `reloading_var_1` | 1.70 | Ich muss nachladen. |
+**Wann:** Gefecht laeuft
 
-Quest-Zeilen (gesichtet, 7):
+Vollstaendig ueber Barks abgedeckt - die groesste Bark-Familie im Voiceset.
 
-- ~2.7s Kommeee! Die sind so gut wie erledigt!  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.4s Ich lenk sie ab, du erledigst sie.  <sub>`q105_07_judy_braindance`</sub>
-- ~2.4s Pass auf – da könnten Leute sein.  <sub>`sq026_11_to_penthouse`</sub>
-- ~1.9s Kannst du sie ausschalten?  <sub>`sq026_11_to_penthouse`</sub>
-- ~1.6s Jetzt! Mach sie fertig!  <sub>`q105_07_judy_braindance`</sub>
-- ~1.6s Vorsicht. Da sind zwei.  <sub>`q105_07_judy_braindance`</sub>
-- ~1.6s Erledige die, schnell.  <sub>`q105_07_judy_braindance`</sub>
+### Judy
 
-## Kampf vorbei / Lob
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Jetzt bin ich richtig sauer! | 2.5 s | `Bark` | `battlecry_morale_var_1` |
+| Jetzt mach ich ernst! | 2.1 s | `Bark` | `battlecry_morale_var_3` |
+| Hast es so gewollt! | 1.8 s | `Bark` | `battlecry_morale` |
+| Hast es so gewollt! | 1.8 s | `Bark` | `battlecry_morale_var_2` |
+| Echt jetzt?! | 1.4 s | `Bark` | `combat_aggro_bark_var_1` |
+| Aaah! | 1.3 s | `Bark` | `combat_aggro_bark_var_2` |
+| Sie sind hier. Bleib wachsam. | 2.1 s | `Bark` | `enemy_warning_var_2` |
+| Da kommen sie! | 1.4 s | `Bark` | `enemy_warning_var_1` |
+| Hey, V! Mach was, verdammte Scheiße! | 2.9 s | `Bark` | `battlecry_curse_var_3` |
+| Was zur Hölle? | 1.6 s | `Bark` | `battlecry_curse_var_2` |
+| Fuuuck! | 1.2 s | `Bark` | `battlecry_curse` |
+| Fuuuck! | 1.2 s | `Bark` | `battlecry_curse_var_1` |
+| Oh, Scheiße! | 1.9 s | `Bark` | `danger_var_1` |
+| Bin bei dir. | 1.4 s | `Bark` | `danger_var_3` |
+| Achtung! | 1.2 s | `Bark` | `danger` |
+| Achtung! | 1.2 s | `Bark` | `danger_var_2` |
+| Wo haben die nur diese Ausrüstung her? | 2.7 s | `Bark` | `elite_warning_var_1` |
+| Ordentlich ausgestattet, die Typen! | 2.3 s | `Bark` | `elite_warning_var_2` |
+| In Deckung! Granate! | 2.2 s | `Bark` | `grenade_enemy_var_3` |
+| Achtung, Granate! | 1.9 s | `Bark` | `grenade_enemy_var_2` |
+| Granate! | 1.4 s | `Bark` | `grenade_enemy_var_1` |
+| Na, wie schmeckt dir das?! | 2.3 s | `Bark` | `grenade_throw` |
+| Warte kurz, muss nachladen. | 2.1 s | `Bark` | `reloading_var_3` |
+| Deck mich, ich lade nach! | 2.0 s | `Bark` | `reloading_var_2` |
+| Ich muss nachladen. | 1.7 s | `Bark` | `reloading_var_1` |
+| Jetzt! Mach sie fertig! | 1.8 s | `Zeile` | `16bdd8ff5d2fc000 q105_07_judy_braindance` |
+| Vorsicht. Da sind zwei. | 2.5 s | `Zeile` | `174f5826962b6000 q105_07_judy_braindance` |
+| Erledige die, schnell. | 1.5 s | `Zeile` | `180700ef0d2fc000 q105_07_judy_braindance` |
+| Ich lenk sie ab, du erledigst sie. | 2.1 s | `Zeile` | `16be4522142fc000 q105_07_judy_braindance` |
+| Pass auf – da könnten Leute sein. | 2.9 s | `Zeile` | `181c6d75ad2fc000 sq026_11_to_penthouse` |
+| Kannst du sie ausschalten? | 1.6 s | `Zeile` | `18b6bc8f672fc000 sq026_11_to_penthouse` |
+| Kommeee! Die sind so gut wie erledigt! | 3.4 s | `Zeile` | `1a6d33c7952fc000 sq030_06_lake_exploration` |
 
-| Bark | s | Zeile |
-|---|---|---|
-| `combat_ended_var_1` | 2.84 | Oh, das war’s. Wir haben’s geschafft. |
-| `combat_ended_var_2` | 2.83 | Sieh uns an. Nicht totzukriegen. |
+### Wortwechsel
 
-Quest-Zeilen (gesichtet, 6):
+**Gegner gesichtet**
 
-- ~4.5s Fresst das, Arschlöcher. Scheint, als hättest du alle erwischt.  <sub>`q105_07_judy_braindance`</sub>
-- ~3.5s Du verschwendest keine Munition. Bin beeindruckt.  <sub>`q105_07_judy_braindance`</sub>
-- ~3.1s Okay, jetzt geht der Spaß erst richtig los.  <sub>`judy_mq055_01_megabuilding`</sub>
-- ~2.1s Dein Ernst? Die ist großartig!  <sub>`sq030_06_lake_exploration`</sub>
-- ~1.6s Heeey, nicht schlecht.  <sub>`judy_mq055_04_heywood`</sub>
-- ~1.4s Hey, nicht schlecht.  <sub>`q105_07_judy_braindance`</sub>
+- **JUDY:** Da kommen sie!  <sub>1.4 s &middot; `enemy_warning_var_1`</sub>
+- **V:** Oh-o. Das wird ein Spaß.  <sub>2.7 s &middot; `reaction_hostiles_var_2`</sub>
+
+Warnung und Bestaetigung.
+
+**Warnung im Kampf**
+
+- **V:** Hey! Achtung!  <sub>1.7 s &middot; `combat_ally_warning_var_3`</sub>
+- **JUDY:** Jetzt mach ich ernst!  <sub>2.1 s &middot; `battlecry_morale_var_3`</sub>
+
+V warnt, Judy geht drauf zu.
+
+**In Deckung**
+
+- **V:** In Deckung!  <sub>1.5 s &middot; `combat_ally_cover`</sub>
+- **JUDY:** Oh, Scheiße!  <sub>1.9 s &middot; `danger_var_1`</sub>
+
+Vs Kommando, ihr Fluch.
+
+**Granate**
+
+- **JUDY:** In Deckung! Granate!  <sub>2.2 s &middot; `grenade_enemy_var_3`</sub>
+- **V:** Oh, Scheiße ...  <sub>1.9 s &middot; `reaction_surprise_var_3`</sub>
+
+Ihre Warnung kommt zuerst.
+
+**Nachfrage im Kampf**
+
+- **V:** Alles okay?  <sub>1.3 s &middot; `combat_ally_check`</sub>
+- **JUDY:** Bin bei dir.  <sub>1.4 s &middot; `danger_var_3`</sub>
+
+"Bin bei dir" ist die beste Antwort im ganzen Bark-Bestand.
+
+**Fluchen im Kampf**
+
+- **JUDY:** Hey, V! Mach was, verdammte Scheiße!  <sub>2.9 s &middot; `battlecry_curse_var_3`</sub>
+- **V:** Du willst es hart? Kannst du haben!  <sub>2.6 s &middot; `battlecry_curse_var_4`</sub>
+
+Beide fluchen - reine Textur, kein Inhalt.
+
+
+## Nach dem Kampf
+
+**Wann:** Gefecht vorbei, beide stehen noch
+
+Hier steht, was den Sieg zu etwas Gemeinsamem macht statt zu einer Meldung.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Oh, das war’s. Wir haben’s geschafft. | 2.8 s | `Bark` | `combat_ended_var_1` |
+| Sieh uns an. Nicht totzukriegen. | 2.8 s | `Bark` | `combat_ended_var_2` |
+| Fresst das, Arschlöcher. Scheint, als hättest du alle erwischt. | 4.1 s | `Zeile` | `18070264fd2fc000 q105_07_judy_braindance` |
+| Du verschwendest keine Munition. Bin beeindruckt. | 3.4 s | `Zeile` | `16bf45bffc2fc000 q105_07_judy_braindance` |
+| Hey, nicht schlecht. | 1.7 s | `Zeile` | `1a9600232a2fc000 q105_07_judy_braindance` |
+| Dein Ernst? Die ist großartig! | 2.2 s | `Zeile` | `1a76a081672b6000 sq030_06_lake_exploration` |
+| Heeey, nicht schlecht. | 1.9 s | `Zeile` | `39675beeb89ce000 mq055_04_heywood` |
+| Okay, jetzt geht der Spaß erst richtig los. | 4.4 s | `Zeile` | `396690f54aa4e000 mq055_05_downtown` |
+| Bin bei dir. | 1.0 s | `Zeile` | `1f3324ae9552a008 vset_judy` |
+| Oh, das war’s. Wir haben’s geschafft. | 3.0 s | `Zeile` | `1f3324aeb552a008 vset_judy` |
+| Sieh uns an. Nicht totzukriegen. | 2.7 s | `Zeile` | `1f3324aeb752a008 vset_judy` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Du bist die Beste. | ? | `VVF` | `172a8c16fb502000 q115_04_plan` |
+
+### Wortwechsel
+
+**Sieh uns an**
+
+- **JUDY:** Oh, das war’s. Wir haben’s geschafft.  <sub>3.0 s &middot; `1f3324aeb552a008`</sub>
+- **JUDY:** Sieh uns an. Nicht totzukriegen.  <sub>2.7 s &middot; `1f3324aeb752a008`</sub>
+
+Aus dem Sieg wird ein gemeinsames Erlebnis.
+
+**Bin bei dir**
+
+- **JUDY:** Bin bei dir.  <sub>1.0 s &middot; `1f3324ae9552a008`</sub>
+- **V:** Du bist die Beste.  <sub>? &middot; `172a8c16fb502000`</sub>
+
+Sparsam einsetzen - die Zeile traegt viel und nutzt sich schnell ab.
+
+**Kampf vorbei**
+
+- **JUDY:** Oh, das war’s. Wir haben’s geschafft.  <sub>2.8 s &middot; `combat_ended_var_1`</sub>
+- **V:** Das wird ein guter Tag.  <sub>1.8 s &middot; `reaction_happy_var_2`</sub>
+
+Die Bark-Fassung, jederzeit einsetzbar.
+
 
 ## Stealth
 
-| Bark | s | Zeile |
-|---|---|---|
-| `stealth_restored_var_1` | 2.25 | Perfekt, die sehen uns nicht mehr. |
-| `stealth_restored_var_2` | 1.79 | Die haben wir abgeschüttelt. |
-| `stealth_warning_bark_var_2` | 1.33 | Vorsicht! |
-| `stealth_warning_bark_var_1` | 1.25 | Sei still! |
-| `detection_warning_var_1` | 2.86 | Verschwinde da, sonst sehen sie uns! |
-| `detection_warning_var_2` | 2.38 | Vorsicht, die haben was gehört! |
-| `camera_warning_var_1` | 2.13 | Pass auf die Kameras auf, okay? |
-| `camera_warning_var_2` | 2.07 | Die haben hier alles im Blick. |
-| `body_warning_var_1` | 3.15 | Lass uns hier klar Schiff machen, sonst fliegen wir auf. |
-| `body_warning_var_2` | 2.22 | Versteck den Körper, okay? |
+**Wann:** Unentdeckt vorgehen, entdeckt werden, wieder verschwinden
 
-Quest-Zeilen (gesichtet, 3):
+Barks decken alle drei Zustaende ab. Vs `combat_ally_stealth` ist ausdruecklich fuer Begleiter geschrieben.
 
-- ~2.6s Danach schleichen wir uns vorbei ...  <sub>`q105_07_judy_braindance`</sub>
-- ~1.6s Gesichert. Geh weiter.  <sub>`q105_07_judy_braindance`</sub>
-- ~1.1s Mist, entdeckt!  <sub>`q105_07_judy_braindance`</sub>
+### Judy
 
-## Spieler verletzt / Sorge
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Perfekt, die sehen uns nicht mehr. | 2.2 s | `Bark` | `stealth_restored_var_1` |
+| Die haben wir abgeschüttelt. | 1.8 s | `Bark` | `stealth_restored_var_2` |
+| Vorsicht! | 1.3 s | `Bark` | `stealth_warning_bark_var_2` |
+| Sei still! | 1.2 s | `Bark` | `stealth_warning_bark_var_1` |
+| Verschwinde da, sonst sehen sie uns! | 2.9 s | `Bark` | `detection_warning_var_1` |
+| Vorsicht, die haben was gehört! | 2.4 s | `Bark` | `detection_warning_var_2` |
+| Pass auf die Kameras auf, okay? | 2.1 s | `Bark` | `camera_warning_var_1` |
+| Die haben hier alles im Blick. | 2.1 s | `Bark` | `camera_warning_var_2` |
+| Lass uns hier klar Schiff machen, sonst fliegen wir auf. | 3.1 s | `Bark` | `body_warning_var_1` |
+| Versteck den Körper, okay? | 2.2 s | `Bark` | `body_warning_var_2` |
+| Gesichert. Geh weiter. | 1.6 s | `Zeile` | `180ca4ff2f2fc000 q105_07_judy_braindance` |
+| Mist, entdeckt! | 1.2 s | `Zeile` | `180ca5fe922fc000 q105_07_judy_braindance` |
+| Danach schleichen wir uns vorbei ... | 2.4 s | `Zeile` | `1a95de1e182fc000 q105_07_judy_braindance` |
 
-| Bark | s | Zeile |
-|---|---|---|
-| `player_fallback_var_2` | 3.46 | V, pass besser auf! Tot nützt du niemandem! |
-| `player_fallback_var_1` | 2.84 | Pass auf, verdammt! Schalt dein Hirn ein. |
-| `player_fallback_var_3` | 2.76 | Alles okay? Schnauf mal kurz durch. |
-| `grapple` | 3.94 | Ungh ... Aaargh ... Lass ... los! |
+### Wortwechsel
 
-Quest-Zeilen (gesichtet, 18):
+**Leise vorgehen**
 
-- ~3.9s Schön langsam atmen. Ruhig. Alles okay, dir geht’s gut.  <sub>`judy_q004`</sub>
-- ~3.5s Pass auf dich auf, V. Komm in einem Stück zurück.  <sub>`q203_02c_judy`</sub>
-- ~3.3s Oh, ich kenne diese Stimme, V. Alles ... okay?  <sub>`sq030_00_holocall`</sub>
-- ~2.6s Was zum Teufel, V? Bist du ... krank?  <sub>`sq026_08_plan`</sub>
-- ~2.6s Hey, es war ja nicht deine Schuld ...  <sub>`judy_q115`</sub>
-- ~2.6s Scheiße, V. Ich dachte, du bist tot.  <sub>`judy_q201`</sub>
-- ~2.4s Hab Schüsse gehört. Lebst du noch?  <sub>`q105_07_judy_braindance`</sub>
-- ~2.3s Pass auf dich auf da draußen, V.  <sub>`q203_02c_judy`</sub>
-- ~2.1s V? Du siehst nicht gut aus ...  <sub>`sq026_08_plan`</sub>
-- ~2.1s Sag schon, wie fühlst du dich?  <sub>`judy_q004`</sub>
-- ~2.0s Hey, langsam ... Ganz ruhig.  <sub>`sq030_09_pier`</sub>
-- ~1.9s Ganz ruhig, ist alles okay?  <sub>`sq026_08_plan`</sub>
-- ~1.9s Du solltest langsam machen.  <sub>`sq030_09_pier`</sub>
-- ~1.8s Alles in Ordnung bei dir?  <sub>`sq030_01_dam_meetup`</sub>
-- ~1.7s Geht’s dir wirklich gut?  <sub>`sq030_09_pier`</sub>
-- ~1.5s Pass auf dich auf, V.  <sub>`sq030_11_morning`</sub>
-- ~1.4s Alles in Ordnung, V?  <sub>`judy_q004`</sub>
-- ~1.1s Tief durchatmen.  <sub>`judy_mq055_01_megabuilding`</sub>
+- **V:** Man darf uns nicht hören, klar?  <sub>2.3 s &middot; `combat_ally_stealth`</sub>
+- **JUDY:** Sei still!  <sub>1.2 s &middot; `stealth_warning_bark_var_1`</sub>
 
-## Idle / Smalltalk
+V gibt den Ton vor, Judy bestaetigt.
 
-| Bark | s | Zeile |
-|---|---|---|
-| `bump_var_2` | 2.01 | Komm schon, ernsthaft? |
-| `bump_var_1` | 1.71 | Hey, pass auf ... |
+**Entdeckungsgefahr**
 
-Quest-Zeilen (gesichtet, 16):
+- **JUDY:** Verschwinde da, sonst sehen sie uns!  <sub>2.9 s &middot; `detection_warning_var_1`</sub>
+- **V:** Pssst. Langsam.  <sub>2.6 s &middot; `combat_ally_stealth_var_1`</sub>
 
-- ~4.4s Was auch immer du jetzt vorhast ... Kann ich irgendwie helfen?  <sub>`q203_02c_judy`</sub>
-- ~3.8s Schon gelangweilt? Wir können weiter, wenn du willst.  <sub>`sq030_06_lake_exploration`</sub>
-- ~3.0s Wie trinkst du deinen? Heh, genau wie ich.  <sub>`judy_mq055_05_downtown`</sub>
-- ~2.9s Mal sehen, was wir noch so alles finden.  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.7s Willst du schon weg? Kein Sightseeing?  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.6s Was ist sonst so in deinem Leben los?  <sub>`judy_default`</sub>
-- ~1.4s Ooooh, ausgefallen.  <sub>`judy_mq055_05_downtown`</sub>
-- ~1.3s Hast du ’ne Kippe?  <sub>`sq026_01b_roof`</sub>
-- ~1.3s Machen wir weiter.  <sub>`judy_q004`</sub>
-- ~1.3s Und? Was sagst du?  <sub>`judy_q004`</sub>
-- ~1.2s Was gibt’s Neues?  <sub>`judy_default`</sub>
-- ~1.2s Ich brüh was auf.  <sub>`judy_mq055_05_downtown`</sub>
-- ~1.1s Wie sieht’s aus?  <sub>`sq026_12_penthouse_gameplay`</sub>
-- ~1.1s Sieh dich um ...  <sub>`sq030_06_lake_exploration`</sub>
-- ~1.1s Was machen wir?  <sub>`q105_07_judy_braindance`</sub>
-- ~1.0s Wie geht’s so?  <sub>`judy_mq055_04_heywood`</sub>
+Ihre Warnung, Vs Beruhigung.
 
-## Zuneigung / Naehe
+**Stealth wiederhergestellt**
 
-*Keine Bark deckt das ab - hier lohnt sich Fake-Lipsync am meisten.*
+- **JUDY:** Perfekt, die sehen uns nicht mehr.  <sub>2.2 s &middot; `stealth_restored_var_1`</sub>
+- **V:** Man kann nicht immer Pech haben.  <sub>1.9 s &middot; `reaction_happy_var_3`</sub>
 
-Quest-Zeilen (gesichtet, 11):
+Erleichterung auf beiden Seiten.
 
-- ~6.1s Ich mag dich. Ich will dich oft sehen. Aus meiner Sicht gibt’s da nichts zu überlegen.  <sub>`sq030_11_morning`</sub>
-- ~4.6s Hab davon geträumt, wie es wird, wenn wir’s endlich schaffen ...  <sub>`judy_q202`</sub>
-- ~4.1s Ich weiß nicht, was ich mache, wenn du nicht mehr da bist.  <sub>`judy_q201`</sub>
-- ~2.9s Woher weißt du immer, wenn du mir fehlst?  <sub>`judy_default`</sub>
-- ~2.8s Hey, setzt du dich ein bisschen zu mir?  <sub>`sq030_11_morning`</sub>
-- ~2.3s Für dich hab ich den ganzen Tag.  <sub>`judy_default`</sub>
-- ~2.2s Ich bin froh, dass wir das tun.  <sub>`judy_q202`</sub>
-- ~2.1s Außen tough ... und innen süß.  <sub>`sq030_09_pier`</sub>
-- ~2.1s Wir haben alle Zeit der Welt.  <sub>`judy_default`</sub>
-- ~1.6s Gib mir deine Hand, V.  <sub>`sq030_11_morning`</sub>
-- ~1.4s Ich dich auch, V ...  <sub>`sq030_11_morning`</sub>
 
-## Umgebung / Aussicht
+## Warten, Troedeln, kleine Reibung
 
-*Keine Bark deckt das ab - hier lohnt sich Fake-Lipsync am meisten.*
+**Wann:** V bleibt zurueck, bricht ab oder kommt zu spaet
 
-Quest-Zeilen (gesichtet, 10):
+Reibung ohne Bruch. Ihre Ungeduld liest sich als Vertrautheit, wenn sie nicht allein steht - deshalb gehoert immer eine Versoehnung dahinter.
 
-- ~8.1s Mhm. Von hier aus sieht die Stadt so weit weg und unschuldig aus. Komisches Gefühl ... Als wär ich ein Flüchtling.  <sub>`judy_q202`</sub>
-- ~6.4s Jedes Mal dachte ich, ich hätte ein Zuhause gefunden. Und jedes Mal wurde ich enttäuscht.  <sub>`judy_q202`</sub>
-- ~5.1s Fast, als wären wir jenseits von Raum und Zeit. Wie in ’ner Schneekugel.  <sub>`sq030_06_lake_exploration`</sub>
-- ~5.0s Ich hab gerade erst erkannt, dass Night City nie richtig für mich war.  <sub>`judy_q202`</sub>
-- ~3.9s Genießt du die Aussicht? | Hübsche Aussicht, Machoman?  <sub>`sq030_05_lake_test`</sub>
-- ~2.6s Wollen wir über den Platz schlendern?  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.5s Frag mich, ob’s mir fehlen wird ...  <sub>`judy_q202`</sub>
-- ~1.7s Genießt du die Aussicht?  <sub>`judy_mq055_05_downtown`</sub>
-- ~1.4s Beeindruckend, oder?  <sub>`sq030_05_lake_test`</sub>
-- ~1.0s Gefällt’s dir?  <sub>`sq030_05_lake_test`</sub>
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Was ist los? Hör auf zu trödeln. | 2.7 s | `Bark` | `follow_me_1` |
+| Komm schon, V, bleib bei mir. | 2.3 s | `Bark` | `follow_me` |
+| Komm schon, V, bleib bei mir. | 2.3 s | `Bark` | `follow_me_2` |
+| Wir haben was vor, schon vergessen? | 2.5 s | `Bark` | `hurry_up_var_2` |
+| Konzentration, V. | 2.1 s | `Bark` | `hurry_up_var_3` |
+| Na? Los jetzt! | 1.9 s | `Bark` | `hurry_up_var_1` |
+| Was ist mit dir los? | 1.8 s | `Bark` | `urge_var_1` |
+| Komm schon, V. | 1.6 s | `Bark` | `urge` |
+| Komm schon, V. | 1.6 s | `Bark` | `urge_var_2` |
+| Okay, wir setzen das später fort. | 2.5 s | `Bark` | `interrupt_var_1` |
+| Hab ich dich gelangweilt? | 1.9 s | `Bark` | `interrupt` |
+| Hab ich dich gelangweilt? | 1.9 s | `Bark` | `interrupt_var_2` |
+| Bist du da? Kannst du mich hören? | 2.7 s | `Bark` | `phone_urge_var_2` |
+| Äh ... V? | 1.8 s | `Bark` | `phone_urge_var_1` |
+| Deine Entscheidung, aber trödel nicht. | 2.3 s | `Zeile` | `185fea344a2b6000 q105_07_judy_braindance` |
+| Jepp. Bin sofort da. Warte auf mich. | 2.9 s | `Zeile` | `16b50051b62fc000 q105_07_judy_braindance` |
+| V, warte. Ich bin ganz nah. | 2.9 s | `Zeile` | `16b5046d372fc000 q105_07_judy_braindance` |
+| Wart ’ne Sekunde auf mich. | 1.6 s | `Zeile` | `16bf45cbac2fc000 q105_07_judy_braindance` |
+| Komm, gehen wir. | 1.7 s | `Zeile` | `1a76bc30fd2fc004 sq026_04_maiko` |
+| V, lass uns abhauen. | 2.8 s | `Zeile` | `1a7bd32bec2fc000 sq026_05a_leave` |
+| V, warte noch. | 1.5 s | `Zeile` | `1a7b10f6e62fc000 sq026_05a_leave` |
+| Komm schon! Keine falsche Scheu. | 2.9 s | `Zeile` | `1f46422d992b6008 sq030_01_dam_meetup` |
+| Aye aye, Käpt’n – mir nach. | 2.5 s | `Zeile` | `1a6d3771f92fc000 sq030_06_lake_exploration` |
+| Schon unterwegs. | 1.4 s | `Zeile` | `1aa440794d2fc000 sq030_06_lake_exploration` |
+| V? Worauf wartest du? | 2.1 s | `Zeile` | `14edc33d565b2000 q004_03_this_is_judy` |
+| Na los, worauf wartest du? | 1.9 s | `Zeile+Leih` | `17c00d5613610000 q105_02_lizzy_meet_judy` |
+| Na dann komm. Ich will dir was zeigen. | 2.4 s | `Zeile` | `1a6d277cc12fc000 sq030_06_lake_exploration` |
+| Jepp, bin sofort da. Warte auf mich. | 3.3 s | `Zeile` | `39669585fca4e000 mq055_05_downtown` |
+| Komm schon, V. Bleib bei mir. | 1.3 s | `Zeile` | `39675fea699ce000 mq055_04_heywood` |
+| Lass mich nicht warten. | 1.4 s | `Zeile` | `39675ce5d69ce000 mq055_04_heywood` |
+| Okay ... Aber lass dir nicht zu viel Zeit. | 2.7 s | `Zeile` | `157e1b71602fc008 q105_06c_finding_studio` |
+| So lang hat das nicht Zeit. | 1.7 s | `Zeile` | `183b56df2f2b600c q105_06a_fingers_escape` |
+| Sag Bescheid, wenn du weiter willst. | 2.6 s | `Zeile` | `1a6c40ed992fc000 sq030_06_lake_exploration` |
+| Was sagst du, wollen wir weiter? | 2.0 s | `Zeile` | `1a6c5010692fc004 sq030_06_lake_exploration` |
+| Sei vorsichtig, okay? Ich warte hier auf dich. | 3.9 s | `Zeile` | `185efbe0f1502010 q115_02b_ripperdoc_roof` |
+| Okay, ich warte hier auf dich. | 2.7 s | `Zeile` | `1787cc94372cd000 q202_05_convoy` |
+| Du hast meine Pläne ruiniert, weißt du? | 2.8 s | `Zeile` | `1a9f63e7252b6000 sq030_11_morning` |
+
+### Wortwechsel
+
+**Gespraech unterbrochen**
+
+- **V:** Moment ... Bin gleich wieder da.  <sub>2.1 s &middot; `interrupt_var_6`</sub>
+- **JUDY:** Okay, wir setzen das später fort.  <sub>2.5 s &middot; `interrupt_var_1`</sub>
+
+V bricht ab, Judy nimmt es hin.
+
+**Gespraech unterbrochen, kurz**
+
+- **V:** Wir reden später.  <sub>1.6 s &middot; `interrupt_var_2`</sub>
+- **JUDY:** Hab ich dich gelangweilt?  <sub>1.9 s &middot; `interrupt`</sub>
+
+Dieselbe Figur, knapper.
+
+**Spieler bleibt zurueck**
+
+- **JUDY:** Was ist los? Hör auf zu trödeln.  <sub>2.7 s &middot; `follow_me_1`</sub>
+- **V:** Ich muss weiter.  <sub>1.4 s &middot; `interrupt_var_4`</sub>
+
+Ihre Ungeduld, Vs Ausrede.
+
+**Begleitung endet**
+
+- **V:** Das wär erledigt. Mach besser ’nen Abgang.  <sub>3.3 s &middot; `follower_end_var_2`</sub>
+- **JUDY:** Okay, wir setzen das später fort.  <sub>2.5 s &middot; `interrupt_var_1`</sub>
+
+Vs `follower_end` ist ausdruecklich fuer Begleiter geschrieben.
+
+**Etwas Interessantes entdeckt**
+
+- **V:** Oh. Interessant.  <sub>2.4 s &middot; `reaction_inspect_var_1`</sub>
+- **JUDY:** Was ist mit dir los?  <sub>1.8 s &middot; `urge_var_1`</sub>
+
+V bleibt stehen, Judy will weiter.
+
+**Du hast meine Plaene ruiniert**
+
+- **JUDY:** Du hast meine Pläne ruiniert, weißt du?  <sub>2.8 s &middot; `1a9f63e7252b6000`</sub>
+- **JUDY:** Aber vertrau mir, es wird sich lohnen.  <sub>2.7 s &middot; `189806a8512b6000`</sub>
+
+Vorwurf mit einem Augenzwinkern, und gleich der Koeder hinterher.
+
+
+## Umgebung und Aussicht
+
+**Wann:** Aussichtspunkt, ungewoehnlicher Ort, gemeinsames Schauen
+
+Keine Bark deckt das ab - hier lohnt sich der Zeilenbau am meisten. q202 fuellt die Kategorie, die vorher leer war.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Fast, als wären wir jenseits von Raum und Zeit. Wie in ’ner Schneekugel. | 4.3 s | `Zeile` | `1a7183520c2b6000 sq030_06_lake_exploration` |
+| Genießt du die Aussicht? / Hübsche Aussicht, Machoman? | 2.5 s | `Zeile` | `136656bfaf2fc000 sq030_05_lake_test` |
+| Beeindruckend, oder? | 1.9 s | `Zeile` | `1362d96a1b2fc000 sq030_05_lake_test` |
+| Gefällt’s dir? | 1.2 s | `Zeile` | `1362da25582fc000 sq030_05_lake_test` |
+| Wollen wir über den Platz schlendern? | 2.2 s | `Zeile` | `1a6c40ec352fc004 sq030_06_lake_exploration` |
+| Genießt du die Aussicht? | 1.4 s | `Zeile+Leih` | `39687a048fa71000 mq055_05_downtown` |
+| Mhm. Von hier aus sieht die Stadt so weit weg und unschuldig aus. Komisches Gefühl ... Als wär ich ein Flüchtling. | 11.1 s | `Zeile` | `199d9ab23f29f000 q202_05_convoy` |
+| Ich hab gerade erst erkannt, dass Night City nie richtig für mich war. | 6.9 s | `Zeile` | `19562ed6af29f000 q202_05_convoy` |
+| Frag mich, ob’s mir fehlen wird ... | 1.8 s | `Zeile` | `1a297fc3bf29f000 q202_05_convoy` |
+| Jedes Mal dachte ich, ich hätte ein Zuhause gefunden. Und jedes Mal wurde ich enttäuscht. | 6.0 s | `Zeile` | `19562ed6cf29f000 q202_05_convoy` |
+
 
 ## Zustimmung
 
-*Keine Bark deckt das ab - hier lohnt sich Fake-Lipsync am meisten.*
+**Wann:** V schlaegt etwas vor, Judy geht mit
 
-Quest-Zeilen (gesichtet, 5):
+Keine Bark deckt das ab.
 
-- ~1.9s Da könntest du recht haben.  <sub>`sq026_05a_leave`</sub>
-- ~1.6s Ich glaub, wir können.  <sub>`q105_06a_fingers_escape`</sub>
-- ~1.3s Wenn du meinst ...  <sub>`sq030_09_pier`</sub>
-- ~1.2s Sehe ich genauso.  <sub>`sq026_05a_leave`</sub>
-- ~1.0s Wie du willst.  <sub>`sq026_08_plan`</sub>
+### Judy
 
-## Wasser / Schwimmen
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Ich glaub, wir können. | 1.7 s | `Zeile` | `166b8c00b24ea000 q105_06a_fingers_escape` |
+| Sehe ich genauso. | 1.8 s | `Zeile` | `1a7b507f262fc000 sq026_05a_leave` |
+| Da könntest du recht haben. | 2.2 s | `Zeile` | `19faf887702b6000 sq026_05a_leave` |
+| Wie du willst. | 1.6 s | `Zeile` | `1a33d8c6a32b6000 sq026_08_plan` |
+| Wenn du meinst ... | 2.1 s | `Zeile` | `1a674041712fc000 sq030_09_pier` |
 
-*Keine Bark deckt das ab - hier lohnt sich Fake-Lipsync am meisten.*
 
-Quest-Zeilen (gesichtet, 3):
+## Wasser und Schwimmen
 
-- ~4.4s Schwimm nicht zu weit weg, ja? Sonst werden wir nur asynchron.  <sub>`sq030_06_lake_exploration`</sub>
-- ~3.4s Komm nicht zu schnell hoch, das ist gefährlich.  <sub>`sq030_06_lake_exploration`</sub>
-- ~2.1s Du steigst zu schnell hoch, V!  <sub>`sq030_06_lake_exploration`</sub>
+**Wann:** Tauchen, Schwimmen, der See
 
+Der gemeinsame Rueckzugsort. Keine Bark deckt das ab.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Schwimm nicht zu weit weg, ja? Sonst werden wir nur asynchron. | 3.8 s | `Zeile` | `15c177f5d44e2000 sq030_06_lake_exploration` |
+| Komm nicht zu schnell hoch, das ist gefährlich. | 0.1 s | `Zeile+Leih` | `1be5242cf12b6000 sq030_06_lake_exploration` |
+| Du steigst zu schnell hoch, V! | 2.0 s | `Zeile` | `1be52435972b6000 sq030_06_lake_exploration` |
+
+
+## Tiefe Naehe
+
+**Wann:** Nur nach abgeschlossener Romanze - nie im Ambient-Pool
+
+Diese Zeilen tragen Gewicht und vertragen keine Wiederholung. Sie gehoeren an ein Ereignis, nicht an einen Zufallsgenerator.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Woher weißt du immer, wenn du mir fehlst? | 3.1 s | `Zeile` | `2ffdc7962d571000 judy_default` |
+| Für dich hab ich den ganzen Tag. | 2.3 s | `Zeile` | `1b07e0e36d2b6000 mq055_05_downtown` |
+| Wir haben alle Zeit der Welt. | 1.9 s | `Zeile` | `1b0791cfae2b6000 mq055_05_downtown` |
+| Ich mag dich. Ich will dich oft sehen. Aus meiner Sicht gibt’s da nichts zu überlegen. | 7.0 s | `Zeile` | `18fa36f3f82b6000 sq030_11_morning` |
+| Ich dich auch, V ... | 2.1 s | `Zeile` | `18f9fc80d42b6000 sq030_11_morning` |
+| Außen tough ... und innen süß. | 4.2 s | `Zeile` | `1a676ce3032fc000 sq030_09_pier` |
+| Hey, setzt du dich ein bisschen zu mir? | 2.0 s | `Zeile` | `184f1ffc6b2fc000 sq030_11_morning` |
+| Gib mir deine Hand, V. | 1.6 s | `Zeile` | `184f3f3bbe2fc000 sq030_11_morning` |
+| Ich weiß nicht, was ich mache, wenn du nicht mehr da bist. | 2.9 s | `Zeile` | `175e1a1cba386000 q201_05_cabin_day_7` |
+| Ich bin froh, dass wir das tun. | 1.9 s | `Zeile` | `170a369e224e6000 q202_06_border_running` |
+| Hab davon geträumt, wie es wird, wenn wir’s endlich schaffen ... | 3.1 s | `Zeile` | `19dbc1edd129f000 q202_06_border_running` |
+| Scheiße ... Ich hab Angst, V. | 4.0 s | `Zeile` | `1401fd943a2fc000 sq026_08_plan` |
+| Und solltest du je Hilfe brauchen, du weißt, dass ich für dich da bin, ja? Immer. | 6.8 s | `Zeile` | `18fe75e7ff3bc000 fb_judy` |
+| Ich ... will einfach nicht über irgendwas davon nachdenken. Nicht heute. | 5.4 s | `Zeile` | `197a02720e2b6000 sq030_01_dam_meetup` |
+| Ist es dein, ähm, blinder Passagier? Wird es schlimmer? | 5.5 s | `Zeile` | `1878a052fd2fc000 sq030_00_holocall` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Ich mag dich auch. Ein Grund mehr, das nicht ... | ? | `VVF` | `1b3506911a62301c sq029_05_morning_after` |
+| Ich bin morgen bei dir. Egal, was passiert, wir bleiben zusammen und schaffen es irgendwie. | ? | `VVF` | `126b36bcba404000 q114_05_quiet_place` |
+| Ich will dich nicht verlieren, aber ich muss hier bleiben. Ich kann nicht anders leben oder denken. Nicht mehr. | ? | `VVF` | `18e94ba7da29f000 q203_02d_panam` |
+
+### Wortwechsel
+
+**Sie sagt es**
+
+- **JUDY:** Ich weiß nicht, was ich mache, wenn du nicht mehr da bist.  <sub>2.9 s &middot; `175e1a1cba386000`</sub>
+- **V:** Ich mag dich auch. Ein Grund mehr, das nicht ...  <sub>? &middot; `1b3506911a62301c`</sub>
+
+Hoechstens einmal. Danach nie wieder aus dem Zufallspool.
+
+**Egal was kommt**
+
+- **JUDY:** Scheiße ... Ich hab Angst, V.  <sub>4.0 s &middot; `1401fd943a2fc000`</sub>
+- **V:** Ich bin morgen bei dir. Egal, was passiert, wir bleiben zusammen und schaffen es irgendwie.  <sub>? &middot; `126b36bcba404000`</sub>
+
+Ihre Angst zuerst, dann Vs Zusage. Nur an einem echten Wendepunkt.
+
+
+## Abschied
+
+**Wann:** Ende einer Begleitung oder eines Anrufs
+
+Nur am tatsaechlichen Ende, nie als Ambient-Zeile.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Bis dann, V. | 1.5 s | `Zeile` | `1897d495012b6000 sq030_00_holocall` |
+| Bis dahaaaann! | 1.5 s | `Zeile` | `18982e23922b6000 sq030_00_holocall` |
+| Ich bin für dich da, V. Ruf jederzeit an. | 3.2 s | `Zeile` | `1b0b9169282b6000 judy_default` |
+
+### V
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Wenn irgendwas ist, ruf mich an, okay? | 2.2 s | `VVF` | `1a0a374e852fc000 sq026_01b_roof` |
+
+### Wortwechsel
+
+**Bis dann**
+
+- **JUDY:** Bis dann, V.  <sub>1.5 s &middot; `1897d495012b6000`</sub>
+- **V:** Wenn irgendwas ist, ruf mich an, okay?  <sub>2.2 s &middot; `1a0a374e852fc000`</sub>
+
+Kurz halten. Die verspielte Fassung `Bis dahaaaann!` nur selten.
+
+
+## Barks ohne Situation
+
+Keine - alle 63 Judy-Barks sind einsortiert.
+
+## Unter Vorbehalt
+
+Nicht wegen der Herkunft aussortiert, sondern wegen des Inhalts.
+
+| Zeile | Warum |
+|---|---|
+| Ich ... bin echt gern mit dir zusammen, River. | spricht River beim Namen an - der einzige echte Ausschluss |
+| Es ist seltsam, aber ... Mir ist gerade klar geworden, dass ich nie hierher gehört hab. In diese Stadt. | Endgame-Abschied aus Night City; Anim ausserdem +2886 ms |
+| Wenn du kannst ... gib mir nur irgendein Zeichen, dass ... dass du lebst und alles okay ist ... Bitte ... | Nachricht an eine Sterbende - nur im passenden Ende |
+| Hab grad an dich gedacht. Und ehe du fragst ... In meinen Gedanken warst du nackt. | sehr direkt; nur nach Romanze und hoechstens einmal taeglich |
+| Ich will dich nicht verlieren, aber ich muss hier bleiben. Ich kann nicht anders leben oder denken. Nicht mehr. | zweite Haelfte bindet sich ans Bleiben in Night City |
+
+## Was noch fehlt
+
+* **Vs Barks** sind nur dort einsortiert, wo ein Wortwechsel sie braucht. 160 gemessene Zeilen liegen in `data/vset_v_measured.json`.
+* **Zustandslogik** - welche Situation ab welchem Beziehungsstand offen ist, steht noch nicht fest.
+* **Abklingzeiten** - die Vorschlaege nennen Werte, geprueft ist keiner.
+* **Dauern fuer Vs Zeilen** fehlen groesstenteils: `durations.json` deckt bisher nur die Szenen mit Judy ab.

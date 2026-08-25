@@ -6,7 +6,13 @@ __pycache__/
 # machine-specific game path, written on first run
 game-root.txt
 # extracted game data, regenerate with tools/voice_inventory.py
-data/
+#  data/* statt data/ - ein ausgeschlossenes VERZEICHNIS laesst sich nicht per Ausnahme
+#  wieder oeffnen, ein ausgeschlossener Inhalt schon.
+data/*
+# ... ausser der Sichtung. Die 111 handverlesenen Zeilen sind KEINE extrahierten Daten,
+# sondern die Auswahl aus 816 durchgelesenen. Ihre Quelle lag als Zeilennummern in
+# build_matrix.py und existiert nur noch in der Historie - regenerieren geht nicht mehr.
+!data/matrix_picks.json
 
 # WolvenKit, ~470 MB Werkzeug - nicht ins Repo
 tools/wolvenkit/
