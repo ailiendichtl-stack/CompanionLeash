@@ -152,6 +152,35 @@ she stands. Immediate, not next tick.
 2. Play `action_crouch` as a routine — a proven path, but routines anchor the NPC to a
    workspot, so she would crouch *in place* and stop following.
 
+### Was probiert wurde, und was es ergab
+
+Gemessen wird der ECHTE Zustand: `GetStatesComponent():GetCurrentStanceState()`, also
+`GetReplicatedStanceState`. Er bleibt bei jedem Versuch konstant **3 (Stand)**, waehrend der
+Korrekturzaehler ueber 25 klettert.
+
+| Weg | Ergebnis |
+|---|---|
+| Signal an die Zustandskomponente - `OnNPCStateChangeSignalReceived` mit `m_stanceState` | kommt ohne Fehler an, **wirkt nicht**. Dahinter `SetCurrentStanceState` -> `SetReplicatedStanceState`; lehnt die Replikation ab, wird `UpdateStanceState` nie erreicht, und von aussen sieht man nichts. |
+| Anim-Feature - `ApplyFeature(o, "stanceState", animAnimFeature_NPCState{state})` | Aufruf **gelingt**, Wirkung null. Der Klassenname steht in keinem Skript: Dump `AnimFeature_NPCState`, RTTI `animAnimFeature_NPCState`, und `Reflection.GetClass` kennt den Dump-Namen nicht. |
+| Anim-Wrapper - `SetAnimWrapperWeightOnOwnerAndItems(o, "inCrouch", 1.0)` | gelingt, **allein wirkungslos**. |
+| Blackboard `PuppetState.Stance` selbst schreiben | gelingt - und ist **schaedlich**. Der Wert ist nur ein Spiegel; ihn ohne den echten Zustand zu setzen erzaehlt jeder KI-Bedingung, sie hocke. Wieder entfernt. |
+| `SetInputInt` auf denselben Eingang | als objektfreie Rueckfallebene eingebaut, nie gebraucht. |
+| Bewegungskommando | `moveMovementType` kennt nur Walk/Run/Sprint - keine Haltung. |
+| `gamedataLocomotionMode` | nur `Moving` und `Static`. |
+
+**Befund:** die Darstellung haengt am replizierten Zustand, und der laesst sich von aussen
+nicht setzen. Alles ueber Anim-Features ist Kosmetik auf einem Wert, den der Graph nicht
+liest. Der Ausloeser steht darum auf AUS - der Code bleibt samt Befund, laeuft aber nicht im
+Leerlauf mit.
+
+**Nicht probiert, und warum:** ein Workspot ueber NCA wuerde sie verankern, also stehen
+lassen statt folgen - fuer Stealth das Gegenteil des Ziels. Redscript statt CET oeffnet
+nichts, weil `ChangeStanceState` privat ist und die Replikation der eigentliche Riegel
+bleibt. Bliebe der Behaviour-Tree selbst, und das ist Archiv-Ebene.
+
+**Was NICHT daran haengt:** die 13 Stealth-Zeilen. Die brauchen nur `Locomotion == Crouch`
+beim SPIELER, und das lesen wir laengst.
+
 Path 1 is what the feature actually wants. Path 2 is the fallback and is strictly worse
 for stealth, since a stationary companion in a stealth approach is close to useless.
 

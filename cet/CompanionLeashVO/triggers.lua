@@ -291,7 +291,12 @@ end
 --  sondern der Ist-Wert aus ihrem Blackboard gelesen und nachgezogen.
 local STANCE = { Crouch = "Crouch", Stand = "Stand" }
 local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
-local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
+--  AUS, weil es nachweislich nichts bewirkt. Gemessen: der echte Zustand aus
+--  `GetCurrentStanceState()` bleibt konstant 3 (Stand), waehrend der Zaehler auf ueber 25
+--  Korrekturen klettert. Das Anim-Feature kommt an und wird nicht dargestellt; der Riegel
+--  ist `SetReplicatedStanceState`, dieselbe Replikation, die schon das Signal geschluckt
+--  hat. Der Code bleibt samt Befund stehen, laeuft aber nicht mehr im Leerlauf mit.
+local haltung = { an = false, ziel = nil, ist = nil, seit = 0.0,
                   gesetzt = 0, korrekturen = 0, gemeldet = false,
                   gemeldetOk = false }
 
@@ -837,7 +842,7 @@ end
 --  Penthouse, jede Teleportation. Ein Sprung ist schlicht eine Strecke, fuer die in einem
 --  Bild keine Zeit war; das braucht kein Blackboard und faellt auch nicht mit ihm aus.
 local WIEDER = {
-  nachStart =  3.0,    -- 25 s las sich als Vergessen, 1 s als zu fix - dazwischen
+  nachStart =  6.0,    -- 25 s las sich als Vergessen, 1 s zu fix, 3 s unzuverlaessig
   sprung    = 150.0,   -- Meter in EINEM Bild = teleportiert
   nachSprung = 8.0,
   cd        = 300.0,
