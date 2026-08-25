@@ -422,12 +422,23 @@ local HWEGE = {
       return "Rueckgabe " .. tostring(r)
     end },
   { name = "7 Anim-Feature + Wrapper", fn = function(o, st)
+      --  Jeder Aufruf einzeln mit seinem Rueckgabewert. "angewandt" fuer beides zusammen
+      --  hiess nur, dass nichts geworfen hat, und das ist keine Auskunft.
       local feat = NewObject("animAnimFeature_NPCState")
+      if not feat then return "Feature nicht baubar" end
       feat.state = (st == "Crouch") and 2 or 3
-      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-      AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
-        o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
-      return "angewandt"
+      local a = AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
+      local b = AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
+                  o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
+      return string.format("Feature=%s state=%s Wrapper=%s",
+                           tostring(a), tostring(feat.state), tostring(b))
+    end },
+  { name = "11 Anim-Feature 3s lang halten", fn = function(o, st)
+      --  Ein einzelner Anwurf koennte vom naechsten Durchlauf der NPC-Zustandsmaschine
+      --  sofort ueberschrieben werden. Wenn Halten wirkt und Setzen nicht, wissen wir das.
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      haltung.halten = { o = o, st = st, rest = 3.0 }
+      return "halte 3s"
     end },
   { name = "9 Zustand + Anim zusammen", fn = function(o, st)
       --  `UpdateStanceState` macht beides nacheinander. Route 1 sollte das intern tun -
@@ -487,6 +498,24 @@ local function nachmessen(d)
     log(string.format("   nachher %.1fs: %s", 3.0 - n.rest, tostring(haltungLesen(n.o))))
   end
   if n.rest <= 0.0 then haltung.nachmessen = nil end
+end
+
+--  Legt das Anim-Feature in jedem Frame neu auf, drei Sekunden lang.
+local function halten(d)
+  local h = haltung.halten
+  if not h then return end
+  h.rest = h.rest - d
+  if h.rest <= 0.0 then
+    haltung.halten = nil
+    log(string.format("   gehalten bis Ende, Zustand jetzt %s", tostring(haltungLesen(h.o))))
+    return
+  end
+  local feat = NewObject("animAnimFeature_NPCState")
+  if not feat then haltung.halten = nil; return end
+  feat.state = (h.st == "Crouch") and 2 or 3
+  AnimationControllerComponent.ApplyFeature(h.o, CName.new("stanceState"), feat)
+  AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
+    h.o, CName.new("inCrouch"), (h.st == "Crouch") and 1.0 or 0.0)
 end
 
 local function haltungTick(d)
@@ -1134,6 +1163,7 @@ function T.Tick(d)
   beziehungLesen()
   stimmeTick()
   nachmessen(d)
+  halten(d)
   gazeTick(d, p)
   kampfTick(d)
   sorgeTick()
