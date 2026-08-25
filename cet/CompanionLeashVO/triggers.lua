@@ -296,7 +296,8 @@ local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls 
 --  Korrekturen klettert. Das Anim-Feature kommt an und wird nicht dargestellt; der Riegel
 --  ist `SetReplicatedStanceState`, dieselbe Replikation, die schon das Signal geschluckt
 --  hat. Der Code bleibt samt Befund stehen, laeuft aber nicht mehr im Leerlauf mit.
-local haltung = { an = false, ziel = nil, ist = nil, seit = 0.0,
+local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
+                  sigName = nil,
                   gesetzt = 0, korrekturen = 0, gemeldet = false,
                   gemeldetOk = false }
 
@@ -319,61 +320,75 @@ local function haltungLesen(o)
   return v
 end
 
---  Das Signal allein reichte nicht: es kam an, tat aber nichts. `ChangeStanceState` ruft
---  `SetCurrentStanceState`, das an `SetReplicatedStanceState` weiterreicht - eine native
---  Replikation, die einen Bool zurueckgibt. Schlaegt die fehl, wird `UpdateStanceState`
---  gar nicht erst aufgerufen, und von aussen sieht man davon nichts.
+--  Der Vanilla-Weg, und er sieht anders aus als alles bisher Probierte.
 --
---  Also die drei Schritte, die `UpdateStanceState` macht, direkt nachgebaut. Alle drei
---  sind oeffentlich, und der zweite ist der, den man vergisst: der Anim-Wrapper schaltet
---  das Bewegungsset um. Ohne ihn haette sie hoechstens die Pose gewechselt und waere
---  weiter im Stehen gelaufen.
-local ZUSTAND = { Crouch = 2, Stand = 3 }
-
+--  Ich habe den EMPFAENGER direkt aufgerufen - `OnNPCStateChangeSignalReceived`. Die KI
+--  tut das nie. Sie SENDET ein Signal in die Signaltabelle ihres AI-Controllers:
+--
+--      tbl = puppet:GetAIControllerComponent():GetSignals()
+--      id  = tbl:GetOrCreateSignal("NPCStateChangeSignal")
+--      tbl:Set(id, false)
+--      tbl:SetWithData(id, signal)
+--
+--  Der Unterschied ist nicht kosmetisch. Ein Signal wird nicht zugestellt, sondern gehoben:
+--  der Behavior-Graph hoert auf dieselbe Tabelle, und dort - nicht in der Komponente -
+--  liegt der autoritative Uebergang. Die Komponente spiegelt ihn bloss.
+--
+--  Alle vier Methoden sind `public import final`, also von aussen erreichbar.
 local function haltungSetzen(o, name)
-  local wert = ZUSTAND[name] or ZUSTAND.Stand
-  local schritte = { feature = false, wrapper = false, blackboard = false }
+  local schritte = { ai = false, tabelle = false, signal = false, gesendet = false }
 
-  --  Der Klassenname traegt ein Praefix, das im Skript-Dump nicht steht: dort heisst sie
-  --  `AnimFeature_NPCState`, in der RTTI `animAnimFeature_NPCState`. Reflection kennt den
-  --  Dump-Namen gar nicht - sechs Schreibweisen durchzuprobieren war der einzige Weg, das
-  --  herauszufinden, und ohne die Trennung von Bau und Feldzugriff haette die Sonde nur
-  --  wieder "geht nicht" gesagt.
-  local feat
+  local tbl
   pcall(function()
-    feat = NewObject("animAnimFeature_NPCState")
-    feat.state = wert
+    local ai = o:GetAIControllerComponent()
+    if ai then
+      schritte.ai = true
+      tbl = ai:GetSignals()
+      if tbl then schritte.tabelle = true end
+    end
   end)
-  if feat then
+  if not tbl then
+    if not haltung.gemeldet then
+      haltung.gemeldet = true
+      log(string.format("HALTUNG Signalweg: AI=%s Tabelle=%s - kein Zugang",
+          tostring(schritte.ai), tostring(schritte.tabelle)))
+    end
+    return false
+  end
+
+  local sig
+  for _, wie in ipairs({ "NPCStateChangeSignal", "gameNPCStateChangeSignal",
+                         "handle:NPCStateChangeSignal" }) do
+    if not sig then
+      pcall(function()
+        local x = NewObject(wie)
+        if x then
+          x.m_stanceState = Enum.new("gamedataNPCStanceState", name)
+          x.m_stanceStateValid = true
+          sig = x
+          haltung.sigName = wie
+        end
+      end)
+    end
+  end
+  if sig then schritte.signal = true end
+
+  if sig then
     pcall(function()
-      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-      schritte.feature = true
+      local id = tbl:GetOrCreateSignal(CName.new("NPCStateChangeSignal"))
+      tbl:Set(id, false)
+      tbl:SetWithData(id, sig)
+      schritte.gesendet = true
     end)
   end
 
-  pcall(function()
-    AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
-      o, CName.new("inCrouch"), (name == "Crouch") and 1.0 or 0.0)
-    schritte.wrapper = true
-  end)
-
-  --  Frueher wurde hier auch das Blackboard geschrieben. Zwei Gruende, es zu lassen:
-  --
-  --  Es machte die Rueckmessung wertlos - wir lasen zurueck, was wir selbst gesetzt hatten,
-  --  der Korrekturzaehler konnte gar nicht anschlagen und stand auf 0, waehrend sichtbar
-  --  nichts geschah.
-  --
-  --  Und es luegt. `UpdateStanceState` schreibt den Wert als SPIEGEL des echten Zustands.
-  --  Ihn ohne den echten Zustand zu setzen erzaehlt jeder KI-Bedingung und jedem Prereq,
-  --  sie hocke - und die entscheiden danach.
-
   if not haltung.gemeldet then
     haltung.gemeldet = true
-    log(string.format("HALTUNG Feature=%s Wrapper=%s Blackboard=%s",
-        tostring(schritte.feature), tostring(schritte.wrapper),
-        tostring(schritte.blackboard)))
+    log(string.format("HALTUNG Signalweg: AI=%s Tabelle=%s Signal=%s (%s) gesendet=%s",
+        tostring(schritte.ai), tostring(schritte.tabelle), tostring(schritte.signal),
+        tostring(haltung.sigName), tostring(schritte.gesendet)))
   end
-  return schritte.feature or schritte.wrapper
+  return schritte.gesendet
 end
 
 local function haltungTick(d)
