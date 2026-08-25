@@ -657,7 +657,9 @@ registerForEvent("onDraw", function()
         if av.judy then
           ImGui.TextColored(0.4, 1.0, 0.4, 1.0, "anvisiert: " .. av.name .. "  [Judy]")
         else
-          ImGui.TextDisabled(string.format("anvisiert: %s   record=%s", av.name, av.record))
+          ImGui.TextDisabled(string.format("anvisiert: %s", av.name))
+        ImGui.TextDisabled(string.format("   record %s   erwartet %s",
+                                         av.record, av.judyRecord or "?"))
         end
       else
         ImGui.TextDisabled("anvisiert: nichts")

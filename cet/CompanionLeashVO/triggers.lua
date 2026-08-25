@@ -37,24 +37,51 @@ end
 
 --  Ist das Judy?
 --
---  Auf die Record-Id allein war Verlass, solange die TweakDB-Namen aufloesbar sind - sind
---  sie es nicht, liefert ToStringDBID nur einen Hash und die Pruefung schlaegt still fehl.
---  Genau daran ist der Blick nach dem Umzug gestorben. Drei Wege statt einem:
+--  Zwei naheliegende Wege sind im Spiel durchgefallen, und beide schweigend:
 --
---    1. das im Panel gesperrte Ziel        - sicher, aber von Hand
---    2. die Record-Id                      - richtig, wenn die Namen da sind
---    3. der Anzeigename                    - Eigennamen werden nicht uebersetzt,
---                                            "Judy" heisst auch auf Deutsch Judy
+--    `TDBID.ToStringDBID` braucht aufgeloeste TweakDB-Namen. Fehlen sie, kommt gar nichts
+--    zurueck - im Panel stand `record=?`.
 --
---  Was nicht passt, wird einmal je Objekt protokolliert. Ohne das sucht man den Fehler
---  wieder dort, wo er nicht ist.
+--    `GetDisplayName` liefert bei ihr `LocKey#47008`, nicht "Judy". Der Name steht in der
+--    Lokalisierung und muss erst nachgeschlagen werden.
+--
+--  Darum wird die Record-Id jetzt als ZAHL verglichen, gegen `Character.Judy` - das ist
+--  die Id, unter der NCA sie fuehrt. Keine Namensaufloesung, keine Sprache, kein Debugname.
+--  Der aufgeloeste LocKey und das gesperrte Panel-Ziel bleiben als Rueckfallebenen.
 local gesehen = {}
 
+local JUDY = nil
+pcall(function() JUDY = TweakDBID.new("Character.Judy") end)
+
+local function idGleich(a, b)
+  if not a or not b then return false end
+  local x, y
+  pcall(function() x = string.format("%s:%s", tostring(a.hash), tostring(a.length)) end)
+  pcall(function() y = string.format("%s:%s", tostring(b.hash), tostring(b.length)) end)
+  return x ~= nil and x == y
+end
+
+--  Anzeigename, notfalls ueber die Lokalisierung aufgeloest.
+local function klarname(o)
+  local n = "?"
+  pcall(function() n = tostring(o:GetDisplayName()) end)
+  if n:find("LocKey", 1, true) then
+    local k = n
+    pcall(function()
+      local t = Game.GetLocalizedText(k)
+      if t and t ~= "" then n = tostring(t) end
+    end)
+  end
+  return n
+end
+
 local function beschreibe(o)
-  local rec, name = "?", "?"
-  pcall(function() rec = tostring(TDBID.ToStringDBID(o:GetRecordID())) end)
-  pcall(function() name = tostring(o:GetDisplayName()) end)
-  return rec, name
+  local rec = "?"
+  pcall(function()
+    local r = o:GetRecordID()
+    if r then rec = string.format("%s:%s", tostring(r.hash), tostring(r.length)) end
+  end)
+  return rec, klarname(o)
 end
 
 local function istJudy(o)
@@ -68,15 +95,22 @@ local function istJudy(o)
     if a and a == b then return true end
   end
 
-  local rec, name = beschreibe(o)
-  if rec:lower():find("judy", 1, true) then return true end
-  if name:lower():find("judy", 1, true) then return true end
+  local r
+  pcall(function() r = o:GetRecordID() end)
+  if idGleich(r, JUDY) then return true end
 
+  if klarname(o):lower():find("judy", 1, true) then return true end
+
+  --  Einmal je Objekt festhalten, was tatsaechlich da war. Ohne das sucht man den Fehler
+  --  wieder dort, wo er nicht ist.
   local h = "?"
   pcall(function() h = tostring(o:GetEntityID().hash) end)
   if not gesehen[h] then
     gesehen[h] = true
-    log(string.format("BLICK nicht Judy: name=%s record=%s", name, rec))
+    local rec, name = beschreibe(o)
+    log(string.format("BLICK nicht Judy: name=%s record=%s (Judy=%s)",
+        name, rec,
+        JUDY and string.format("%s:%s", tostring(JUDY.hash), tostring(JUDY.length)) or "nil"))
   end
   return false
 end
@@ -230,7 +264,9 @@ function T.Anvisiert()
   end)
   if not o then return nil end
   local rec, name = beschreibe(o)
-  return { name = name, record = rec, judy = istJudy(o) }
+  return { name = name, record = rec, judy = istJudy(o),
+           judyRecord = JUDY and string.format("%s:%s", tostring(JUDY.hash),
+                                               tostring(JUDY.length)) or nil }
 end
 
 function T.Tick(d)
