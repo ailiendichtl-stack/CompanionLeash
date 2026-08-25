@@ -292,7 +292,7 @@ end
 local STANCE = { Crouch = "Crouch", Stand = "Stand" }
 local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
-                  gesetzt = 0, korrekturen = 0 }
+                  gesetzt = 0, korrekturen = 0, gemeldet = false }
 
 --  Was steht gerade in ihrem Zustands-Blackboard?
 local function haltungLesen(o)
@@ -305,18 +305,50 @@ local function haltungLesen(o)
   return v
 end
 
+--  Das Signal allein reichte nicht: es kam an, tat aber nichts. `ChangeStanceState` ruft
+--  `SetCurrentStanceState`, das an `SetReplicatedStanceState` weiterreicht - eine native
+--  Replikation, die einen Bool zurueckgibt. Schlaegt die fehl, wird `UpdateStanceState`
+--  gar nicht erst aufgerufen, und von aussen sieht man davon nichts.
+--
+--  Also die drei Schritte, die `UpdateStanceState` macht, direkt nachgebaut. Alle drei
+--  sind oeffentlich, und der zweite ist der, den man vergisst: der Anim-Wrapper schaltet
+--  das Bewegungsset um. Ohne ihn haette sie hoechstens die Pose gewechselt und waere
+--  weiter im Stehen gelaufen.
+local ZUSTAND = { Crouch = 2, Stand = 3 }
+
 local function haltungSetzen(o, name)
-  local ok = false
+  local wert = ZUSTAND[name] or ZUSTAND.Stand
+  local schritte = { feature = false, wrapper = false, blackboard = false }
+
   pcall(function()
-    local comp = o:GetStatesComponent()
-    if not comp then return end
-    local sig = NewObject("NPCStateChangeSignal")
-    sig.m_stanceState = Enum.new("gamedataNPCStanceState", name)
-    sig.m_stanceStateValid = true
-    comp:OnNPCStateChangeSignalReceived(sig)
-    ok = true
+    local feat = NewObject("AnimFeature_NPCState")
+    feat.state = wert
+    AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
+    schritte.feature = true
   end)
-  return ok
+
+  pcall(function()
+    AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
+      o, CName.new("inCrouch"), (name == "Crouch") and 1.0 or 0.0)
+    schritte.wrapper = true
+  end)
+
+  pcall(function()
+    local defs = Game.GetAllBlackboardDefs()
+    local bb = o:GetPuppetStateBlackboard()
+    if bb then
+      bb:SetInt(defs.PuppetState.Stance, wert)
+      schritte.blackboard = true
+    end
+  end)
+
+  if not haltung.gemeldet then
+    haltung.gemeldet = true
+    log(string.format("HALTUNG Wege: Feature=%s Wrapper=%s Blackboard=%s",
+        tostring(schritte.feature), tostring(schritte.wrapper),
+        tostring(schritte.blackboard)))
+  end
+  return schritte.feature or schritte.wrapper
 end
 
 local function haltungTick(d)
