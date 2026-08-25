@@ -26,11 +26,13 @@ Speaker.PRIO = {
   kampf_ende  =  90,
   sorge       =  70,
   wiedersehen =  60,
+  reibung     =  50,   -- zurueckgelassen zu werden draengt mehr als Smalltalk
   abschied    =  50,
   blick       =  40,
   fahrzeug    =  30,
   alltag      =  20,
   stolz       =  20,
+  leiter      =  15,   -- Leerlauf: alles andere ist wichtiger
   flirt       =  10,
   naehe       =  10,
 }
