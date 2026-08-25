@@ -31,13 +31,20 @@ schneidet nicht. Die Zeile auf die Animationslaenge zu dehnen auch nicht - die L
 streckt die Animation also nicht auf die Ereignisdauer. In beiden Faellen setzte der Mund
 erst nach knapp der Haelfte des Satzes ein.
 
-Bleibt der dritte:
+Der dritte auch: `startTime` verschiebt Ton UND Animation gemeinsam. Damit ist beantwortet,
+woran die Animation haengt - am Ereignis, nicht am Abschnitt. Mit Feldern ist der Vorlauf
+also nicht zu trennen, und das Ereignis in mq055 ist strukturell identisch mit unserem
+Nachbau. Nur eine Fassung der Animation existiert im ganzen Spiel, es gibt also auch keine
+kuerzere zum Ausweichen.
 
-    shift=True   das Ereignis rueckt um `delta` in den Abschnitt hinein, per `startTime`.
-                 Faengt die Animation am ABSCHNITT an und nicht am Ereignis, laeuft ihr
-                 Vorlauf damit ins Leere und der Mund trifft den Ton.
+Bleibt, die Frage zu umgehen:
 
-Das ist zugleich die Probe, woran die Animation ueberhaupt haengt.
+    borrow="<hex>"   die Zeile behaelt ihren Ton, bekommt aber die Lipsync-Animation einer
+                     ANDEREN Zeile aehnlicher Laenge ohne Vorlauf. Die Lippen formen dann
+                     nicht diese Worte, sitzen aber zeitlich richtig.
+
+Fuer eine Begleiterin, die man selten aus einem Meter Abstand ansieht, duerfte das besser
+aussehen als ein Mund, der erst nach der Haelfte des Satzes einsetzt.
 
 Dazu wird ein `judy.anims` erzeugt, das die 55 Bark-Animationen und die Animationen aller
 gewuenschten Zeilen enthaelt. Die Laufzeit laedt es nicht ueber die Szenenreferenz, sondern
@@ -69,8 +76,9 @@ WANTED = [
     dict(name="cl_kurz", hex="1812474b462b6000"),   # 2502 ms, q105_06c     Anim  -135
     dict(name="cl_lang", hex="18795a0a822fc000"),   # 5005 ms, sq030_11     Anim  -305
     #  Dreimal dieselbe Zeile aus mq055 - 2922 ms Ton gegen 4267 ms Animation.
-    dict(name="cl_v_roh",   hex="39669188b9a4e000"),
-    dict(name="cl_v_shift", hex="39669188b9a4e000", shift=True),
+    dict(name="cl_v_roh",  hex="39669188b9a4e000"),
+    #  2900 ms, aus q201_05_cabin_day_7, Vorlauf +27 ms
+    dict(name="cl_v_leih", hex="39669188b9a4e000", borrow="175e1a1cba386000"),
 ]
 
 
@@ -104,19 +112,21 @@ def main():
         anim = anims.get(src)
         delta = (anim["ms"] - rec["dur"]) if anim else None
 
-        start = 0
+        lipsync, lip_scene = src, rec["scene"]
         if delta is None:
             note = "kein Anim-Eintrag"
-        elif w.get("shift"):
-            start = delta
-            note = "Ereignis %+d ms in den Abschnitt geschoben" % delta
+        elif w.get("borrow"):
+            b = w["borrow"]
+            lipsync = "f_" + b.upper()
+            lip_scene = durations[str(int(b, 16))]["scene"]
+            note = "Lipsync geliehen: %d ms statt %d" % (anims[lipsync]["ms"], anim["ms"])
         else:
             note = "Anim %+d ms" % delta
             if delta > WARN_MS:
                 note += "  << Mund hinkt nach"
 
-        _add_entry(root, st, name, hexid, rec["dur"], src, start)
-        anims_needed.setdefault(rec["scene"], {})[src] = src
+        _add_entry(root, st, name, hexid, rec["dur"], lipsync)
+        anims_needed.setdefault(lip_scene, {})[lipsync] = lipsync
         print("  %-12s %5d ms  %-24s %s" % (name, rec["dur"], rec["scene"][:24], note))
 
     print()
@@ -146,7 +156,7 @@ def main():
                                        os.path.getsize(p) // 1024))
 
 
-def _add_entry(root, st, name, hexid, duration, lipsync, start_time):
+def _add_entry(root, st, name, hexid, duration, lipsync):
     graph = root["sceneGraph"]["Data"]["graph"]
     lines = root["screenplayStore"]["lines"]
     starts = root["sceneGraph"]["Data"]["startNodes"]
@@ -188,8 +198,7 @@ def _add_entry(root, st, name, hexid, duration, lipsync, start_time):
     ev["Data"]["screenplayLineId"]["id"] = item_id
     tail = sec["Data"]["sectionDuration"]["stu"] - ev["Data"]["duration"]
     ev["Data"]["duration"] = duration
-    ev["Data"]["startTime"] = start_time
-    sec["Data"]["sectionDuration"]["stu"] = start_time + duration + tail
+    sec["Data"]["sectionDuration"]["stu"] = duration + tail
     graph.append(sec)
 
     start = copy.deepcopy(w_start)

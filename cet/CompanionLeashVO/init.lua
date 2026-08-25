@@ -201,11 +201,12 @@ local MATRIX = {
   { label = "3 Zugang zur Wohnung",  name = "cl_lang",         player = false,
     hint = "5005 ms, Animation -305" },
   -- Dieselbe Zeile zweimal: 2922 ms Ton gegen 4267 ms Animation.
-  -- Die Animation traegt 1345 ms Mimik VOR dem Sprechen - daher hinkt der Mund nach.
+  -- Die Animation traegt 1345 ms Mimik VOR dem Sprechen und haengt am Ereignis:
+  -- startTime verschiebt beide zusammen, frameClamping schneidet nicht, Dehnen wirkt nicht.
   { label = "4 froh ROH",            name = "cl_v_roh",        player = false,
     hint = "unveraendert - Mund setzt bei 'da bist' ein. Das Vergleichsmass." },
-  { label = "5 froh VERSCHOBEN",     name = "cl_v_shift",      player = false,
-    hint = "Ton faengt 1345 ms spaeter an, damit der Vorlauf ins Leere laeuft" },
+  { label = "5 froh GELIEHEN",       name = "cl_v_leih",       player = false,
+    hint = "fremde Animation, 2900 statt 4267 ms - Lippen ungenau, aber im Takt" },
   { label = "6 Vanilla-Bark",        name = "danger_var_1",    player = false,
     hint = "unangetastet - der Nullpunkt" },
 }
