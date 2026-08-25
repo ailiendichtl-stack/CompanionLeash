@@ -366,40 +366,41 @@ end
 
 --  ---------------------------------------------------------------- Die Leiter
 
---  Wenn nichts passiert, faengt sie irgendwann von selbst an.
+--  Wenn V stehen bleibt, faengt sie irgendwann von selbst an.
 --
---  Das ist der haeufige Fall, den der Abstand NICHT abdeckt: die Leine haelt sie auf etwa
---  einem Meter, sie bleibt also praktisch nie zurueck. Was aber staendig vorkommt, ist V,
---  der irgendwo steht. "Na los, worauf wartest du?" gehoert dorthin, nicht zu einer
---  Entfernung.
+--  Der erste Entwurf mass Ruhe - wie lange nichts gesagt wurde. Das war das falsche Mass.
+--  Bewegung ist Aktivitaet: wer gerade durch die Stadt gelaufen ist, steht nicht seit acht
+--  Minuten herum, auch wenn niemand geredet hat. Gemessen wird darum STILLSTAND, und jede
+--  Bewegung setzt die Leiter auf die erste Sprosse zurueck.
 --
---  Zwei Regeln machen daraus eine Leiter statt eines Zufallsgenerators:
+--  Ruhe bleibt trotzdem eine Sperre, nur eben nicht die Uhr: sie soll sich nicht selbst
+--  hinterherreden, wenn eben erst etwas anderes lief.
 --
---    Sie misst RUHE, nicht Uhrzeit. Der Wert kommt vom Sprecher - wer gerade den Kampf
---    kommentiert hat, ist nicht seit acht Minuten still.
---
---    Die Sprossen WACHSEN. Gleiche Abstaende erzeugen ein Ticken, und ein Ticken merkt man
---    beim dritten Mal. Wachsende lesen sich als jemand, der es irgendwann nicht mehr
---    aushaelt zu schweigen.
---
---  Zurueck auf Sprosse eins geht es, sobald etwas anderes gesprochen hat: dann ist die
---  Stille ja unterbrochen worden, und zwar von einem Ereignis.
+--  Die Sprossen wachsen. Gleiche Abstaende erzeugen ein Ticken, und ein Ticken merkt man
+--  beim dritten Mal. Ist die letzte gespielt, bleibt sie still, bis V sich bewegt.
 local LEITER = {
-  { nach =  45.0, pool = "reibung",    still = true  },   -- V steht rum
-  { nach = 180.0, pool = "alltag",     still = false },   -- laenger nichts
-  { nach = 480.0, pool = "initiative", still = false },   -- sie faengt etwas an
+  { steht =  25.0, pool = "reibung"    },   -- V steht rum: Ungeduld
+  { steht =  75.0, pool = "alltag"     },   -- laenger: Smalltalk
+  { steht = 180.0, pool = "initiative" },   -- sehr lange: sie faengt etwas an
 }
---  In Metern JE SEKUNDE, nicht je Bild. Der erste Anlauf verglich die Strecke eines
---  Bildes mit einem festen Wert; bei 60 Bildern waren das knapp einen Meter pro Bild, und
---  damit haette Sprinten noch als Stehen gezaehlt. 0,5 m/s ist langsamer als Schleichen.
+--  In Metern JE SEKUNDE. Der erste Anlauf verglich die Strecke EINES BILDES mit einem
+--  festen Wert; bei 60 Bildern waren das knapp ein Meter pro Bild, und damit haette
+--  Sprinten noch als Stehen gezaehlt. 0,5 m/s ist langsamer als Schleichen.
 local STILL_TEMPO = 0.5
+local RUHE_MIN    = 15.0   -- so lange muss sie mindestens geschwiegen haben
 local leiter = { stufe = 1, an = true, stehtSeit = 0.0, letztePos = nil }
 
 local function leiterTick(d, p)
   if not leiter.an then return end
 
-  --  Steht V? Nicht die Geschwindigkeit, sondern die zurueckgelegte Strecke - im Menue
-  --  und im Gespraech bewegt er sich auch nicht, und das zaehlt genauso.
+  --  Im Gefecht und im Wagen hat sie anderes zu tun, und "stehen" heisst dort nichts.
+  local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end,
+                        true)
+  if psm("Combat") == 1 or imWagen ~= nil then
+    leiter.stufe, leiter.stehtSeit = 1, 0.0
+    return
+  end
+
   local pos
   pcall(function() pos = p:GetWorldPosition() end)
   if pos and leiter.letztePos then
@@ -407,34 +408,23 @@ local function leiterTick(d, p)
     pcall(function() w = Vector4.Distance(pos, leiter.letztePos) end)
     local tempo = (d > 0.0) and (w / d) or 0.0
     if tempo > STILL_TEMPO then
-      leiter.stehtSeit = 0.0
+      --  Bewegung ist Aktivitaet. Danach faengt die Leiter wieder vorn an.
+      leiter.stufe, leiter.stehtSeit = 1, 0.0
     else
       leiter.stehtSeit = leiter.stehtSeit + d
     end
   end
   leiter.letztePos = pos
 
-  --  Etwas anderes hat geredet: die Stille wurde unterbrochen, die Leiter faengt vorn an.
-  local letzte = Speaker.LetzteSituation()
-  if letzte and letzte ~= "leiter" and Speaker.StillSeit() < 1.0 then
-    leiter.stufe = 1
-  end
-
-  --  Im Gefecht und im Wagen hat sie anderes zu tun.
-  if psm("Combat") == 1 then leiter.stufe = 1; return end
-  local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end,
-                        true)
-  if imWagen ~= nil then return end
-
   local st = LEITER[leiter.stufe]
   if not st then return end
-  if Speaker.StillSeit() < st.nach then return end
-  if st.still and leiter.stehtSeit < 8.0 then return end
+  if leiter.stehtSeit < st.steht then return end
+  if Speaker.StillSeit() < RUHE_MIN then return end
 
   local k = pool(st.pool)
   if #k == 0 or not Speaker.Frei(st.pool) then return end
-  log(string.format("LEITER Sprosse %d nach %.0fs Ruhe, Pool %s (%d)",
-      leiter.stufe, Speaker.StillSeit(), st.pool, #k))
+  log(string.format("LEITER Sprosse %d nach %.0fs Stillstand, Pool %s (%d)",
+      leiter.stufe, leiter.stehtSeit, st.pool, #k))
   Speaker.Request({ situation = "leiter", prio = Speaker.PRIO.alltag,
                     pool = st.pool, kandidaten = k, cd = 30.0 })
   leiter.stufe = leiter.stufe + 1
@@ -671,8 +661,8 @@ function T.Status()
                greifbar = judy.obj ~= nil },
     leiter = { an = leiter.an, stufe = leiter.stufe, stufen = #LEITER,
                steht = leiter.stehtSeit,
-               ruhe = Speaker and Speaker.StillSeit() or 0.0,
-               naechste = LEITER[leiter.stufe] and LEITER[leiter.stufe].nach or nil },
+               ruhe = Speaker and Speaker.StillSeit() or 0.0, ruheMin = RUHE_MIN,
+               naechste = LEITER[leiter.stufe] and LEITER[leiter.stufe].steht or nil },
     reibung = { an = reibung.an, dist = judy.dist, seit = reibung.seit,
                 nah = REIBUNG.nah, weit = REIBUNG.weit, geduld = REIBUNG.geduld,
                 n = #pool("reibung") },

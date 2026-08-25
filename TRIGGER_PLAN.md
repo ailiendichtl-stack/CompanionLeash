@@ -194,22 +194,28 @@ Der Blick benutzt sie schon, ohne dass sie so hiesse: eine erste Stufe frueh, ei
 deutlich spaeter, und wer die zweite bekommt, ueberspringt die erste. Fuer Idle ist genau
 das die richtige Form, nur mit mehr Sprossen.
 
-Gedacht als: nach einer kurzen Weile Ruhe eine beilaeufige Zeile, dann waechst der Abstand.
+Gemessen wird **Stillstand**, nicht Ruhe.
 
 ```
-Ruhe seit    45s   ->  eine kurze, harmlose Zeile
-             3min  ->  etwas mehr Inhalt
-             8min  ->  sie faengt von sich aus etwas an
+V steht seit   25s   ->  Ungeduld: "Na los, worauf wartest du?"
+               75s   ->  Smalltalk
+              180s   ->  sie faengt von sich aus etwas an
 ```
+
+Der erste Entwurf mass, wie lange nichts gesagt wurde. Das war das falsche Mass: Bewegung
+ist Aktivitaet. Wer gerade quer durch die Stadt gelaufen ist, steht nicht seit acht Minuten
+herum, auch wenn niemand geredet hat.
 
 Zwei Regeln machen den Unterschied zwischen Leiter und Zufallsgenerator:
 
-**Jede andere Zeile setzt sie zurueck.** Wer gerade einen Kampf kommentiert hat, ist nicht
-seit acht Minuten still. Die Leiter misst Ruhe, nicht Uhrzeit.
+**Bewegung setzt sie zurueck.** Auf die erste Sprosse, sofort. Wer weitergeht, wartet nicht.
 
 **Die Sprossen wachsen.** Gleichbleibende Abstaende erzeugen ein Ticken, und ein Ticken
 merkt man nach dem dritten Mal. Wachsende Abstaende lesen sich als jemand, der irgendwann
-aufgibt, still zu bleiben.
+aufgibt, still zu bleiben. Nach der letzten Sprosse schweigt sie, bis V sich bewegt.
+
+Ruhe bleibt eine Sperre, aber nicht die Uhr: hat eben erst etwas anderes gesprochen, wartet
+die Leiter, statt hinterherzureden.
 
 Dieselbe Leiter traegt spaeter die Animationen: Sprosse eins eine Gewichtsverlagerung,
 Sprosse zwei eine Pose, Sprosse drei etwas, das sie an den Ort bindet. Der Sprecher

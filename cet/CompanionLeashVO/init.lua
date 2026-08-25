@@ -729,10 +729,10 @@ registerForEvent("onDraw", function()
       if le ~= st.leiter.an then Triggers.Setzen("leiter", le) end
       ImGui.SameLine()
       if st.leiter.naechste then
-        ImGui.TextDisabled(string.format("Sprosse %d/%d bei %.0fs  |  Ruhe %.0fs, steht %.0fs",
+        ImGui.TextDisabled(string.format("Sprosse %d/%d bei %.0fs Stillstand   |  steht %.0fs, Ruhe %.0fs von %.0fs",
                                          st.leiter.stufe, st.leiter.stufen,
-                                         st.leiter.naechste, st.leiter.ruhe,
-                                         st.leiter.steht))
+                                         st.leiter.naechste, st.leiter.steht,
+                                         st.leiter.ruhe, st.leiter.ruheMin))
       else
         ImGui.TextDisabled(string.format("durch - alle %d Sprossen gespielt",
                                          st.leiter.stufen))
