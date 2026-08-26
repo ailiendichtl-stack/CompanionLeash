@@ -547,6 +547,52 @@ local function lageLesen(o)
   return v, (LAGENAMEN[v] or tostring(v)) .. " (" .. tostring(v) .. ")"
 end
 
+--  ---------------------------------------------------------------- Wunden
+--
+--  Der gebueckte Gang mit haengendem Arm ist ein STATUSEFFEKT, kein Animationszustand
+--  und keine Lage. Das erklaert alles, was uns daran verwirrt hat:
+--
+--  * Die Lage steht auf `Relaxed`, nie auf `Wounded` - gemessen, deshalb war die Spur
+--    ueber `ChangeHighLevelState` von vornherein aussichtslos.
+--  * Volle Gesundheit loest ihn nicht, weil er nicht an der Gesundheit haengt.
+--  * Schnellreise loest ihn, weil sie dabei neu gespawnt wird - ein neuer Koerper hat
+--    keine Effekte.
+--  * Sie sprintet nicht mehr, weil der Effekt ihre Fortbewegung beschneidet.
+--
+--  Und Statuseffekte lassen sich entfernen. `gamedataStatusEffectType.Wounded` ist der
+--  Typ, den auch die KI abfragt (`CheckWoundedStatusEffectState`).
+local WUNDE = { an = true }
+local wunde = { hat = nil, entfernt = 0, fehler = nil, gemeldet = false }
+
+local function wundeLesen(o)
+  local v
+  pcall(function()
+    v = StatusEffectSystem.ObjectHasStatusEffectOfType(o, gamedataStatusEffectType.Wounded)
+  end)
+  return v
+end
+
+--  Zwei Signaturen im Umlauf: einmal `(owner, typ)`, einmal `(game, id, typ)`. Beide
+--  einzeln versuchen und melden, welche gegriffen hat - zusammengefasst wuesste man
+--  hinterher wieder nicht, welche Haelfte es war.
+local function wundeEntfernen(o)
+  local weg = false
+  local ok = pcall(function()
+    StatusEffectHelper.RemoveAllStatusEffectsByType(o, gamedataStatusEffectType.Wounded)
+    weg = true
+  end)
+  if not ok or not weg then
+    ok = pcall(function()
+      StatusEffectHelper.RemoveAllStatusEffectsByType(
+        Game.GetPlayer():GetGame(), o:GetEntityID(), gamedataStatusEffectType.Wounded)
+      weg = true
+    end)
+  end
+  if not weg then return false, "keine der beiden Signaturen griff" end
+  local nachher = wundeLesen(o)
+  return nachher == false, string.format("danach %s", tostring(nachher))
+end
+
 --  ---------------------------------------------------------------- Heilung
 --
 --  NCA heilt Begleiter ueberhaupt nicht. Es gibt eine Lebensanzeige und nichts dahinter -
@@ -596,9 +642,16 @@ local function heilungTick(d, o)
 
   if hp >= HEILUNG.voll then
     if heil.war ~= nil and heil.war < HEILUNG.voll then
-      log(string.format("HEILUNG voll (war %.0f%%). Jetzt pruefen: loest sich die "
-                        .. "gebueckte Haltung, oder bleibt der Gliedmassenschaden?",
-                        heil.war))
+      log(string.format("HEILUNG voll (war %.0f%%)", heil.war))
+      --  Volle Gesundheit ist der ehrliche Moment dafuer: sie ist wieder zusammengeflickt,
+      --  also darf auch der Wundeffekt weg. Ihn frueher zu nehmen hiesse, mitten im
+      --  Gefecht die Folgen wegzuraeumen.
+      if WUNDE.an and wundeLesen(o) == true then
+        local ok, wie = wundeEntfernen(o)
+        wunde.entfernt = wunde.entfernt + (ok and 1 or 0)
+        log("WUNDE entfernen: " .. (ok and "geloest" or "blieb") .. " - " .. wie)
+        if not ok then wunde.fehler = wie end
+      end
     end
     heil.war = hp
     return
@@ -1045,6 +1098,15 @@ local function haltungMitschreiben(d)
       log("LAGE-IST erste Messung: " .. lt)
     end
     hbeo.lageWar = lv
+  end
+
+  local w = wundeLesen(o)
+  if w ~= nil and w ~= wunde.hat then
+    if wunde.hat ~= nil then
+      log(string.format("WUNDE %s   Lage %s, Kampf %s",
+          w and "aufgetreten" or "verschwunden", lt, tostring(ktx.eigen.kampf)))
+    end
+    wunde.hat = w
   end
 
   for _, feld in ipairs(ZUSTANDSFELDER) do
@@ -1804,6 +1866,8 @@ function T.Status()
     beob  = beob.an,
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
+    wunde = { an = WUNDE.an, hat = wunde.hat, entfernt = wunde.entfernt,
+              fehler = wunde.fehler },
     heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
               proSekunde = HEILUNG.proSekunde, fehler = heil.fehler },
     ktx   = { da = ktx.nca.da, proben = ktx.proben,
@@ -1841,6 +1905,7 @@ end
 
 function T.Setzen(was, an)
   if was == "heilung"  then heil.an = an end
+  if was == "wunde"    then WUNDE.an = an end
   if was == "blick"    then gaze.an  = an end
   if was == "kampf"    then kampf.an = an end
   if was == "sorge"    then sorge.an = an end
