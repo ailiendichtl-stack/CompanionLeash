@@ -149,6 +149,8 @@ staging copy, and a purge/redeploy restores the stock file.
   zusammenhaengen; der Weg dorthin samt Sackgassen
 - [ANIMATION_RESEARCH.md](ANIMATION_RESEARCH.md) - Posen, Workspots und was fremde Mods
   an Zwei-Personen-Inhalten bereits koennen
+- [NCA_VERGLEICH.md](NCA_VERGLEICH.md) - Bestandsaufnahme: wer macht was, wo wir uns
+  ueberschneiden, was NCA anbietet und wir noch selbst abfragen
 - [PRESENCE_PLAN.md](PRESENCE_PLAN.md) - Feature-Plan 0.3: Posen, Stealth-Haltung, Idle,
   Stimme
 - [TRIGGER_PLAN.md](TRIGGER_PLAN.md) - woran die Zeilen haengen sollen: welche Ausloeser
