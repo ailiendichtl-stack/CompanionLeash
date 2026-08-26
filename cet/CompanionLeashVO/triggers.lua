@@ -547,6 +547,46 @@ local function lageLesen(o)
   return v, (LAGENAMEN[v] or tostring(v)) .. " (" .. tostring(v) .. ")"
 end
 
+--  ---------------------------------------------------------------- Aufhelfen
+--
+--  Denselben Griff auch bei uns, weil der Weg ueber NCAs Menue unzuverlaessig ist:
+--  `App:OnInteract` steigt bei `Context().isInCombat` sofort aus - und genau dieser Wert
+--  ist der, bei dem wir 341 Abweichungen gemessen haben. Er bleibt nach dem Gefecht auf
+--  `true` haengen, also ist das Menue gerade dann tot, wenn man es braucht.
+--
+--  Der Eintrag in NCAs `Interactions/` bleibt trotzdem: ausserhalb des Kampfes ist er der
+--  schoenere Weg. Das hier ist der, der immer geht.
+local liegen = { hat = nil, geholfen = 0, fehler = nil }
+
+local function liegtAmBoden(o)
+  local v
+  pcall(function() v = ScriptedPuppet.IsDefeated(o or judyHolen()) end)
+  return v
+end
+
+function T.Aufhelfen()
+  local o = judyHolen()
+  if not o then log("AUFHELFEN Judy nicht greifbar"); return end
+
+  --  Gesundheit zuerst - sonst steht sie mit zwei Trefferpunkten auf und faellt wieder um.
+  local ok = pcall(function()
+    Game.GetStatPoolsSystem():RequestSettingStatPoolValue(
+      o:GetEntityID(), gamedataStatPoolType.Health, 100.0, nil, true)
+  end)
+  if not ok then log("AUFHELFEN Gesundheit liess sich nicht setzen") end
+
+  for _, typ in ipairs({ "Defeated", "DefeatedWithRecover", "Wounded" }) do
+    local gut, fehler = pcall(function()
+      StatusEffectHelper.RemoveAllStatusEffectsByType(o, gamedataStatusEffectType[typ])
+    end)
+    if not gut then liegen.fehler = typ .. ": " .. tostring(fehler) end
+  end
+
+  liegen.geholfen = liegen.geholfen + 1
+  log(string.format("AUFHELFEN ausgefuehrt - liegt danach noch: %s",
+      tostring(liegtAmBoden(o))))
+end
+
 --  ---------------------------------------------------------------- Orte
 --
 --  NCA registriert neun Orte ueber `RegisterLocation`, darunter alle fuenf Wohnungen von
@@ -1214,6 +1254,16 @@ local function haltungMitschreiben(d)
       log("LAGE-IST erste Messung: " .. lt)
     end
     hbeo.lageWar = lv
+  end
+
+  local am = liegtAmBoden(o)
+  if am ~= nil and am ~= liegen.hat then
+    if liegen.hat ~= nil then
+      log(string.format("LIEGT %s   Lage %s, Kampf %s",
+          am and "sie geht zu Boden" or "sie steht wieder", lt,
+          tostring(ktx.eigen.kampf)))
+    end
+    liegen.hat = am
   end
 
   local w = wundeLesen(o)
@@ -1983,6 +2033,7 @@ function T.Status()
     beob  = beob.an,
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
+    liegen = { hat = liegen.hat, geholfen = liegen.geholfen, fehler = liegen.fehler },
     ort   = { tag = ort.tag, name = ort.tag and (ORTSNAMEN[ort.tag] or ort.tag) or nil,
               wohnung = ort.wohnung, seit = ort.seit, still = ort.judyStill },
     wunde = { an = WUNDE.an, hat = wunde.hat, entfernt = wunde.entfernt,

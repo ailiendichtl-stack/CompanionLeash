@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "01:07:23"
+local BAU = "01:24:28"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -752,6 +752,17 @@ registerForEvent("onDraw", function()
         ImGui.Text("Abweichungen: " .. table.concat(zeilen, ", "))
       end
     end
+  end
+
+  if Triggers and ImGui.CollapsingHeader("Aufhelfen", ImGuiTreeNodeFlags.DefaultOpen) then
+    local l = Triggers.Status().liegen or {}
+    if ImGui.Button("Aufhelfen##auf") then Triggers.Aufhelfen() end
+    ImGui.SameLine()
+    ImGui.Text(string.format("liegt %s   geholfen %d",
+                             tostring(l.hat), l.geholfen or 0))
+    if l.fehler then ImGui.TextDisabled("   " .. l.fehler) end
+    ImGui.TextWrapped("NCAs Menue ist bei `isInCombat` gesperrt - und genau der Wert "
+                      .. "haengt nach dem Gefecht. Deshalb der Knopf hier.")
   end
 
   if Triggers and ImGui.CollapsingHeader("Ort", ImGuiTreeNodeFlags.DefaultOpen) then
