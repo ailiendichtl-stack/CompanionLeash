@@ -1,0 +1,194 @@
+# Umbauplan nach dem NCA-Fund
+
+Bestaetigt am 2026-08-26, nach dem Crouch und der Bestandsaufnahme in
+[NCA_VERGLEICH.md](NCA_VERGLEICH.md).
+
+## Warum gestaffelt und nicht in einem Zug
+
+Es fuehlt sich nach einem grossen Umbau an, ist aber keiner. Von sieben Sachen ist genau
+**eine** architektonisch - die Begegnungs-Klammer. Der Rest haengt nicht zusammen und ist
+einzeln testbar. Ein grosser Wurf wuerde sie kuenstlich verkoppeln, und wir haben gerade
+eine Woche dafuer bezahlt, was eine einzige unbelegte Annahme kostet.
+
+Jeder Schritt bleibt fuer sich ausliefer- und ruecknehmbar.
+
+## Was unangetastet bleibt
+
+**Der Sprecher.** Der Log zeigt ihn beim korrekten Arbeiten: er tritt bei fremder Stimme
+zurueck, haelt Abklingzeiten, priorisiert. Wir erweitern nur seine *Darbietung* um Blick und
+Mimik. Die Ausloeser bleiben zunaechst unabhaengige Kunden.
+
+---
+
+## 1. Blickkontakt vor jeder Zeile
+
+    Sprecher nimmt Zeile an
+      -> Judy schaut zu V
+      -> Voiceset-Zeile startet
+      -> vorhandenes Lipsync laeuft
+      -> Blick endet nach Zeile + Nachlauf
+
+Ein Aufruf, wirkt auf alle 244 Zeilen, aendert keine Ausloeser-Architektur. NCA nutzt in
+`Talk()` denselben Ablauf: Blick aktivieren, Stimme spielen, Mimik anwenden.
+
+**Der Sprecher besitzt den Lebenszyklus, nicht die einzelnen Ausloeser.** Sonst laufen bei
+konkurrierenden Anfragen mehrere unabhaengige Abschalt-Uhren gegeneinander - und der
+Sprecher ist genau die Stelle, die es schon heute verhindert.
+
+## 2. NCAs Kontext lesen statt selbst abfragen
+
+Codeabbau, kein neuer Unterbau:
+
+| statt | nehmen wir |
+|---|---|
+| eigene Fahrzeugabfrage | `isInCar` |
+| eigene Menuepruefung | `isInMenu` |
+| - | `location` (Wohnung, Ort) |
+| - | `isInInteraction` als globale Sprechsperre |
+| `PlayerStateMachine.Combat` | `isInCombat` als gemeinsames Kampf-Gatter |
+
+Alle Felder sind public und aus CET lesbar - keine Bruecke noetig.
+
+**Achtung:** die eigenen Abfragen bleiben zunaechst als Diagnose stehen, bis der Log zeigt,
+dass NCA und wir **dieselben Uebergaenge** melden. Genau hier lag der Kampf-Fehler: zwei
+Systeme haben dieselbe Grenze verschieden gemessen. Erst vergleichen, dann abbauen.
+
+## 3. Wohnungsmodus und Pools
+
+Kein Poolwechsel, ein anderer Kontextmodus. Und die 36 Zeilen werden **nicht** als 36
+Sonderfaelle verdrahtet, sondern datengetrieben:
+
+    location -> Profil -> erlaubte Situationen
+
+    ApartmentProfile:
+      allow    = { alltag, smalltalk, flirt, naehe, stolz }
+      suppress = { reibung, abschied, distant_follow }
+      cooldownMultiplier = 1.5
+
+Zu Hause ist Stillstehen der Normalfall, nicht Vernachlaessigung - die Leiter misst dort das
+Falsche. Weniger Ungeduld, mehr Smalltalk, hoeherer Beziehungsanteil, laengere natuerliche
+Pausen. Spaeter eigene Idle- und Animationsprioritaeten.
+
+## 4. Besitzmatrix fuer Barks
+
+Vor der Klammer, nicht danach. Technisch klein, aber sonst bauen wir die Zustandsmaschine
+und entscheiden erst hinterher, wem welche Zeile gehoert.
+
+    NCA-Ereignis / Zustand  ->  nativer Bark  ->  unser Ersatz / Zusatz / Unterdrueckung
+
+Bekannt bisher: `CombatBehavior.OnAttach` -> `enemy_warning`;
+`CatchUpToPlayerBehavior` -> `greeting` (nur nach Abhaengen, **nicht** beim Laden);
+jeder Lagewechsel nach `Alerted`/`Combat` -> Vanilla-Bark; `Stealth`/`Relaxed` -> keiner
+(gemessen, vier Wechsel ohne Bark).
+
+## 5. Begegnungs-Klammer
+
+Der eine echte Umbau. Nicht "Kampf-Tracker", sondern allgemeiner:
+
+    encounter.active
+    encounter.startedAt
+    encounter.lastThreatAt
+    encounter.hadCombat
+    encounter.hadStealth
+    encounter.combatCount
+    encounter.generation
+
+Damit sauber ausdrueckbar:
+
+    erste relevante Bedrohung       -> Stealth-Einstieg genau einmal
+    Kampf beginnt                   -> Kampfzeile einmal
+    Kampf endet                     -> Kampfende erst nach Ruhefenster
+    erneutes Hocken in derselben    -> keine neue Einstiegszeile
+    Begegnung wirklich vorbei       -> zuruecksetzen
+
+**Entscheidend ist das Ruhefenster, nicht `isInCombat == false`:**
+
+    kein Kampf + keine Bedrohungen + keine neue Schadens-/Alarmaktivitaet
+    + 2-5 s Stabilitaet  =  Begegnung geschlossen
+
+Die Dauer waehlen wir **nach** dem Loggen, nicht davor.
+
+### Kampf neben NCA
+
+Drei denkbare Betriebsarten - fuer den Anfang die dritte:
+
+| | |
+|---|---|
+| NCA allein | eigener Kampfpool unterdrueckt |
+| Wir allein | NCAs Bark unterdrueckt |
+| **Zusammen** | NCAs Bark als fremde Stimme erkennen, eigene Zeile nur nach kurzer Wartezeit nachreichen |
+
+    fremde Stimme waehrend Kampf -> encounter.nativeSpoke = true -> eigene Anfrage verwerfen
+
+**Nicht sofort nachreichen, wenn NCA nichts hoerbar macht.** "Nicht wahrgenommen" und "nicht
+ausgeloest" sind verschiedene Dinge - das hat uns die Voiceset-Arbeit schon vorgefuehrt.
+Erkannte fremde Stimme plus konservatives Zeitfenster, keine Hoerbarkeitspruefung als
+alleinige Wahrheit.
+
+## 6. Mimik - erst ein Bark, dann breit
+
+    AnimFeature_FacialReaction { category, idle }
+
+Das Spiel nutzt fuer replizierte Ausdruecke `ApplyFeatureToReplicate`, NCA nur
+`ApplyFeature`. Nach unserer Woche mit der Replikation ist das der erste Test, an **einem**
+Bark, mit einem deutlich sichtbaren Ausdruck (`category=3, idle=8`, Ueberraschung). Erst
+wenn der Weg steht, die Zuordnung ausrollen.
+
+Vanilla-Tabelle (aus `reactionComponent.script`), die das Spiel selbst nur **auswuerfelt**:
+
+| | category | idle |
+|---|---|---|
+| Aggressive | 3 | 1 |
+| Curiosity | 1 | 3 |
+| Disgust | 3 | 7 |
+| Fear | 3 | 10 |
+| Funny / Joy | 3 | 5 |
+| Sad | 3 | 3 |
+| Shock / Surprise | 3 | 8 |
+| Standard | 2 | 2 |
+
+Zuruecksetzen: leeres Feature. Vanilla-Abklingzeit 2.0 s.
+
+**Trennung beachten:** die 181 Quest-Zeilen tragen ihre Mimik bereits in der `.anims` - 344
+Joints, die ganze Darbietung. Nicht blind ueberschreiben. Die **63 Barks** ohne eigene
+Gesichtsanimation sind die Zielgruppe. Der langfristig interessanteste Einsatz ist die Mimik
+**zwischen** den Zeilen.
+
+## 7. Bruecke fuer Momente
+
+Zuletzt, weil als einziges ein zusaetzlicher Redscript-Bau noetig ist. Die Bruecke ruft
+**keine** Lua-Funktionen und kein Audio direkt auf, sondern reicht ein typisiertes Protokoll
+durch:
+
+    CompanionEvent { type, timestamp, companionId, source, severity, context }
+
+    TakeDamage(Judy, severity=light)
+    DealDamage(Judy, severity=heavy)
+    QuestComplete(id)
+    VehicleEntered
+    ConversationFinished
+
+Die Lua-Seite entscheidet ueber Pool, Prioritaet und Abklingzeit. So bleibt die Bruecke
+stabil, waehrend sich der Inhalt aendert.
+
+Damit auch die Sorge-Aufteilung: was Judy **zu V** sagt, haengt an Vs Leben; was sie ueber
+sich selbst sagt, an ihrem eigenen Schaden. Dazu passend die Lage `Wounded` - faellt ihr
+Leben, bewegt sie sich verletzt, statt es nur zu sagen.
+
+---
+
+## Reihenfolge
+
+    1. Blickkontakt zentral im Sprecher
+    2. NCA-Kontext fuer Fahrzeug, Menue, Interaktion, Ort
+    3. Wohnungsmodus und Pools
+    4. Besitzmatrix der Barks dokumentieren
+    5. Begegnungs-Klammer bauen
+    6. Mimik an einem Bark testen
+    7. Schadens-Bruecke ergaenzen
+    8. danach erst weitere Flirt-, Smalltalk- und Sonderpools
+
+Vor Schritt 3 kommt eine einheitliche **Momentaufnahme** des Kontexts - klein, keine
+Architektur, aber sonst liest jedes neue Modul die NCA-Felder leicht unterschiedlich:
+
+    combat  vehicle  menu  interaction  location  crouched  encounter
