@@ -14,6 +14,12 @@ zweimal den uebersehen, der es war. Hier wird nichts mehr ausgewaehlt.
 Geprueft wird nur die Dateiebene: `local x` ganz links, spaeter benutzt. Namen in
 Zeichenketten und Kommentaren zaehlen nicht.
 
+GRENZE: Gueltigkeitsbereiche werden nicht ausgewertet. Ein `local kampf` INNERHALB einer
+Funktion, das zufaellig heisst wie ein spaeteres auf Dateiebene, wird bei seiner Benutzung
+gemeldet - dafuer braeuchte es eine echte Bereichsanalyse, und das waere ein anderes
+Werkzeug. In dem Fall ist Umbenennen die richtige Antwort: einen Namen der Dateiebene in
+einer Schliessung zu verdecken ist ohnehin fuer jeden Leser zweideutig.
+
     python tools/check_lua.py cet/CompanionLeashVO/*.lua
 """
 import re
@@ -72,6 +78,19 @@ def _tabellenschluessel(rein, start, ende):
     return vor.endswith("{") or vor.endswith(",")
 
 
+def _eigene_deklaration(rein, start):
+    """`local a, b, c` in einer inneren Funktion deklariert NEU, benutzt nicht.
+
+    Ein gleichnamiges `local` weiter unten auf Dateiebene hat damit nichts zu tun - der
+    innere Name verdeckt es ohnehin. Ohne diese Ausnahme meldet der Pruefer jede
+    Hilfsvariable, deren Name zufaellig auch auf Dateiebene vorkommt.
+    """
+    zeilenbeginn = rein.rfind("\n", 0, start) + 1
+    kopf = rein[zeilenbeginn:start]
+    m = re.match(r"\s*local\s+(?:function\s+)?([A-Za-z_][\w]*\s*,\s*)*$", kopf)
+    return m is not None
+
+
 def pruefen(pfad):
     src = open(pfad, encoding="utf-8").read()
     offen = []
@@ -104,6 +123,8 @@ def pruefen(pfad):
             #  `,`. Das ist ein Feldname, keine Variable - beide Ausnahmen kosten den
             #  Pruefer nichts an Trennschaerfe, weil ein echter Zugriff nie so aussieht.
             if _tabellenschluessel(rein, m.start(), m.end()):
+                continue
+            if _eigene_deklaration(rein, m.start()):
                 continue
             #  Die Deklarationszeile selbst nicht als Nutzung werten.
             zeile = src.count("\n", 0, m.start()) + 1
