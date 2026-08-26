@@ -981,6 +981,38 @@ local function halten(d)
     h.o, CName.new("inCrouch"), (h.st == "Crouch") and 1.0 or 0.0)
 end
 
+--  Die Haltung mitschreiben, unabhaengig davon, ob wir sie gerade steuern. Nach einer
+--  Autofahrt lief sie bei voller Gesundheit wieder gebueckt, und ohne diesen Verlauf ist
+--  nicht zu unterscheiden, ob dort `Vehicle` (5) haengengeblieben ist, `Crouch` (2) nicht
+--  zurueckkam oder es etwas Drittes war.
+local HALTUNGSNAMEN = { [0] = "Any", [1] = "Cover", [2] = "Crouch", [3] = "Stand",
+                        [4] = "Swim", [5] = "Vehicle", [6] = "VehicleWindow" }
+
+local function haltungText(o)
+  local v = haltungLesen(o or judyHolen())
+  if v == nil then return "?" end
+  local n = tonumber(tostring(v))
+  return (n and HALTUNGSNAMEN[n] or tostring(v)) .. " (" .. tostring(v) .. ")"
+end
+
+local hbeo = { war = nil, seit = 0.0 }
+
+local function haltungMitschreiben(d)
+  hbeo.seit = hbeo.seit + d
+  if hbeo.seit < 0.4 then return end
+  hbeo.seit = 0.0
+  local o = judyHolen()
+  if not o then hbeo.war = nil; return end
+  local v = haltungLesen(o)
+  if v == nil or v == hbeo.war then return end
+  if hbeo.war ~= nil then
+    log(string.format("HALTUNG-IST %s -> %s   Ziel %s, Wagen %s, Kampf %s",
+        tostring(hbeo.war), haltungText(o), tostring(haltung.ziel),
+        tostring(ktx.eigen.wagen), tostring(ktx.eigen.kampf)))
+  end
+  hbeo.war = v
+end
+
 local function haltungTick(d)
   if not haltung.an then return end
   haltung.seit = haltung.seit + d
@@ -1056,6 +1088,37 @@ end
 --  Untertitel zwangslaeufig sie - so lernen wir ihre Entity-Id, ohne sie ansehen zu muessen.
 local stimme = { judyId = nil, letzter = "", zuletztFremd = "-" }
 
+--  Ihre eigenen Barks sammeln.
+--
+--  Bisher standen sie nur im Log - und der rotiert. Die Zeilen aus der Nacht sind weg,
+--  darunter "Bin bei dir." und "Achtung!", genau die, die zur Kampf-Uebernahme gehoeren.
+--  Fuer die Besitzmatrix aus Phase 4 brauchen wir aber einen Bestand, der Sitzungen
+--  ueberdauert: welche Zeile sagt sie von selbst, wie oft, wie lang.
+--
+--  Also eine eigene Datei neben dem Log, die nur waechst. Klassifiziert wird spaeter von
+--  Hand - welche Situation, und ob wir dort ergaenzen, ersetzen oder schweigen.
+local FREMD_DATEI = "fremde_zeilen.txt"
+local fremde = { }        -- Text -> { anzahl, dauer }
+local fremdeAnzahl = 0
+
+local function fremdMerken(text, dauer)
+  local e = fremde[text]
+  if e then
+    e.anzahl = e.anzahl + 1
+    return
+  end
+  fremde[text] = { anzahl = 1, dauer = dauer or 0 }
+  fremdeAnzahl = fremdeAnzahl + 1
+  --  Nur beim ERSTEN Auftreten schreiben. Anhaengen statt neu schreiben, damit frueher
+  --  Gesammeltes nicht verlorengeht, wenn das Spiel abstuerzt.
+  pcall(function()
+    local f = io.open(FREMD_DATEI, "a")
+    if not f then return end
+    f:write(string.format("%.1fs  %s", dauer or 0, text) .. "\n")
+    f:close()
+  end)
+end
+
 local function stimmeTick()
   if not letzteZeile then return end
   local dl = letzteZeile()
@@ -1075,6 +1138,7 @@ local function stimmeTick()
 
   Speaker.Fremd(dl.dur)
   stimme.zuletztFremd = dl.text
+  fremdMerken(dl.text, dl.dur)
   log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
 end
 
@@ -1185,12 +1249,12 @@ local function kampfTick(d)
 
   if drin and not kampf.drin then
     kampf.drin, kampf.seit, kampf.seitEnde = true, 0.0, nil
-    log("KAMPF beginnt")
+    log("KAMPF beginnt - Haltung " .. haltungText())
   elseif not drin and kampf.drin then
     kampf.drin, kampf.seitEnde = false, 0.0
     --  Was noch fuer den Kampf anstand, ist keine Kampfzeile mehr.
     Speaker.Verwerfen("kampf")
-    log("KAMPF vorbei")
+    log("KAMPF vorbei - Haltung " .. haltungText())
   end
 
   if kampf.drin then
@@ -1477,7 +1541,7 @@ end
 local WIEDER = {
   nachBlick =  0.2,    -- so kurz, dass es zum Blick gehoert und nicht danach kommt
   nachSprung = 8.0,
-  spaetestens = 45.0,   -- ohne Blickkontakt trotzdem, sonst bleibt es aus
+  spaetestens = 15.0,   -- ohne Blickkontakt trotzdem, sonst bleibt es aus
   rueckfallNah = 25.0,  -- aber nur, wenn sie ueberhaupt in der Naehe ist
   cd        = 300.0,
 }
@@ -1548,7 +1612,7 @@ local function fahrtTick(d, p)
 
   if drin and not fahrt.drin then
     fahrt.drin, fahrt.seit = true, 0.0
-    log("FAHRZEUG aufgesessen")
+    log("FAHRZEUG aufgesessen - Haltung " .. haltungText())
   elseif not drin and fahrt.drin then
     fahrt.drin, fahrt.seit = false, nil
     --  Was noch fuers Einsteigen anstand, passt nach dem Aussteigen nicht mehr.
@@ -1658,6 +1722,7 @@ function T.Tick(d)
   kontextTick(d, p)
   heilungTick(d, judyHolen())
   stimmeTick()
+  haltungMitschreiben(d)
   nachmessen(d)
   beobTick(d)
   halten(d)
@@ -1676,6 +1741,7 @@ end
 function T.Status()
   return {
     beob  = beob.an,
+    fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
     heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
               proSekunde = HEILUNG.proSekunde, fehler = heil.fehler },

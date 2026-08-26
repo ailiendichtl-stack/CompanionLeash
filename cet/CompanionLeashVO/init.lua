@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "13:38:56"
+local BAU = "13:44:42"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -690,6 +690,16 @@ registerForEvent("onDraw", function()
       if ImGui.Button("Stand##s" .. i) then Triggers.HaltungTest(i, false) end
       ImGui.SameLine()
       ImGui.TextDisabled(name)
+    end
+  end
+
+  if Triggers and ImGui.CollapsingHeader("Ihre eigenen Barks") then
+    local f = Triggers.Status().fremde or {}
+    ImGui.TextWrapped("Was sie von selbst sagt. Wird beim ersten Auftreten nach "
+                      .. "fremde_zeilen.txt geschrieben, weil der Log rotiert.")
+    ImGui.Text(string.format("%d verschiedene", f.anzahl or 0))
+    for text, e in pairs(f.liste or {}) do
+      ImGui.TextDisabled(string.format("%2dx  %.1fs  %s", e.anzahl, e.dauer, text))
     end
   end
 

@@ -22,21 +22,35 @@ import sys
 BS = chr(92)
 
 
-def entkleiden(src):
-    """Zeichenketten und Kommentare durch Leerzeichen ersetzen, Laenge erhalten."""
+def entkleiden(src, offen=None):
+    """Zeichenketten und Kommentare durch Leerzeichen ersetzen, Laenge erhalten.
+
+    Nebenbei werden offene Zeichenketten gemeldet. Ein `"` das vor dem Zeilenende nicht
+    wieder geschlossen wird, ist in Lua ein Syntaxfehler - erlaubt waere das nur mit
+    `[[ ]]`. Genau das ist passiert, als ein `\\n` beim Erzeugen dieser Datei zu einem
+    echten Umbruch wurde: die Datei sah heil aus, der Pruefer war zufrieden, und das Spiel
+    hat die halbe Mod stillgelegt. Nach dem Muster suchen kostet nichts.
+    """
     out, i, n = [], 0, len(src)
     while i < n:
         c = src[i]
         if c in ('"', "'"):
             q = c
+            beginn = i
             out.append(" ")
             i += 1
-            while i < n and src[i] != q:
+            while i < n and src[i] != q and src[i] != "\n":
                 if src[i] == BS:
                     out.append(" ")
                     i += 1
-                out.append(" " if src[i] != "\n" else "\n")
+                    if i >= n:
+                        break
+                out.append(" ")
                 i += 1
+            if i >= n or src[i] == "\n":
+                if offen is not None:
+                    offen.append(src.count("\n", 0, beginn) + 1)
+                continue
             out.append(" ")
             i += 1
         elif c == "-" and i + 1 < n and src[i + 1] == "-":
@@ -60,7 +74,14 @@ def _tabellenschluessel(rein, start, ende):
 
 def pruefen(pfad):
     src = open(pfad, encoding="utf-8").read()
-    rein = entkleiden(src)
+    offen = []
+    rein = entkleiden(src, offen)
+    kurz_ = pfad.replace(BS, "/").split("/")[-1]
+    if offen:
+        print("  %-14s %d NICHT GESCHLOSSENE ZEICHENKETTE(N):" % (kurz_, len(offen)))
+        for zeile in offen:
+            print("     Zeile %4d  %s" % (zeile, src.split("\n")[zeile - 1].strip()[:70]))
+        return False
 
     #  Nur Deklarationen auf Dateiebene - alles andere ist ohnehin lokal begrenzt und
     #  wuerde hier bloss rauschen.
