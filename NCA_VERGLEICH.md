@@ -158,6 +158,33 @@ Schnellreise.
 Der Fix liegt bei uns in `src/CompanionLeashLift.reds`, bewusst als eigene Datei: **warum
 NCA ihn auskommentiert hat, wissen wir nicht.** Loeschen der einen Datei nimmt ihn zurueck.
 
+## Zu Boden gehen: laeuft nativ, wir haben es zurueckgebaut
+
+Sie geht im Gefecht zu Boden und steht **von selbst** wieder auf, manchmal noch mitten im
+Kampf. Das ist `DefeatedWithRecover`, ein Vanilla-Zustand mit eingebauter Erholung - kein
+Fehler und nichts, was jemand reparieren muesste.
+
+Der lange Timer, den ich zuerst dafuer gehalten habe, gehoert einem anderen Fall: dem echten
+Tod. Dort entfernt NCA ihren Griff, **despawnt sie** und startet 150 Spielminuten bis zum
+`revive_after_death`, das sie lediglich wieder rufbar macht. Dort waere ohnehin niemand mehr
+da, dem man aufhelfen koennte.
+
+Was wir gebaut und wieder entfernt haben:
+
+| | Warum weg |
+|---|---|
+| Eintrag "Aufhelfen" in NCAs `Interactions/` | lag in fremdem Ordner, nie bestaetigt gesehen, und ueberfluessig |
+| Umhuellung von `App:OnInteract` | hat NCAs Menue zerlegt - dauerhaft offen, nicht bedienbar |
+
+**Geblieben ist nur Eigenes:** ein Knopf im eigenen Panel, der Gesundheit setzt und
+`Defeated`, `DefeatedWithRecover` und `Wounded` abnimmt, plus ein Protokolleintrag, wenn sie
+faellt und wenn sie wieder steht. Beides fasst NCA nicht an.
+
+**Gelernt:** NCAs Menue ist ueber mehrere Stellen verzahnt - `ui:Close()` kommt aus seiner
+eigenen Beobachtung und laeuft gegen den Zustand, den `OnInteract` gesetzt hat. Eine dieser
+Methoden zu ersetzen bringt die beiden Seiten auseinander. Der `Interactions`-Ordner ist die
+vorgesehene Erweiterung; alles darueber hinaus ist Eingriff.
+
 ## Was NCA nicht tut: heilen
 
 Es gibt **keine** Heilung fuer Begleiter - nur eine Lebensanzeige
