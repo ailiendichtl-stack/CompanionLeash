@@ -561,8 +561,16 @@ end
 --
 --  Und Statuseffekte lassen sich entfernen. `gamedataStatusEffectType.Wounded` ist der
 --  Typ, den auch die KI abfragt (`CheckWoundedStatusEffectState`).
-local WUNDE = { an = true }
-local wunde = { hat = nil, entfernt = 0, fehler = nil, gemeldet = false }
+--  Geloest wird ab 80 %, und zwar SOLANGE sie darueber ist - nicht an einem einzelnen
+--  Uebergang. Zwei feste Punkte, etwa 80 und 100, koennen beide verpasst werden: faellt sie
+--  waehrend des Heilens noch einmal unter die Schwelle, ist der Uebergang verbraucht und
+--  kommt nie wieder. Eine laufende Pruefung kann nichts durchrutschen lassen.
+--
+--  80 statt 100, weil zusammengeflickt nicht makellos heissen muss - und weil sie die
+--  letzten Prozent unter Beschuss womoeglich nie erreicht.
+local WUNDE = { an = true, abHp = 80.0, takt = 5.0 }
+local wunde = { hat = nil, entfernt = 0, versuche = 0, seit = 0.0,
+                fehler = nil, gemeldet = false }
 
 local function wundeLesen(o)
   local v
@@ -640,18 +648,32 @@ local function heilungTick(d, o)
   end
   heil.hp = hp
 
+  --  Der Wundeffekt haengt NICHT am Heilungsuebergang, sondern nur an der Schwelle. So
+  --  ist er auch dann noch zu erwischen, wenn sie zwischendurch wieder getroffen wurde.
+  if WUNDE.an and hp >= WUNDE.abHp then
+    wunde.seit = wunde.seit + dt
+    if wunde.seit >= WUNDE.takt then
+      wunde.seit = 0.0
+      if wundeLesen(o) == true then
+        local ok, wie = wundeEntfernen(o)
+        wunde.versuche = wunde.versuche + 1
+        if ok then wunde.entfernt = wunde.entfernt + 1 end
+        --  Nicht jeden Versuch melden - bei einem dauerhaft misslingenden Aufruf stuende
+        --  sonst alle fuenf Sekunden dieselbe Zeile im Log.
+        if ok or wunde.versuche <= 3 or wunde.versuche % 20 == 0 then
+          log(string.format("WUNDE bei %.0f%% entfernen: %s - %s (Versuch %d)",
+              hp, ok and "geloest" or "blieb", wie, wunde.versuche))
+        end
+        if not ok then wunde.fehler = wie end
+      end
+    end
+  else
+    wunde.seit = WUNDE.takt   -- unter der Schwelle: beim Ueberschreiten sofort pruefen
+  end
+
   if hp >= HEILUNG.voll then
     if heil.war ~= nil and heil.war < HEILUNG.voll then
       log(string.format("HEILUNG voll (war %.0f%%)", heil.war))
-      --  Volle Gesundheit ist der ehrliche Moment dafuer: sie ist wieder zusammengeflickt,
-      --  also darf auch der Wundeffekt weg. Ihn frueher zu nehmen hiesse, mitten im
-      --  Gefecht die Folgen wegzuraeumen.
-      if WUNDE.an and wundeLesen(o) == true then
-        local ok, wie = wundeEntfernen(o)
-        wunde.entfernt = wunde.entfernt + (ok and 1 or 0)
-        log("WUNDE entfernen: " .. (ok and "geloest" or "blieb") .. " - " .. wie)
-        if not ok then wunde.fehler = wie end
-      end
     end
     heil.war = hp
     return
@@ -1867,7 +1889,7 @@ function T.Status()
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
     wunde = { an = WUNDE.an, hat = wunde.hat, entfernt = wunde.entfernt,
-              fehler = wunde.fehler },
+              versuche = wunde.versuche, abHp = WUNDE.abHp, fehler = wunde.fehler },
     heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
               proSekunde = HEILUNG.proSekunde, fehler = heil.fehler },
     ktx   = { da = ktx.nca.da, proben = ktx.proben,

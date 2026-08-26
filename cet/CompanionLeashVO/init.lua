@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "14:46:05"
+local BAU = "00:54:54"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -713,10 +713,11 @@ registerForEvent("onDraw", function()
                              h.hp and string.format("%.0f%%", h.hp) or "-"))
     if h.fehler then ImGui.TextDisabled("   " .. h.fehler) end
     local w = Triggers.Status().wunde or {}
-    local wa = ImGui.Checkbox("Wundeffekt loesen, wenn sie voll ist##wu", w.an)
+    local wa = ImGui.Checkbox(string.format("Wundeffekt loesen ab %.0f%%##wu",
+                                            w.abHp or 80), w.an)
     if wa ~= w.an then Triggers.Setzen("wunde", wa) end
-    ImGui.Text(string.format("verwundet %s   geloest %d",
-                             tostring(w.hat), w.entfernt or 0))
+    ImGui.Text(string.format("verwundet %s   geloest %d von %d Versuchen",
+                             tostring(w.hat), w.entfernt or 0, w.versuche or 0))
     if w.fehler then ImGui.TextDisabled("   " .. w.fehler) end
     ImGui.TextWrapped("Der gebueckte Gang ist ein Statuseffekt, keine Animation - deshalb "
                       .. "half weder volle Gesundheit noch die Lage, und deshalb loeste "
