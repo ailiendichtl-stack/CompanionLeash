@@ -290,16 +290,25 @@ end
 --  naechsten Verhaltensschritt wieder ueberschreibt. Darum wird nicht blind gesetzt,
 --  sondern der Ist-Wert aus ihrem Blackboard gelesen und nachgezogen.
 local STANCE = { Crouch = "Crouch", Stand = "Stand" }
-local HALTUNG = { takt = 0.4 }     -- so oft wird nachgesehen und noetigenfalls nachgesetzt
---  AUS, weil es nachweislich nichts bewirkt. Gemessen: der echte Zustand aus
---  `GetCurrentStanceState()` bleibt konstant 3 (Stand), waehrend der Zaehler auf ueber 25
---  Korrekturen klettert. Das Anim-Feature kommt an und wird nicht dargestellt; der Riegel
---  ist `SetReplicatedStanceState`, dieselbe Replikation, die schon das Signal geschluckt
---  hat. Der Code bleibt samt Befund stehen, laeuft aber nicht mehr im Leerlauf mit.
+local HALTUNG = { takt = 0.4, auffrischen = 3.0 }
+
+--  Der Schalter ist die LAGE, nicht die Haltung.
+--
+--  Tagelang habe ich die Haltung gesetzt, sauber, ueber sechs verschiedene Wege - und sie
+--  blieb stehen. Der Wert kam an und blieb fuenfzehn Sekunden liegen, ohne dass ihn jemand
+--  gelesen haette. Was fehlte, war die Ebene darueber: in `Relaxed` hat ihr Graph keine
+--  Hocke, in die er wechseln koennte.
+--
+--  Gemessen: Lage auf `Stealth` gesetzt, zwei Sekunden spaeter steht der Haltungswert von
+--  selbst wieder auf Stand - und sie hockt weiter. Die tiefe Hocke haengt an der Lage.
+--  Deshalb ist `Stand` in der Stealth-Lage auch kein Rueckweg: aufrecht heisst dort immer
+--  noch geduckt. Zurueck geht nur ueber `Relaxed`.
+local LAGEN = { hocke = "Stealth", normal = "Relaxed" }
+
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
-                  weg = nil,
-                  gesetzt = 0, korrekturen = 0, gemeldet = false,
-                  gemeldetOk = false }
+                  weg = nil, auffrisch = 0.0,
+                  gesetzt = 0, korrekturen = 0, aufgefrischt = 0,
+                  gemeldet = false, gemeldetOk = false }
 
 --  Der ECHTE Zustand, nicht der gespiegelte.
 --
@@ -460,7 +469,8 @@ local function lageSetzen(o, name)
   local ok, fehler = pcall(function()
     NPCPuppet.ChangeHighLevelState(o, Enum.new("gamedataNPCHighLevelState", name))
   end)
-  return ok and ("Lage " .. name) or ("Lage " .. name .. " fehlt: " .. tostring(fehler))
+  if ok then return true, "Lage " .. name end
+  return false, "Lage " .. name .. " fehlt: " .. tostring(fehler)
 end
 
 local HWEGE = {
@@ -545,18 +555,24 @@ local HWEGE = {
       return "messe 3s nach"
     end },
   { name = "12 Lage Combat, dann Hocke", fn = function(o, st)
-      local m = lageSetzen(o, "Combat")
+      local _, m = lageSetzen(o, "Combat")
       NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
       return m
     end },
   { name = "13 Lage Alerted, dann Hocke", fn = function(o, st)
-      local m = lageSetzen(o, "Alerted")
+      local _, m = lageSetzen(o, "Alerted")
       NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
       return m
     end },
   { name = "14 Lage Stealth, dann Hocke", fn = function(o, st)
-      local m = lageSetzen(o, "Stealth")
+      local _, m = lageSetzen(o, "Stealth")
       NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
+      return m
+    end },
+  { name = "15 Lage Relaxed (Rueckweg)", fn = function(o, st)
+      --  Der Rueckweg aus der Hocke. Nicht die Haltung, die Lage.
+      local _, m = lageSetzen(o, "Relaxed")
+      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", "Stand"))
       return m
     end },
   { name = "8 Cover statt Crouch", fn = function(o, st)
@@ -591,7 +607,7 @@ function T.HaltungRTTI()
       local treffer = {}
       for _, liste in ipairs({ c:GetFunctions(), c:GetStaticFunctions() }) do
         for _, f in ipairs(liste) do
-          local n = f:GetName()
+          local n = tostring(f:GetName())
           local klein = string.lower(n)
           for _, m in ipairs(RTTI_MUSTER) do
             if string.find(klein, m, 1, true) then treffer[#treffer + 1] = n; break end
@@ -608,7 +624,9 @@ function T.HaltungRTTI()
     local c = Reflection.GetClass("PuppetStateDef")
     if not c then log("RTTI PuppetStateDef - unbekannt"); return end
     local namen = {}
-    for _, pr in ipairs(c:GetProperties()) do namen[#namen + 1] = pr:GetName() end
+    for _, pr in ipairs(c:GetProperties()) do
+      namen[#namen + 1] = tostring(pr:GetName())
+    end
     log("RTTI PuppetStateDef - Felder: " .. table.concat(namen, ", "))
   end)
   if not ok then log("RTTI PuppetStateDef - Fehler: " .. tostring(fehler)) end
@@ -693,40 +711,50 @@ local function haltungTick(d)
   local o = judyHolen()
   if not o then haltung.ziel, haltung.ist = nil, nil; return end
 
+  --  Im Kampf gehoert ihre Lage der KI. Sie setzt dort `Combat`, sucht sich Deckung und
+  --  hockt von selbst. Da hineinzuschreiben waere genau das, was ich einem anderen Mod
+  --  vorwerfen wuerde - und wir haetten uns die Deckung kaputtgemacht.
+  local imKampf = false
+  pcall(function() imKampf = o:IsInCombat() end)
+  if imKampf then
+    if haltung.ziel then
+      log("HALTUNG Kampf - Lage wieder an die KI abgegeben")
+      haltung.ziel = nil
+    end
+    return
+  end
+
   --  gamePSMLocomotionStates: 1 Crouch, 11 CrouchSprint, 12 CrouchDodge
   local lok = psm("Locomotion")
   local hockt = lok == 1 or lok == 11 or lok == 12
-  local ziel = hockt and STANCE.Crouch or STANCE.Stand
-  local istWert = haltungLesen(o)
-  haltung.ist = istWert
+  local ziel = hockt and LAGEN.hocke or LAGEN.normal
+  haltung.ist = haltungLesen(o)
 
-  --  gamedataNPCStanceState: 1 Cover, 2 Crouch, 3 Stand
-  local istName = (istWert == 2) and STANCE.Crouch or (istWert == 3) and STANCE.Stand or nil
+  if ziel ~= haltung.ziel then
+    local ok, text = lageSetzen(o, ziel)
+    haltungSetzen(o, hockt and STANCE.Crouch or STANCE.Stand)
+    if not ok then
+      log("HALTUNG " .. text)
+      return
+    end
+    haltung.gesetzt = haltung.gesetzt + 1
+    haltung.ziel = ziel
+    haltung.auffrisch = 0.0
+    log(string.format("HALTUNG Lage %s - V %s", ziel, hockt and "hockt" or "steht"))
+    return
+  end
 
-  if ziel == haltung.ziel and istName == ziel then return end
-
-  if istName ~= ziel then
-    if haltungSetzen(o, ziel) then
-      if haltung.ziel == ziel then
-        --  Sie stand schon auf diesem Ziel und ist zurueckgefallen: das ist die KI.
-        haltung.korrekturen = haltung.korrekturen + 1
-        --  Die wichtigste Zahl gehoert ins Protokoll, nicht nur ins Panel: ob jemand
-        --  zurueckdreht, entscheidet ueber den ganzen Ansatz.
-        if haltung.korrekturen == 1 or haltung.korrekturen == 25
-           or haltung.korrekturen == 200 then
-          log(string.format("HALTUNG %d Korrektur(en) - etwas setzt die Haltung zurueck",
-              haltung.korrekturen))
-        end
-      else
-        haltung.gesetzt = haltung.gesetzt + 1
-        log(string.format("HALTUNG %s gesetzt - echter Zustand vorher: %s",
-            ziel, tostring(istWert)))
-      end
-    elseif haltung.ziel ~= ziel then
-      log("HALTUNG konnte nicht gesetzt werden - GetStatesComponent oder Signal fehlt")
+  --  Nur die Hocke wird aufgefrischt. `Relaxed` immer wieder nachzusetzen hiesse, ihr den
+  --  Weg in den Kampf zu verstellen - und der gehoert ihr.
+  if ziel == LAGEN.hocke then
+    haltung.auffrisch = haltung.auffrisch + HALTUNG.takt
+    if haltung.auffrisch >= HALTUNG.auffrischen then
+      haltung.auffrisch = 0.0
+      haltung.aufgefrischt = haltung.aufgefrischt + 1
+      lageSetzen(o, ziel)
+      haltungSetzen(o, STANCE.Crouch)
     end
   end
-  haltung.ziel = ziel
 end
 
 --  ---------------------------------------------------------------- Judys eigene Stimme
@@ -1363,7 +1391,7 @@ function T.Status()
     fahrt = { an = fahrt.an, drin = fahrt.drin, n = #pool("fahrzeug") },
     abschied = { an = abschied.an, da = abschied.warDa, n = #pool("abschied") },
     haltung = { an = haltung.an, ziel = haltung.ziel, ist = haltung.ist,
-                gesetzt = haltung.gesetzt, korrekturen = haltung.korrekturen },
+                gesetzt = haltung.gesetzt, aufgefrischt = haltung.aufgefrischt },
     stimme = { kennt = stimme.judyId ~= nil, zuletzt = stimme.zuletztFremd,
                greifbar = judy.obj ~= nil },
     leiter = { an = leiter.an, stufe = leiter.stufe, stufen = #LEITER,

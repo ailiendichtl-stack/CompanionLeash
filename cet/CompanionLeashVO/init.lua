@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "03:59:35"
+local BAU = "04:22:18"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -697,11 +697,10 @@ registerForEvent("onDraw", function()
     ImGui.SameLine()
     ImGui.TextDisabled(string.format("Ziel %s   ist %s",
                                      st.ziel or "-", tostring(st.ist or "-")))
-    --  Die Korrekturen sind der eigentliche Messwert: steigen sie, dreht die KI zurueck.
-    ImGui.Text(string.format("gesetzt %d   Korrekturen %d", st.gesetzt, st.korrekturen))
-    if st.korrekturen > 0 then
-      ImGui.TextDisabled("   Korrekturen steigen = die KI setzt die Haltung zurueck")
-    end
+    ImGui.Text(string.format("Lagewechsel %d   aufgefrischt %d",
+                             st.gesetzt, st.aufgefrischt))
+    ImGui.TextDisabled("   Stealth = tiefe Hocke, Relaxed = normal. Im Kampf gehoert die "
+                       .. "Lage der KI.")
   end
 
   if Triggers and ImGui.CollapsingHeader("Ausloeser testen",
