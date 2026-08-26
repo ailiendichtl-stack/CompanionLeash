@@ -547,6 +547,100 @@ local function lageLesen(o)
   return v, (LAGENAMEN[v] or tostring(v)) .. " (" .. tostring(v) .. ")"
 end
 
+--  ---------------------------------------------------------------- Orte
+--
+--  NCA registriert neun Orte ueber `RegisterLocation`, darunter alle fuenf Wohnungen von
+--  V. Der Kontext fuehrt den aktuellen als `location`, und draussen steht dort schlicht
+--  nichts - das Feld ist nur INNERHALB eines registrierten Ortes belegt.
+--
+--  Das ist der Unterbau fuer Phase 3. Die 36 Wohnungszeilen lagen zurueck, weil uns ein
+--  Ortsmodul fehlte; es war die ganze Zeit da, wir haben nur nie hingesehen.
+local ORTSNAMEN = {
+  H10_Apartment        = "Wohnung H10",
+  CorpoPlaza_Apartment = "Wohnung Corpo Plaza",
+  Glen_Apartment       = "Wohnung Glen",
+  Northside_Apartment  = "Wohnung Northside",
+  JapanTown_Apartment  = "Wohnung Japantown",
+  Afterlife            = "Afterlife",
+  Lizzies              = "Lizzie's",
+}
+local WOHNUNGEN = {
+  H10_Apartment = true, CorpoPlaza_Apartment = true, Glen_Apartment = true,
+  Northside_Apartment = true, JapanTown_Apartment = true,
+}
+
+--  `tostring` auf einem CName liefert die Rohform mit Hashes - im Panel stand
+--  `ToCName{ hash_lo = 0x0... }`, was niemandem hilft. Der Klartext liegt in `.value`.
+local function cnameText(v)
+  if v == nil then return nil end
+  local t
+  pcall(function() t = v.value end)
+  if type(t) == "string" and t ~= "" then return t end
+  pcall(function() t = NameToString(v) end)
+  if type(t) == "string" and t ~= "" then return t end
+  return tostring(v)
+end
+
+local ort = { tag = nil, seit = 0.0, wohnung = false, drin = false,
+              judySeit = 0.0, judyStill = 0.0, letztePos = nil, an = true }
+
+local function ortTick(d)
+  local tag = cnameText(ktx.nca.ort)
+  if tag == "None" or tag == "" then tag = nil end
+  local drin = tag ~= nil
+
+  if tag ~= ort.tag then
+    if ort.tag then
+      log(string.format("ORT verlassen: %s nach %.0f s",
+          ORTSNAMEN[ort.tag] or ort.tag, ort.seit))
+    end
+    if tag then
+      log(string.format("ORT betreten: %s%s", ORTSNAMEN[tag] or tag,
+          WOHNUNGEN[tag] and "   (Wohnung)" or ""))
+    end
+    ort.tag, ort.seit = tag, 0.0
+    ort.wohnung = tag ~= nil and WOHNUNGEN[tag] == true
+    ort.drin = drin
+    ort.judySeit, ort.judyStill, ort.letztePos = 0.0, 0.0, nil
+    return
+  end
+  if not tag then return end
+  ort.seit = ort.seit + d
+
+  --  Was tut sie drinnen? NCA setzt sie dort von selbst auf die Couch, und das wollen wir
+  --  nicht verdraengen, sondern begleiten. Wie lange sie am Stueck stillsteht, ist der
+  --  beste Anhaltspunkt dafuer, dass sie sich niedergelassen hat.
+  local o = judyHolen()
+  if not o then return end
+  local pos
+  pcall(function() pos = o:GetWorldPosition() end)
+  if pos and ort.letztePos then
+    local weit = 0.0
+    pcall(function() weit = Vector4.Distance(pos, ort.letztePos) end)
+    if weit < 0.15 then
+      ort.judyStill = ort.judyStill + d
+    else
+      if ort.judyStill > 20.0 then
+        log(string.format("ORT sie hat sich nach %.0f s wieder bewegt", ort.judyStill))
+      end
+      ort.judyStill = 0.0
+    end
+  end
+  ort.letztePos = pos
+
+  ort.judySeit = ort.judySeit + d
+  if ort.judySeit >= 30.0 then
+    ort.judySeit = 0.0
+    log(string.format("ORT %s: %.0f s drin, Judy %s m weg, steht seit %.0f s still",
+        ORTSNAMEN[ort.tag] or ort.tag, ort.seit,
+        judy.dist and string.format("%.1f", judy.dist) or "?", ort.judyStill))
+  end
+end
+
+--  Fuer Phase 3: erlaubt der Ort einen anderen Umgangston?
+function T.InWohnung() return ort.wohnung end
+function T.OrtTag()   return ort.tag end
+
 --  ---------------------------------------------------------------- Wunden
 --
 --  Der gebueckte Gang mit haengendem Arm ist ein STATUSEFFEKT, kein Animationszustand
@@ -1866,6 +1960,7 @@ function T.Tick(d)
   weltTick(d, p)
   kontextTick(d, p)
   heilungTick(d, judyHolen())
+  ortTick(d)
   stimmeTick()
   haltungMitschreiben(d)
   nachmessen(d)
@@ -1888,6 +1983,8 @@ function T.Status()
     beob  = beob.an,
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
+    ort   = { tag = ort.tag, name = ort.tag and (ORTSNAMEN[ort.tag] or ort.tag) or nil,
+              wohnung = ort.wohnung, seit = ort.seit, still = ort.judyStill },
     wunde = { an = WUNDE.an, hat = wunde.hat, entfernt = wunde.entfernt,
               versuche = wunde.versuche, abHp = WUNDE.abHp, fehler = wunde.fehler },
     heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
