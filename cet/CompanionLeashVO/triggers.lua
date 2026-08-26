@@ -587,58 +587,20 @@ function T.Aufhelfen()
       tostring(liegtAmBoden(o))))
 end
 
---  ------------------------------------------------- NCAs Kampfsperre am Menue oeffnen
+--  ------------------------------------------------- NCAs Kampfsperre: ZURUECKGENOMMEN
 --
---  `App:OnInteract` steigt bei `Context().isInCombat` sofort aus. Sie geht aber IM Kampf
---  zu Boden, also ist das Menue genau dann tot, wenn man es braucht - und der Wert bleibt
---  danach auch noch haengen.
+--  Der Versuch, `App:OnInteract` zu umhuellen und `isInCombat` nur fuer die Dauer des
+--  Aufrufs zu drehen, hat NCAs Menue zerlegt: es stand dauerhaft offen, liess sich nicht
+--  mehr bedienen und ging beim Weggehen nicht zu. Warum genau, ist noch offen - der Gedanke
+--  war sauber, die Wirkung nicht, und ein fremdes Menue kaputtzumachen ist kein Preis, den
+--  wir fuer eine Bequemlichkeit zahlen.
 --
---  Den Wert dauerhaft zu korrigieren waere falsch: NCAs Haken benutzt ihn als Vorzustand
---  in seiner eigenen Uebergangspruefung, und ein von aussen gesetztes `false` wuerde das
---  naechste `OnCombatEnd` verschlucken - samt Rueckkehr nach `Relaxed` und der
---  Erfahrungsverteilung. Deshalb wird er nur fuer die DAUER DES AUFRUFS gedreht, synchron
---  hin und synchron zurueck, und ausschliesslich, wenn sie wirklich am Boden liegt. NCAs
---  Ereignislogik sieht davon nichts.
+--  Der Knopf im eigenen Panel bleibt und tut dasselbe, ohne irgendetwas anzufassen.
 --
---  Der zweite Weg ins Menue - das Aufgehen beim Ansehen - bleibt gesperrt: dessen Pruefung
---  steht in NCAs eigener `Observe`-Schliessung und ist von aussen nicht erreichbar. Der
---  Knopfdruck reicht aber, und der ist ohnehin der bewusstere Weg.
-local riegel = { versuche = 0, drin = false, alt = nil, umgangen = 0, gemeldet = false }
-
-local function riegelTick()
-  if riegel.drin or riegel.versuche > 10 then return end
-  riegel.versuche = riegel.versuche + 1
-  pcall(function()
-    local nca = GetMod("NightCityAllies")
-    if not nca or not nca.app or type(nca.app.OnInteract) ~= "function" then return end
-    riegel.alt = nca.app.OnInteract
-    nca.app.OnInteract = function(self, target)
-      --  Eigene Namen, damit hier nichts einen Namen auf Dateiebene verdeckt: in einer
-      --  Schliessung ist das fuer den Leser wie fuer den Pruefer unnoetig zweideutig.
-      local ctx, imGefecht, liegtSie = nil, false, false
-      pcall(function()
-        ctx = nca:Context()
-        imGefecht = ctx.isInCombat == true
-        liegtSie = liegtAmBoden(judyHolen()) == true
-      end)
-      local gedreht = false
-      if ctx and imGefecht and liegtSie then
-        pcall(function() ctx.isInCombat = false; gedreht = true end)
-        if gedreht then riegel.umgangen = riegel.umgangen + 1 end
-      end
-      local r = riegel.alt(self, target)
-      --  Zuruecksetzen NIE ueberspringen, auch wenn der Aufruf darunter wirft.
-      if gedreht then pcall(function() ctx.isInCombat = true end) end
-      return r
-    end
-    riegel.drin = true
-    log("RIEGEL NCAs Kampfsperre am Menue geoeffnet - nur solange sie am Boden liegt")
-  end)
-  if not riegel.drin and riegel.versuche > 10 and not riegel.gemeldet then
-    riegel.gemeldet = true
-    log("RIEGEL NCAs App nicht erreichbar - Menue bleibt im Kampf gesperrt")
-  end
-end
+--  Falls wir es noch einmal angehen: erst herausfinden, WAS bricht. Verdacht sind zwei
+--  Dinge, die ich nicht auseinandergehalten habe - dass unsere Umhuellung bei einem Reload
+--  der Mod ein zweites Mal ueber sich selbst gelegt wird, und dass `ui:Close()` aus NCAs
+--  eigener Beobachtung kommt und mit einer ersetzten Methode nicht mehr zusammenpasst.
 
 --  ---------------------------------------------------------------- Orte
 --
@@ -2064,7 +2026,6 @@ function T.Tick(d)
   kontextTick(d, p)
   heilungTick(d, judyHolen())
   ortTick(d)
-  riegelTick()
   stimmeTick()
   haltungMitschreiben(d)
   nachmessen(d)
@@ -2087,8 +2048,7 @@ function T.Status()
     beob  = beob.an,
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
-    liegen = { hat = liegen.hat, geholfen = liegen.geholfen, fehler = liegen.fehler,
-               riegel = riegel.drin, umgangen = riegel.umgangen },
+    liegen = { hat = liegen.hat, geholfen = liegen.geholfen, fehler = liegen.fehler },
     ort   = { tag = ort.tag, name = ort.tag and (ORTSNAMEN[ort.tag] or ort.tag) or nil,
               wohnung = ort.wohnung, seit = ort.seit, still = ort.judyStill },
     wunde = { an = WUNDE.an, hat = wunde.hat, entfernt = wunde.entfernt,
