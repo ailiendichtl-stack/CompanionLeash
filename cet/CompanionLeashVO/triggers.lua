@@ -386,6 +386,73 @@ end
 --
 --  Der interessanteste ist Nummer 6: `SetReplicatedStanceState` gibt einen Bool zurueck,
 --  den das private `ChangeStanceState` verschluckt. Den hat noch nie jemand gesehen.
+--  ---------------------------------------------------------------- Blickkontakt
+--
+--  Sie dreht sich zu V, dann spricht sie. Jede Zeile wirkt dadurch adressiert statt in
+--  den Raum gesprochen. Den Lebenszyklus besitzt der SPRECHER, nicht dieser Ausloeser -
+--  bei konkurrierenden Anfragen liefen sonst mehrere Abschalt-Uhren gegeneinander, und
+--  genau das zu verhindern ist der Sinn des Sprechers.
+--
+--  Zwei Dinge aus dem Vanilla-Code formen den Bau:
+--
+--  * Der Aufruf liefert `false`, wenn ihre Lage `Combat` ist. Im Gefecht gibt es keinen
+--    Blick, und das ist eine Entscheidung des Spiels, keine Panne.
+--  * Die uebergebene Dauer ist nur der ERSATZWERT fuer
+--    `AIGeneralSettings.reactionLookAtDuration`. Existiert der Eintrag, wird unserer
+--    verworfen - NCA uebergibt 1.0 und bekommt vermutlich etwas ganz anderes. Deshalb
+--    lesen wir den echten Wert und frischen selbst nach, statt uns darauf zu verlassen.
+local blick = { dauer = nil, gemeldet = false, fehler = nil, letzte = nil }
+
+local function blickDauer()
+  if blick.dauer ~= nil then return blick.dauer end
+  local v
+  pcall(function()
+    v = TweakDB:GetFlat(TweakDBID.new("AIGeneralSettings.reactionLookAtDuration"))
+  end)
+  blick.dauer = (type(v) == "number") and v or 5.0
+  log(string.format("BLICKKONTAKT TweakDB-Dauer: %s (%s)", tostring(v),
+      (type(v) == "number") and "gelesen" or "Ersatzwert 5.0"))
+  return blick.dauer
+end
+
+function T.Blick(obj, dauer)
+  local p = spieler()
+  if not p then return nil end
+  local o = obj or judyHolen()
+  if not o then return nil end
+
+  --  Getrennte pcalls. Zusammengefasst hiesse eine Fehlmeldung nur "irgendwas davon",
+  --  und daran haben wir uns in diesem Projekt schon viermal die Zaehne ausgebissen.
+  local stim
+  pcall(function() stim = o:GetStimReactionComponent() end)
+  if not stim then
+    if not blick.gemeldet then
+      blick.gemeldet = true
+      log("BLICKKONTAKT GetStimReactionComponent fehlt - kein Blick")
+    end
+    return nil
+  end
+
+  local ok, r = pcall(function()
+    return stim:ActivateReactionLookAt(p, false, false, dauer or 3.0, false, false)
+  end)
+  if not ok then
+    if blick.fehler ~= tostring(r) then
+      blick.fehler = tostring(r)
+      log("BLICKKONTAKT Aufruf fehlgeschlagen: " .. tostring(r))
+    end
+    return nil
+  end
+
+  blick.letzte = r
+  if not blick.gemeldet then
+    blick.gemeldet = true
+    log(string.format("BLICKKONTAKT erster Aufruf - Rueckgabe %s, echte Dauer %.1fs",
+        tostring(r), blickDauer()))
+  end
+  return r
+end
+
 --  ------------------------------------------------ Haltung: mitlesen statt weiterraten
 --
 --  Im Kampf geht sie von selbst in Deckung und in die Hocke. Ihr Animationsgraph kann es
@@ -1380,6 +1447,7 @@ end
 function T.Status()
   return {
     beob  = beob.an,
+    blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
               stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2, stufe3 = GAZE.stufe3,
               n1 = #pool("blick", 1), n2 = #pool("blick", 2), n3 = #pool("flirt") },

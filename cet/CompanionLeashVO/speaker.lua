@@ -58,11 +58,16 @@ local S = {
   stillSeit = 0.0,    -- Zeitpunkt, seit dem nichts mehr gesprochen wurde
 }
 
-local spielen, schreiben
+local spielen, schreiben, blicken
+
+--  Wie oft der Blick waehrend einer laufenden Zeile erneuert wird. Das Spiel bestimmt
+--  seine Dauer ueber TweakDB, nicht wir - ohne Auffrischen dreht sie mitten im Satz weg.
+local BLICK_TAKT = 2.0
 
 function Speaker.Init(opts)
   spielen  = opts.spielen
   schreiben = opts.schreiben or function() end
+  blicken  = opts.blick
 end
 
 local function buchen(art, text)
@@ -147,7 +152,7 @@ end
 local function starten(a)
   S.gen = S.gen + 1
   local dauer = (a.dauer or 2.0) + NACHLAUF
-  S.aktiv = { situation = a.situation, prio = a.prio or 0, line = a.line,
+  S.aktiv = { situation = a.situation, prio = a.prio or 0, line = a.line, ziel = a.ziel,
               gen = S.gen, endeUm = S.jetzt + dauer }
   if a.pool then
     S.zuletzt[a.pool] = a.line
@@ -157,6 +162,11 @@ local function starten(a)
   buchen("ACCEPT", string.format("%s  %s  %.1fs", a.situation, a.line, a.dauer or 0))
   schreiben(string.format("SPEAKER ACCEPT situation=%s prio=%d line=%s dauer=%.2f bis=%.1f",
       a.situation, a.prio or 0, a.line, a.dauer or 0, S.aktiv.endeUm))
+  --  Blick VOR der Stimme, nicht danach: sie dreht sich hin, dann spricht sie.
+  if blicken then
+    blicken(a.ziel, dauer)
+    S.blickBis = S.jetzt + BLICK_TAKT
+  end
   spielen(a.line, a.ziel)
 end
 
@@ -235,6 +245,12 @@ end
 
 function Speaker.Tick(d)
   S.jetzt = S.jetzt + d
+
+  --  Solange sie spricht, den Blick halten.
+  if S.aktiv and blicken and S.jetzt >= (S.blickBis or 0.0) then
+    S.blickBis = S.jetzt + BLICK_TAKT
+    blicken(S.aktiv.ziel, math.max(1.0, S.aktiv.endeUm - S.jetzt))
+  end
 
   if S.aktiv and S.jetzt >= S.aktiv.endeUm then
     --  Nur die eigene Generation abraeumen. Ohne diese Pruefung koennte ein alter

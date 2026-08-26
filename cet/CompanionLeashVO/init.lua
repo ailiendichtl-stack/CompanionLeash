@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "04:30:02"
+local BAU = "11:28:30"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -371,6 +371,9 @@ registerForEvent("onInit", function()
   pcall(function() math.randomseed(os.time()) end)
   if Speaker then
     Speaker.Init({
+      blick = function(obj, dauer)
+        if Triggers and Triggers.Blick then return Triggers.Blick(obj, dauer) end
+      end,
       spielen = function(name, obj)
         speaker = 0
         for i, nm in ipairs(STYLES) do
@@ -688,6 +691,16 @@ registerForEvent("onDraw", function()
       ImGui.SameLine()
       ImGui.TextDisabled(name)
     end
+  end
+
+  if Triggers and ImGui.CollapsingHeader("Blickkontakt", ImGuiTreeNodeFlags.DefaultOpen) then
+    local bk = Triggers.Status().blickkontakt or {}
+    ImGui.TextWrapped("Sie dreht sich zu V, dann spricht sie. Der Sprecher haelt den Blick, "
+                      .. "solange die Zeile laeuft.")
+    ImGui.Text(string.format("Rueckgabe %s   Dauer aus TweakDB %s",
+                             tostring(bk.letzte), tostring(bk.dauer or "-")))
+    if bk.fehler then ImGui.TextDisabled("   " .. bk.fehler) end
+    ImGui.TextDisabled("   false = im Kampf; das Spiel verweigert den Blick dort.")
   end
 
   if Triggers and ImGui.CollapsingHeader("Haltung", ImGuiTreeNodeFlags.DefaultOpen) then
