@@ -107,16 +107,32 @@ veroeffentlicht.
 |---|---|---|
 | `sorge` | Gesundheit jeden Takt abfragen | `OnCompanionTakeDamage` |
 | `stolz` | - | `OnCompanionDealDamage` |
-| **36 Wohnungszeilen** | **zurueckgestellt, "braucht ein Ortsmodul"** | `OnEnterApartment` / `OnExitApartment` |
+| Wohnungszeilen | s.u. - die Zahl war zu grob | `Context().location`, verdrahtet |
 | `fahrzeug` | Fahrzeug abfragen | `OnEnterVehicle` / `OnExitVehicle` |
 | Menue-Stopp | selbst gebaut | `OnEnterMenu` / `OnExitMenu` |
 | Tageszeit | - | `OnHourPassed`, `OnDayPassed`, `OnTimeSkip` |
 | Ortswechsel | - | `OnChangeDistrict`, `OnEnterLocation` |
 | Quests | - | `OnQuestStart`, `OnQuestComplete` |
 
-Die Wohnungszeilen stechen heraus. Wir haben sie zurueckgestellt, weil uns ein Ortsmodul
-fehlte - NCA hat neun Orte registriert, darunter alle fuenf V-Wohnungen, und meldet Eintritt
-und Austritt.
+### Wohnung: was wirklich da ist
+
+Erkennung steht und ist gemessen - `ORT betreten: Wohnung H10 (Wohnung)`, sauber rein und
+raus. Aber zwei Dinge stimmen an der frueheren Notiz nicht:
+
+**Die Zahl 36 war zu grob.** Der Pool `wohnung` haelt **7** Zeilen. Was eine Wohnung sonst
+noch traegt, liegt in `alltag` (19), `naehe` (11) und `flirt` (14) - das sind bestehende
+Pools, keine Wohnungszeilen. Phase 3 ist deshalb kein Freischalten, sondern ein anderes
+MISCHUNGSVERHAELTNIS.
+
+**Und `wohnung` meint IHRE Wohnung**, nicht Vs - "V ist bei ihr zu Hause, es wird spaet,
+jemand bleibt". NCA registriert aber nur Vs fuenf Wohnungen plus Afterlife, Lizzie's, Red
+Dirt und Totentanz. **Judys Wohnung ist kein registrierter Ort.** Diese sieben Zeilen haben
+damit weiterhin keinen Ausloeser, und sie in Vs Wohnung zu spielen waere fuer einen Teil
+davon schlicht falsch.
+
+Ein Weg dahin gaebe es: `NCA:RegisterLocation` und `RegisterDistrictTrigger` sind oeffentlich,
+NCAs eigene Module benutzen genau das. Das waere aber wieder ein Eingriff in fremdes Gebiet,
+und davon sind wir gerade zurueckgetreten.
 
 **Haken:** der EventBus ist ein redscript-System; aus CET-Lua kann man sich nicht
 einhaengen. Es braucht eine kleine Bruecke auf unserer reds-Seite, die die Ereignisse
