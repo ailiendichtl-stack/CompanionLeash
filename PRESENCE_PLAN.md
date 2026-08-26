@@ -115,74 +115,110 @@ list) publishes duration + rig + `.anims` path per entry.
 
 ---
 
-## 3. Feature B — stealth stance sync
+## 3. Feature B — Haltung im Schleichen  **GELOEST**
 
-**Behaviour.** Player crouches → Judy crouches, and *keeps following*. Player stands →
-she stands. Immediate, not next tick.
+**Verhalten.** V hockt -> Judy hockt und folgt weiter. V steht auf -> sie steht auf.
 
-**Detection** (confirmed, with in-repo precedent): blackboard listener on
-`PlayerStateMachine.Locomotion`, values `gamePSMLocomotionStates.Crouch` /
-`CrouchSprint` / `CrouchDodge`. NCA registers listeners exactly this way in
-`BlackboardListeners.reds`.
+**Der Schalter ist die LAGE, nicht die Haltung.**
 
-**The real open question is not whether Judy can crouch — it is whether she can crouch
-*while walking under AI locomotion*.** Two paths:
+```
+NPCPuppet.ChangeHighLevelState(judy, gamedataNPCHighLevelState.Stealth)   -- tiefe Hocke
+NPCPuppet.ChangeHighLevelState(judy, gamedataNPCHighLevelState.Relaxed)   -- zurueck
+```
 
-1. ~~`AnimFeature_Stance.SetStanceState(...)`~~ — **falsche Faehrte, im Spiel geklaert.**
-   Die Haltung laeuft nicht ueber `Stance`, sondern ueber drei Schritte, die
-   `npcStateComponent.UpdateStanceState` zusammen ausfuehrt:
+Erkennung wie geplant ueber `PlayerStateMachine.Locomotion` (1 Crouch, 11 CrouchSprint,
+12 CrouchDodge). Verdrahtet in `haltungTick`.
 
-   ```
-   ApplyFeature(o, "stanceState", animAnimFeature_NPCState{state})
-   SetAnimWrapperWeightOnOwnerAndItems(o, "inCrouch", 1.0 / 0.0)
-   PuppetStateBlackboard:SetInt(PuppetState.Stance, state)
-   ```
+### Warum die Haltung allein nie reichen konnte
 
-   Der zweite ist der wichtige: der Anim-Wrapper schaltet das BEWEGUNGSSET um. Nur das
-   Feature zu setzen haette hoechstens die Pose gekippt.
+Der gesetzte Haltungswert kommt an, bleibt stehen - gemessen fuenfzehn Sekunden, ohne dass
+ihn jemand zurueckdreht - und bewirkt nichts. In `Relaxed` hat ihr Graph keine Hocke, in die
+er wechseln koennte. Der Wert liegt korrekt da und wird nicht gelesen.
 
-   Der Klassenname steht so in keinem Skript: der Dump kennt `AnimFeature_NPCState`, die
-   RTTI nur `animAnimFeature_NPCState`, und `Reflection.GetClass` kennt den Dump-Namen
-   nicht einmal. Sechs Schreibweisen durchzuprobieren war der einzige Weg dahin.
+Umgekehrt: nach `Stealth` faellt der Haltungswert binnen zwei Sekunden von selbst auf
+`Stand` zurueck - **und sie hockt weiter**. Die Pose haengt an der Lage.
 
-   Der naheliegende Weg ueber das Signal - `GetStatesComponent():
-   OnNPCStateChangeSignalReceived()` - kam ohne Fehler an und tat nichts: dahinter liegt
-   `SetReplicatedStanceState`, eine native Replikation, und wenn die ablehnt, wird
-   `UpdateStanceState` nie erreicht.
-2. Play `action_crouch` as a routine — a proven path, but routines anchor the NPC to a
-   workspot, so she would crouch *in place* and stop following.
+Zwei Folgerungen fuer alles Weitere:
 
-### Was probiert wurde, und was es ergab
+* `Stand` ist in der Stealth-Lage kein Rueckweg. Aufrecht heisst dort immer noch geduckt.
+  Zurueck geht nur ueber `Relaxed`.
+* Der Haltungswert taugt **nicht** als Wahrheit fuer "hockt sie gerade". Er wird an
+  Uebergaengen gelesen und driftet danach.
 
-Gemessen wird der ECHTE Zustand: `GetStatesComponent():GetCurrentStanceState()`, also
-`GetReplicatedStanceState`. Er bleibt bei jedem Versuch konstant **3 (Stand)**, waehrend der
-Korrekturzaehler ueber 25 klettert.
+### Was probiert wurde, und was es wirklich hiess
 
-| Weg | Ergebnis |
-|---|---|
-| Signal an die Zustandskomponente - `OnNPCStateChangeSignalReceived` mit `m_stanceState` | kommt ohne Fehler an, **wirkt nicht**. Dahinter `SetCurrentStanceState` -> `SetReplicatedStanceState`; lehnt die Replikation ab, wird `UpdateStanceState` nie erreicht, und von aussen sieht man nichts. |
-| Anim-Feature - `ApplyFeature(o, "stanceState", animAnimFeature_NPCState{state})` | Aufruf **gelingt**, Wirkung null. Der Klassenname steht in keinem Skript: Dump `AnimFeature_NPCState`, RTTI `animAnimFeature_NPCState`, und `Reflection.GetClass` kennt den Dump-Namen nicht. |
-| Anim-Wrapper - `SetAnimWrapperWeightOnOwnerAndItems(o, "inCrouch", 1.0)` | gelingt, **allein wirkungslos**. |
-| Blackboard `PuppetState.Stance` selbst schreiben | gelingt - und ist **schaedlich**. Der Wert ist nur ein Spiegel; ihn ohne den echten Zustand zu setzen erzaehlt jeder KI-Bedingung, sie hocke. Wieder entfernt. |
-| `SetInputInt` auf denselben Eingang | als objektfreie Rueckfallebene eingebaut, nie gebraucht. |
-| Bewegungskommando | `moveMovementType` kennt nur Walk/Run/Sprint - keine Haltung. |
-| `gamedataLocomotionMode` | nur `Moving` und `Static`. |
+Alle folgenden Wege wurden ueber GUI-Knoepfe einzeln durchgemessen, jeweils mit dem echten
+Zustand aus `GetCurrentStanceState()` vor und nach dem Versuch.
 
-**Befund:** die Darstellung haengt am replizierten Zustand, und der laesst sich von aussen
-nicht setzen. Alles ueber Anim-Features ist Kosmetik auf einem Wert, den der Graph nicht
-liest. Der Ausloeser steht darum auf AUS - der Code bleibt samt Befund, laeuft aber nicht im
-Leerlauf mit.
+| Weg | Ergebnis | im Nachhinein |
+|---|---|---|
+| `NPCPuppet.ChangeStanceState` | setzt den Zustand sauber, 3 -> 2 | richtig aufgerufen, falsche Ebene |
+| `SetCurrentStanceState` | `true`, 3 -> 2 | dito |
+| `SetReplicatedStanceState` | `true`, 3 -> 2 | dito - die Replikation lehnt **nicht** ab |
+| Signal an Puppet / AI-Controller / Empfaenger | kommt an, Zustand unveraendert | Signalweg fuehrt nicht zum Setzer |
+| Anim-Feature + Wrapper `inCrouch` | Aufruf gelingt, Wirkung null | Kosmetik auf einer Lage ohne Hocke |
+| Blackboard `PuppetState.Stance` selbst schreiben | gelingt - und ist **schaedlich** | nur ein Spiegel; erzaehlt jeder KI-Bedingung etwas Falsches. Wieder entfernt. |
+| `moveMovementType` am Folge-Kommando | Walk/Run/Sprint/Strafe/Stand | **keine Schleich-Gangart. Weg geschlossen.** |
+| `gamedataLocomotionMode` | nur `Moving`/`Static` | traegt nichts |
+| Lage `Combat` / `Alerted` + Hocke | gebeugtes, wachsames Laufen | brauchbar, aber nicht die Hocke |
+| Lage `Stealth` + Hocke | **tiefe Hocke, echtes Schleichen** | die Loesung |
 
-**Nicht probiert, und warum:** ein Workspot ueber NCA wuerde sie verankern, also stehen
-lassen statt folgen - fuer Stealth das Gegenteil des Ziels. Redscript statt CET oeffnet
-nichts, weil `ChangeStanceState` privat ist und die Replikation der eigentliche Riegel
-bleibt. Bliebe der Behaviour-Tree selbst, und das ist Archiv-Ebene.
+**Korrektur.** Ich hatte aus den ersten Messungen geschlossen, die Replikation lehne ab, und
+den Ausloeser deswegen abgeschaltet. Das war falsch: vier Wege setzen den Zustand sauber,
+zwei geben `true` zurueck. Der Fehler lag nicht im Weg, sondern in der Ebene. Die Wende kam
+ueber den Hinweis, es wie NCA zu machen und sie in einen Stealth-Modus zu schicken.
+
+**Im Kampf fassen wir die Lage nicht an.** Sie setzt dort selbst `Combat`, sucht Deckung und
+hockt von allein - die eine Stelle, an der es immer schon funktioniert hat. Beim Kampfbeginn
+geben wir ab, beim Kampfende uebernehmen wir wieder. Aufgefrischt wird nur die Hocke, alle
+3 s; `Relaxed` in einer Schleife nachzusetzen wuerde ihr den Weg in den Kampf verstellen.
 
 **Was NICHT daran haengt:** die 13 Stealth-Zeilen. Die brauchen nur `Locomotion == Crouch`
 beim SPIELER, und das lesen wir laengst.
 
-Path 1 is what the feature actually wants. Path 2 is the fallback and is strictly worse
-for stealth, since a stationary companion in a stealth approach is close to useless.
+---
+
+## 3b. Was die Lage sonst noch oeffnet
+
+Der Fund ist groesser als der Crouch. `gamedataNPCHighLevelState` ist ein Regler fuer ihre
+ganze Koerpersprache, und wir haben ihn bisher nur fuer eine einzige Stellung benutzt.
+
+**Gemessen:**
+
+| Lage | Wirkung |
+|---|---|
+| `Relaxed` (5) | normaler Gang |
+| `Stealth` (6) | tiefe Hocke, echtes Schleichen |
+| `Alerted` (0) | gebeugtes, wachsames Laufen |
+| `Combat` (2) | gebeugtes Laufen, kampfbereit |
+
+**Ungetestet, und wofuer es sich lohnt:**
+
+* **`Wounded` (8)** — verletzte Fortbewegung. Paart sich unmittelbar mit `sorge`: faellt ihre
+  Gesundheit, *sieht* man es, statt es nur zu hoeren. Ihre Gesundheit messen wir bereits
+  jeden Takt, der Ausloeser steht also schon.
+* **`Fear` (4)** — geduckt, panisch. Fuer Momente, in denen sie ueberfordert ist.
+* **`Alerted` nach dem Kampf** — sie bleibt eine Weile wachsam, statt sofort in `Relaxed` zu
+  fallen. Kostet nichts und ist viel Immersion fuer wenig Code.
+
+**Ein zweiter Regler, nie angefasst:** `gamedataNPCUpperBodyState` — Aim, Attack,
+ChargedAttack, Defend, Equip, Normal, Parry, Reload. Oberkoerper getrennt vom Unterkoerper,
+also mit der Lage kombinierbar. `Aim` koennte die Waffe heben.
+
+**Cover neu testen.** `Cover` (1) wurde ausserhalb des Kampfes binnen einer Sekunde
+zurueckgedreht - womoeglich aus genau demselben Grund wie die Hocke: falsche Lage. In
+`Stealth` oder `Alerted` koennte es halten, und dann waere "Judy geht neben V in Deckung"
+erreichbar.
+
+**Gangart an die Lage koppeln.** Unser Patch uebergibt `FollowTarget` derzeit `Run` bzw.
+`Sprint` ([FollowPlayerBehavior.PATCHED.reds:83](FollowPlayerBehavior.PATCHED.reds#L83)).
+Eine hockende Judy, die sprintet, sieht falsch aus. In der Stealth-Lage gehoert dort `Walk`
+hin - eine Zeile.
+
+**Offene Frage mit Gewicht:** aendert `Stealth` auch, wie Gegner sie *wahrnehmen*? Behandelt
+das Stealth-System sie dann als schleichend, waere das kein kosmetischer, sondern ein
+spielmechanischer Gewinn - eine Begleiterin, die die Schleichrunde nicht auffliegen laesst.
+Ungeprueft, und ohne Test nicht zu behaupten.
 
 ---
 

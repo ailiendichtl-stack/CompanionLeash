@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased
+
+### Added: Judy hockt mit  (`gamedataNPCHighLevelState`)
+V geht in die Hocke, Judy geht mit - und folgt dabei weiter. Aufstehen bringt sie zurueck.
+
+Der Schalter ist die **Lage**, nicht die Haltung:
+`NPCPuppet.ChangeHighLevelState(judy, Stealth)` gibt die tiefe Hocke,
+`Relaxed` den Rueckweg. `Alerted` und `Combat` geben ein gebeugtes, wachsames Laufen.
+
+Gemessen und dadurch geklaert, warum die Haltung allein nie reichen konnte: der gesetzte
+Wert kommt an und bleibt fuenfzehn Sekunden unangetastet liegen - in `Relaxed` hat ihr Graph
+keine Hocke, in die er wechseln koennte. Umgekehrt faellt der Haltungswert nach `Stealth`
+binnen zwei Sekunden von selbst auf `Stand` zurueck, und sie hockt weiter. Die Pose haengt
+an der Lage. Darum ist `Stand` in der Stealth-Lage auch kein Rueckweg.
+
+**Korrektur zu 0.3:** der dort notierte Befund, die Replikation lehne das Setzen ab, war
+falsch. Vier Wege setzen den Zustand sauber, zwei geben `true` zurueck. Der Fehler lag in
+der Ebene, nicht im Weg. Der ganze Vorgang steht in `PRESENCE_PLAN.md` Abschnitt 3.
+
+Im Kampf wird die Lage nicht angefasst - sie setzt dort selbst `Combat` und sucht Deckung.
+Wir geben beim Kampfbeginn ab und uebernehmen beim Kampfende wieder. Aufgefrischt wird nur
+die Hocke, alle 3 s.
+
+`moveMovementType` kennt nur Walk/Run/Sprint/Strafe/Stand - eine Schleich-Gangart fuers
+Folge-Kommando gibt es nicht, der Weg ist geschlossen.
+
+### Changed: erstes Hallo haengt am Blick statt an der Uhr
+Statt einer festen Wartezeit nach dem Laden kommt die Begruessung 200 ms nachdem der Blick
+sie zum ersten Mal erkannt hat. Eine Uhr trifft den Moment nie - mal steht sie schon da, mal
+kommt sie um die Ecke.
+
+---
+
 ## 0.3 - 2026-08-24
 
 Two data-driven fixes. Both were found by logging rather than by guessing, and both
