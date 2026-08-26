@@ -49,6 +49,15 @@ def entkleiden(src):
     return "".join(out)
 
 
+def _tabellenschluessel(rein, start, ende):
+    """`{ name = ...` oder `, name = ...` - ein Feldname, keine Variable."""
+    nach = rein[ende:ende + 40].lstrip()
+    if not nach.startswith("=") or nach.startswith("=="):
+        return False
+    vor = rein[max(0, start - 200):start].rstrip()
+    return vor.endswith("{") or vor.endswith(",")
+
+
 def pruefen(pfad):
     src = open(pfad, encoding="utf-8").read()
     rein = entkleiden(src)
@@ -69,6 +78,12 @@ def pruefen(pfad):
         for m in re.finditer(r"(?<![.:\w])%s\b" % re.escape(name), rein):
             if m.start() >= wo:
                 break
+            #  Und ein SCHLUESSEL in einem Tabellenliteral ist auch keiner: in
+            #  `{ kampf = false }` steht der Name links von `=` und rechts von `{` oder
+            #  `,`. Das ist ein Feldname, keine Variable - beide Ausnahmen kosten den
+            #  Pruefer nichts an Trennschaerfe, weil ein echter Zugriff nie so aussieht.
+            if _tabellenschluessel(rein, m.start(), m.end()):
+                continue
             #  Die Deklarationszeile selbst nicht als Nutzung werten.
             zeile = src.count("\n", 0, m.start()) + 1
             treffer.append((zeile, name, src.split("\n")[zeile - 1].strip()[:70]))

@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "11:39:36"
+local BAU = "11:43:43"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -690,6 +690,35 @@ registerForEvent("onDraw", function()
       if ImGui.Button("Stand##s" .. i) then Triggers.HaltungTest(i, false) end
       ImGui.SameLine()
       ImGui.TextDisabled(name)
+    end
+  end
+
+  if Triggers and ImGui.CollapsingHeader("Kontext - wir gegen NCA",
+                                         ImGuiTreeNodeFlags.DefaultOpen) then
+    local k = Triggers.Status().ktx or {}
+    if not k.da then
+      ImGui.TextDisabled("NCAs ContextSystem nicht erreichbar - eigene Messung allein.")
+    else
+      ImGui.TextWrapped("Beide Quellen laufen nebeneinander. Erst wenn hier keine "
+                        .. "Abweichungen mehr auflaufen, bauen wir die eigene Abfrage ab.")
+      local e, n = k.eigen or {}, k.nca or {}
+      ImGui.Text(string.format("Kampf   wir %-5s   NCA %-5s",
+                               tostring(e.kampf), tostring(n.kampf)))
+      ImGui.Text(string.format("Wagen   wir %-5s   NCA %-5s",
+                               tostring(e.wagen), tostring(n.wagen)))
+      ImGui.Text(string.format("Menue   wir %-5s   NCA %-5s",
+                               tostring(e.menue), tostring(n.menue)))
+      ImGui.TextDisabled(string.format("Interaktion %s   Ort %s   Distrikt %s",
+                         tostring(n.interaktion), tostring(n.ort), tostring(n.distrikt)))
+      local zeilen = {}
+      for feld, anzahl in pairs(k.abw or {}) do
+        zeilen[#zeilen + 1] = string.format("%s %d", feld, anzahl)
+      end
+      if #zeilen == 0 then
+        ImGui.Text(string.format("keine Abweichung in %d Proben", k.proben or 0))
+      else
+        ImGui.Text("Abweichungen: " .. table.concat(zeilen, ", "))
+      end
     end
   end
 

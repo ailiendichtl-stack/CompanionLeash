@@ -386,6 +386,94 @@ end
 --
 --  Der interessanteste ist Nummer 6: `SetReplicatedStanceState` gibt einen Bool zurueck,
 --  den das private `ChangeStanceState` verschluckt. Den hat noch nie jemand gesehen.
+--  ---------------------------------------------------------------- Kontext
+--
+--  Eine Momentaufnahme, aus der alle Module lesen. Ohne sie liest jedes neue Modul die
+--  NCA-Felder leicht unterschiedlich, und wohin das fuehrt, hat uns der Kampf-Riegel
+--  gerade vorgefuehrt: wir fragten IHR `IsInCombat()`, NCA haengt an VS Kampfzustand, und
+--  genau in der Luecke dazwischen haetten wir sein `Combat` mit unserem `Relaxed`
+--  ueberschrieben, waehrend sie in Deckung geht.
+--
+--  Deshalb wird hier zunaechst NICHTS ersetzt, sondern VERGLICHEN. Beide Quellen laufen
+--  nebeneinander, jede Abweichung geht ins Protokoll. Ausgebaut wird erst, wenn der Log
+--  zeigt, dass sie dieselben Uebergaenge melden - und nicht, weil es plausibel klingt.
+
+local KTX_TAKT = 0.5
+
+local NCA_CTX = nil
+local ktx = {
+  seit = 0.0,
+  eigen = { kampf = false, wagen = false, menue = false, hockt = false },
+  nca   = { da = false, kampf = nil, wagen = nil, menue = nil,
+            interaktion = nil, ort = nil, distrikt = nil },
+  abw   = {},        -- Feld -> Anzahl Abweichungen
+  proben = 0,
+}
+
+local function ncaKontext()
+  if NCA_CTX ~= nil then return NCA_CTX or nil end
+  local c
+  pcall(function()
+    local cont = Game.GetScriptableSystemsContainer()
+    c = cont:Get("NightCityAllies.Persistence.ContextSystem")
+    if not c then c = cont:Get("ContextSystem") end
+  end)
+  NCA_CTX = c or false
+  log(c and "KONTEXT NCAs ContextSystem erreichbar - Vergleich laeuft"
+        or "KONTEXT NCAs ContextSystem nicht erreichbar - eigene Messung bleibt allein")
+  return c
+end
+
+--  Jedes Feld einzeln. Ein fehlendes darf die anderen nicht mitreissen.
+local function ncaFeld(c, name)
+  local v
+  pcall(function() v = c[name] end)
+  return v
+end
+
+local function abweichung(feld, unser, ihrer)
+  if ihrer == nil then return end
+  if unser == ihrer then return end
+  local n = (ktx.abw[feld] or 0) + 1
+  ktx.abw[feld] = n
+  --  Erste, 10. und 100. Abweichung. Jede zu melden ertraenkt den Log, keine zu melden
+  --  laesst uns glauben, es gaebe keine.
+  if n == 1 or n == 10 or n == 100 then
+    log(string.format("KONTEXT %s weicht ab (%d.): wir %s, NCA %s",
+        feld, n, tostring(unser), tostring(ihrer)))
+  end
+end
+
+local function kontextTick(d, p)
+  ktx.seit = ktx.seit + d
+  if ktx.seit < KTX_TAKT then return end
+  ktx.seit = 0.0
+
+  --  Unsere eigene Messung, wie bisher.
+  local lok = psm("Locomotion")
+  ktx.eigen.kampf = psm("Combat") == 1
+  ktx.eigen.hockt = lok == 1 or lok == 11 or lok == 12
+  ktx.eigen.menue = pausiert()
+  ktx.eigen.wagen = false
+  pcall(function() ktx.eigen.wagen = Game.GetMountedVehicle(p) ~= nil end)
+
+  local c = ncaKontext()
+  if not c then ktx.nca.da = false; return end
+  ktx.nca.da = true
+  ktx.proben = ktx.proben + 1
+
+  ktx.nca.kampf       = ncaFeld(c, "isInCombat")
+  ktx.nca.wagen       = ncaFeld(c, "isInCar")
+  ktx.nca.menue       = ncaFeld(c, "isInMenu")
+  ktx.nca.interaktion = ncaFeld(c, "isInInteraction")
+  ktx.nca.ort         = ncaFeld(c, "location")
+  ktx.nca.distrikt    = ncaFeld(c, "district")
+
+  abweichung("kampf", ktx.eigen.kampf, ktx.nca.kampf)
+  abweichung("wagen", ktx.eigen.wagen, ktx.nca.wagen)
+  abweichung("menue", ktx.eigen.menue, ktx.nca.menue)
+end
+
 --  ---------------------------------------------------------------- Blickkontakt
 --
 --  Sie dreht sich zu V, dann spricht sie. Jede Zeile wirkt dadurch adressiert statt in
@@ -1430,6 +1518,7 @@ function T.Tick(d)
   --  Wagen und im Gefecht sofort aus - dann stand im Panel ein alter Wert.
   abstand(p)
   beziehungLesen()
+  kontextTick(d, p)
   stimmeTick()
   nachmessen(d)
   beobTick(d)
@@ -1450,6 +1539,8 @@ function T.Status()
   return {
     beob  = beob.an,
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
+    ktx   = { da = ktx.nca.da, proben = ktx.proben,
+              eigen = ktx.eigen, nca = ktx.nca, abw = ktx.abw },
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
               stufe1 = GAZE.stufe1, stufe2 = GAZE.stufe2, stufe3 = GAZE.stufe3,
               n1 = #pool("blick", 1), n2 = #pool("blick", 2), n3 = #pool("flirt") },
