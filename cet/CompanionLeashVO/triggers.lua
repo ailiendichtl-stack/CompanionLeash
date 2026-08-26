@@ -711,11 +711,17 @@ local function haltungTick(d)
   local o = judyHolen()
   if not o then haltung.ziel, haltung.ist = nil, nil; return end
 
-  --  Im Kampf gehoert ihre Lage der KI. Sie setzt dort `Combat`, sucht sich Deckung und
-  --  hockt von selbst. Da hineinzuschreiben waere genau das, was ich einem anderen Mod
-  --  vorwerfen wuerde - und wir haetten uns die Deckung kaputtgemacht.
-  local imKampf = false
-  pcall(function() imKampf = o:IsInCombat() end)
+  --  Im Kampf gehoert die Lage NCA, nicht uns.
+  --
+  --  NCA umhaengt `PlayerPuppet.OnCombatStateChanged` und setzt in `CombatBehavior` selbst
+  --  `ChangeHighLevelState(Combat)` beim Beginn und `Relaxed` beim Ende - derselbe Regler,
+  --  an dem wir drehen. Entscheidend ist, woran es haengt: an **Vs** Kampfzustand, nicht an
+  --  ihrem. Fragten wir hier `o:IsInCombat()`, benutzten wir eine andere Grenze als der Mod,
+  --  mit dem wir uns den Regler teilen - und genau in der Luecke dazwischen wuerden wir sein
+  --  `Combat` mit unserem `Relaxed` ueberschreiben, waehrend sie in Deckung geht.
+  --  Also dasselbe Signal wie NCA, plus ihres als Netz.
+  local imKampf = psm("Combat") == 1
+  if not imKampf then pcall(function() imKampf = o:IsInCombat() end) end
   if imKampf then
     if haltung.ziel then
       log("HALTUNG Kampf - Lage wieder an die KI abgegeben")

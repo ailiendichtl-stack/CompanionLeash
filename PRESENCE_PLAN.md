@@ -222,6 +222,52 @@ Ungeprueft, und ohne Test nicht zu behaupten.
 
 ---
 
+## 3c. Wer den Regler sonst noch bedient: NCA
+
+Wir sind nicht allein an dieser Stelle. NCA hat dieselben Aufrufe, in
+`Npc/NpcHandle.reds`:
+
+```
+SetCombatState()   -> ChangeHighLevelState(Combat)     Zeile 157
+SetAlertedState()  -> ChangeHighLevelState(Alerted)    Zeile 164   nie aufgerufen
+SetStealthState()  -> ChangeHighLevelState(Stealth)    Zeile 168   nie aufgerufen
+SetRelaxedState()  -> ChangeHighLevelState(Relaxed)    Zeile 172
+```
+
+**`SetStealthState` ist tot.** Der Aufruf existiert, niemand ruft ihn. Der Autor hat die
+Klinke eingebaut und nie angeschlossen - deswegen hockte sie vorher nie.
+
+**Was NCA tatsaechlich treibt** (`Persistence/Hooks/ContextHooks.reds`): es haengt sich an
+`PlayerPuppet.OnCombatStateChanged`, also an **Vs** Kampfzustand, nicht an ihrer eigenen
+Wahrnehmung. Beim Umschlag auf Kampf laeuft `CombatBehavior.OnAttach`:
+
+* `Talk("enemy_warning")` - eine Vanilla-Bark, gleiche Sekunde wie unsere `kampf`-Situation
+* `SetCombatState()` - die gebeugte Kampfhaltung
+* `AIAssignRoleCommand` mit `AIFollowerRole`
+
+Beim Kampfende `SetRelaxedState()` und `AINoRole`.
+
+Dass sie im Gefecht selbst schiesst und Deckung sucht, ist danach Vanilla: die Follower-Rolle
+plus ihre eigene Wahrnehmung. NCA stellt nur die Lage und die Rolle, den Rest macht das Spiel.
+
+### Folge fuer uns
+
+**Gemeinsame Grenze.** Wir fragen im Haltungs-Ausloeser jetzt `PlayerStateMachine.Combat`,
+dasselbe Signal wie NCA, und ihre eigene `IsInCombat()` nur noch als Netz. Vorher stand dort
+allein ihre - eine andere Grenze als die des Mods, mit dem wir uns den Regler teilen, und
+genau in der Luecke haetten wir sein `Combat` mit unserem `Relaxed` ueberschrieben, waehrend
+sie in Deckung geht.
+
+**Offen:** `enemy_warning` und unsere `kampf`-Zeile haengen am selben Umschlag. Der Sprecher
+erkennt fremde Stimmen (`fremdeStimme`), aber ob das hier frueh genug greift, muss der Log
+zeigen.
+
+**Notiert:** der Kommentar in `ContextHooks.reds` fuehrt fuer den Kampfzustand `1 = inCombat,
+2 = walk, 3 = sneak?`. Trifft das zu, waere `3` ein besseres Signal fuer "V schleicht mit
+Absicht" als blosses Hocken - ungeprueft.
+
+---
+
 ## 4. Feature C — idle animations
 
 Free-standing routines, exactly like the 18 shipping `dance` routines: `tag` + `rig` +
