@@ -32,6 +32,7 @@
     "CompanionLeashVO/init.lua": "c383c44a375dd677fda960dff0cc19fa",
     "CompanionLeashVO/speaker.lua": "23ed93072b67a36a97fdc5fec5810a0e",
     "CompanionLeashVO/triggers.lua": "3dcddb607aa21bee3f650eb1f7f4dfc5",
-    "CompanionLeashVO/lines.lua": "fd1ea0cbfb29630d5b3255b70b6a29c8"
+    "CompanionLeashVO/lines.lua": "fd1ea0cbfb29630d5b3255b70b6a29c8",
+    "NightCityAllies/Interactions/060_companionleash_aufhelfen.lua": "0a64c38dbae8782d04a4e6c72765d8df"
   }
 }
