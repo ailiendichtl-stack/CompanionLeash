@@ -23,15 +23,15 @@
     "CompanionLeashCommands.reds": "9f73b145287d74ac8a241fffd500bffd",
     "CompanionLeashPolicy.reds": "30f7785b29c740bcb093bdfedc2ea247",
     "CompanionLeashVoTest.reds": "26df92941687ce05b54ed5f2948066a5",
-    "CompanionLeashLift.reds": "c9122d260637ae88db96ae9685fe2336"
+    "CompanionLeashLift.reds": "f8f2b2e350f90e3b52dc964ce8e5b34d"
   },
   "tweak_files": {
     "CompanionLeash.yaml": "30cdc450c7006af80acf29ce40e0b87a"
   },
   "cet_files": {
-    "CompanionLeashVO/init.lua": "0e9a06f9a0d3e01c5c825f5722f00c4d",
+    "CompanionLeashVO/init.lua": "91299afd8da27e5cf582f009cdce4d3d",
     "CompanionLeashVO/speaker.lua": "23ed93072b67a36a97fdc5fec5810a0e",
-    "CompanionLeashVO/triggers.lua": "8eae130ed60f169e705966540e8a010f",
+    "CompanionLeashVO/triggers.lua": "f95cd77250a2e6f2c8b88b0192b9e26b",
     "CompanionLeashVO/lines.lua": "f18081b2dc858baf4aa6240342de0ea4"
   }
 }

@@ -25,11 +25,20 @@ module CompanionLeash.Lift
 //  schalten beide. Ohne die NPC-Haelfte findet die Wegfindung schlicht keinen Weg hinein,
 //  und die Begleiterin bleibt davor stehen - kein Fehler, den man im Log sieht, sondern
 //  eine Kante, die es fuer sie nie gab.
+//
+//  Erster Versuch hat NICHT gewirkt: sie stand weiter vor der offenen Tuer wie vor einer
+//  Wand. Die Datei kompiliert sauber, der Wrap ist also da. Bevor ich daran weiterrate,
+//  muss feststehen, ob er ueberhaupt LAEUFT - denn `EvaluateOffMeshLinks` haengt an
+//  `UpdateDeviceState` und feuert nur bei Zustandswechseln des Geraets, moeglicherweise
+//  ein einziges Mal beim Laden der Zone. Deshalb schreibt jeder Durchlauf mit.
 @wrapMethod(LiftDevice)
 protected final func EnableOffMeshConnections() -> Void {
     wrappedMethod();
     if IsDefined(this.m_offMeshConnectionComponent) {
+        FTLog("[CompanionLeash] LIFT Enable - NPC-Haelfte wird freigeschaltet");
         this.m_offMeshConnectionComponent.EnableOffMeshConnection();
+    } else {
+        FTLog("[CompanionLeash] LIFT Enable - keine offMeshConnection an diesem Aufzug");
     }
 }
 
@@ -39,6 +48,7 @@ protected final func EnableOffMeshConnections() -> Void {
 protected final func DisableOffMeshConnections() -> Void {
     wrappedMethod();
     if IsDefined(this.m_offMeshConnectionComponent) {
+        FTLog("[CompanionLeash] LIFT Disable - NPC-Haelfte wird gesperrt");
         this.m_offMeshConnectionComponent.DisableOffMeshConnection();
     }
 }

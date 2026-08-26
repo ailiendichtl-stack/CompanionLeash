@@ -398,6 +398,40 @@ end
 --  nebeneinander, jede Abweichung geht ins Protokoll. Ausgebaut wird erst, wenn der Log
 --  zeigt, dass sie dieselben Uebergaenge melden - und nicht, weil es plausibel klingt.
 
+--  Ein Ortssprung - Schnellreise, Aufzug, Teleport - ist eine Tatsache ueber die WELT und
+--  gehoert keinem einzelnen Ausloeser. Er lag bisher im Wiedersehen, und genau daran ist
+--  der Abschied gescheitert: beim Schnellreisen verschwindet sie aus 14 m Naehe, der
+--  Abschied laeuft frueher im Takt, feuert - und erst danach stellt das Wiedersehen den
+--  Sprung fest. Im Log steht beides in derselben Sekunde:
+--
+--      13:24:46  ABSCHIED sie war 14 m entfernt und ist weg
+--      13:24:46  WIEDERSEHEN Ortssprung 574 m
+--
+--  Deshalb jetzt einmal ganz vorn im Takt gemessen, JEDES Bild - eine halbe Sekunde
+--  Taktung wuerde dem Abschied wieder Zeit lassen, dazwischenzugehen.
+local SPRUNG = { weite = 150.0, ruhe = 15.0 }
+local welt = { letztePos = nil, sprungSeit = nil }
+
+local function weltTick(d, p)
+  if welt.sprungSeit then welt.sprungSeit = welt.sprungSeit + d end
+  local pos
+  pcall(function() pos = p:GetWorldPosition() end)
+  if pos and welt.letztePos then
+    local weit = 0.0
+    pcall(function() weit = Vector4.Distance(pos, welt.letztePos) end)
+    if weit > SPRUNG.weite then
+      welt.sprungSeit = 0.0
+      log(string.format("WELT Ortssprung %.0f m", weit))
+    end
+  end
+  welt.letztePos = pos
+end
+
+--  Kurz nach einem Sprung ist nichts, was mit Naehe zu tun hat, noch zu glauben.
+local function frischGesprungen()
+  return welt.sprungSeit ~= nil and welt.sprungSeit < SPRUNG.ruhe
+end
+
 local KTX_TAKT = 0.5
 
 local NCA_CTX = nil
@@ -1287,6 +1321,14 @@ local function abschiedTick()
 
   if abschied.warDa and not daJetzt then
     local w = abschied.letzteDist
+    --  Beim Schnellreisen verschwindet sie aus naechster Naehe, und das ist kein
+    --  Abschied, sondern ein Ortswechsel. Sie ist gleich wieder da.
+    if frischGesprungen() then
+      log("ABSCHIED verworfen - Ortssprung, das ist kein Weggehen")
+      abschied.letzteDist = nil
+      abschied.warDa = daJetzt
+      return
+    end
     if w and w <= ABSCHIED.nah then
       local k = pool("abschied")
       if #k > 0 then
@@ -1434,11 +1476,12 @@ end
 --  sie erst um die Ecke. Sich anzusehen ist der Moment, in dem ein Hallo faellig ist.
 local WIEDER = {
   nachBlick =  0.2,    -- so kurz, dass es zum Blick gehoert und nicht danach kommt
-  sprung    = 150.0,   -- Meter in EINEM Bild = teleportiert
   nachSprung = 8.0,
+  spaetestens = 45.0,   -- ohne Blickkontakt trotzdem, sonst bleibt es aus
+  rueckfallNah = 25.0,  -- aber nur, wenn sie ueberhaupt in der Naehe ist
   cd        = 300.0,
 }
-local wieder = { startOffen = true, letztePos = nil, seitBlick = nil,
+local wieder = { startOffen = true, seitStart = nil, seitBlick = nil,
                  seitSprung = nil, an = true }
 
 --  Vom Blick-Ausloeser gemeldet, sobald er sie zum ersten Mal erkennt.
@@ -1449,18 +1492,23 @@ end
 local function wiederTick(d, p)
   if not wieder.an then return end
 
-  --  Ortssprung erkennen.
-  local pos
-  pcall(function() pos = p:GetWorldPosition() end)
-  if pos and wieder.letztePos then
-    local weit = 0.0
-    pcall(function() weit = Vector4.Distance(pos, wieder.letztePos) end)
-    if weit > WIEDER.sprung then
-      wieder.seitSprung = 0.0
-      log(string.format("WIEDERSEHEN Ortssprung %.0f m", weit))
+  --  Der Sprung wird in `weltTick` gemessen, ganz vorn im Takt. Hier nur uebernehmen.
+  if welt.sprungSeit == 0.0 and not wieder.seitSprung then wieder.seitSprung = 0.0 end
+
+  --  Ohne Blickkontakt kaeme sonst NIE ein Hallo. Wer nach dem Laden losgeht, ohne sie
+  --  anzusehen, hat sie stumm neben sich - genau das war zu beobachten, das erste
+  --  Wiedersehen kam Minuten zu spaet. Der Blick bleibt der schoene Weg, die Uhr der
+  --  Rueckfall.
+  if wieder.startOffen then
+    wieder.seitStart = (wieder.seitStart or 0.0) + d
+    if wieder.seitStart >= WIEDER.spaetestens and judy.obj and judy.dist
+       and judy.dist <= WIEDER.rueckfallNah then
+      log(string.format("WIEDERSEHEN kein Blickkontakt in %.0fs - Rueckfall auf die Uhr",
+          WIEDER.spaetestens))
+      wieder.startOffen, wieder.seitBlick = false, nil
+      wieder.seitSprung = wieder.seitSprung or WIEDER.nachSprung
     end
   end
-  wieder.letztePos = pos
 
   local faellig = false
   if wieder.seitBlick then
@@ -1606,6 +1654,7 @@ function T.Tick(d)
   --  Wagen und im Gefecht sofort aus - dann stand im Panel ein alter Wert.
   abstand(p)
   beziehungLesen()
+  weltTick(d, p)
   kontextTick(d, p)
   heilungTick(d, judyHolen())
   stimmeTick()
