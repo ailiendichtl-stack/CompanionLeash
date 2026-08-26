@@ -1339,7 +1339,9 @@ end
 --  `cd` je Sprosse, nicht global. Sprosse eins ist die billigste und wuerde sich sonst
 --  bei "ein Schritt, warten, ein Schritt, warten" alle halbe Minute wiederholen.
 local LEITER = {
-  { steht =  25.0, pool = "reibung",    cd = 120.0 },   -- V steht rum: Ungeduld
+  --  Stufe 2 des Reibungstopfs: "V troedelt". Stufe 1 gehoert dem Abstand und wuerde
+  --  hier falsch klingen - "V, warte, ich bin ganz nah", waehrend sie danebensteht.
+  { steht =  25.0, pool = "reibung", stufe = 2, cd = 120.0 },
   { steht =  75.0, pool = "alltag",     cd =  60.0 },   -- laenger: Smalltalk
   { steht = 180.0, pool = "initiative", cd =  60.0 },   -- sehr lange: sie faengt etwas an
   { steht = 420.0, pool = "flirt",      cd = 900.0, liebe = true },   -- sieben Minuten
@@ -1392,7 +1394,7 @@ local function leiterTick(d, p)
   if Speaker.StillSeit() < RUHE_MIN then return end
   if st.liebe and not verliebtGenug() then return end
 
-  local k = pool(st.pool)
+  local k = pool(st.pool, st.stufe)
   if #k == 0 or not Speaker.Frei(st.pool) then return end
   log(string.format("LEITER Sprosse %d nach %.0fs Stillstand, Pool %s (%d)",
       leiter.stufe, leiter.stehtSeit, st.pool, #k))
@@ -1525,7 +1527,9 @@ local function reibungTick(d, p)
   if reibung.seit < REIBUNG.geduld then return end
   reibung.seit = 0.0
 
-  local k = pool("reibung")
+  --  Stufe 1: sie haengt hinterher und ruft V nach. Stufe 2 setzt voraus, dass sie
+  --  danebensteht, und gehoert der Leiter.
+  local k = pool("reibung", 1)
   if #k > 0 and Speaker.Frei("reibung") then
     log(string.format("WARTEN %.0f m seit %.0fs", w, REIBUNG.geduld))
     Speaker.Request({ situation = "reibung", pool = "reibung",
@@ -1689,8 +1693,8 @@ local TESTS = {
   { name = "Sorge",       sit = "sorge",       pool = "sorge",       q = "sorge" },
   { name = "Wiedersehen", sit = "wiedersehen", pool = "wiedersehen", q = "wiedersehen" },
   { name = "Fahrzeug",    sit = "fahrzeug",    pool = "fahrzeug",    q = "fahrzeug" },
-  { name = "Warten",      sit = "reibung",     pool = "reibung",     q = "reibung" },
-  { name = "Leiter 1",    sit = "leiter",      pool = "reibung",     q = "reibung" },
+  { name = "Warten",      sit = "reibung",     pool = "reibung",     q = "reibung", st = 1 },
+  { name = "Leiter 1",    sit = "leiter",      pool = "reibung",     q = "reibung", st = 2 },
   { name = "Leiter 2",    sit = "leiter",      pool = "alltag",      q = "alltag" },
   { name = "Leiter 3",    sit = "leiter",      pool = "initiative",  q = "initiative" },
   { name = "Blick 3",     sit = "flirt",       pool = "blick3",      q = "flirt" },

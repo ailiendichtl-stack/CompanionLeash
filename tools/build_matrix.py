@@ -63,7 +63,40 @@ GEWICHT = {
 #  Hier steht die Korrektur, statt sie in `matrix_picks.json` zu verstecken - dort liegt
 #  die urspruengliche Sichtung, und die soll nachvollziehbar bleiben. Gilt fuer Barks
 #  (ueber den Namen) wie fuer Questzeilen (ueber die Id).
+#  Auch die BARKS im Reibungstopf brauchen ihre Stufe. Ohne sie faellt jeder von ihnen aus
+#  beiden Abfragen heraus - `pool("reibung", 1)` verlangt `st == 1` -, und der Pool haette
+#  still vierzehn Zeilen verloren, ohne dass irgendwo etwas fehlgeschlagen waere.
+#
+#  Stufe 1 sind die, die ueber eine Entfernung funktionieren: rufen, nachkommen, sich
+#  abfinden. Stufe 2 sind die, die voraussetzen, dass sie neben V steht und der nichts tut.
+BARK_STUFEN = {
+    "follow_me":        1,   # "Komm schon, V, bleib bei mir."
+    "follow_me_2":      1,
+    "urge":             1,   # "Komm schon, V."
+    "urge_var_2":       1,
+    "phone_urge_var_1": 1,   # "Aeh ... V?"
+    "phone_urge_var_2": 1,   # "Bist du da? Kannst du mich hoeren?" - eindeutig Entfernung
+    "interrupt":        1,   # "Hab ich dich gelangweilt?" - V geht mitten im Satz weg
+    "interrupt_var_1":  1,   # "Okay, wir setzen das spaeter fort."
+    "interrupt_var_2":  1,
+    "follow_me_1":      2,   # "Was ist los? Hoer auf zu troedeln."
+    "hurry_up_var_1":   2,   # "Na? Los jetzt!"
+    "hurry_up_var_2":   2,   # "Wir haben was vor, schon vergessen?"
+    "hurry_up_var_3":   2,   # "Konzentration, V."
+    "urge_var_1":       2,   # "Was ist mit dir los?"
+}
+
 UMHAENGEN = {
+    #  Aus `reibung` heraus: Gespraechsantworten, die ohne ihren Anlass nirgends passen,
+    #  und zwei Zeilen, in denen sie ZURUECKBLEIBT - was sie bei uns nie tut, solange sie
+    #  folgt. Im Spiel kam dadurch "Das gefaellt dir gar nicht, hm?" als Reaktion darauf,
+    #  dass V dreissig Meter vorgelaufen war.
+    "18f9e3bc672b6000": "flirt",   # Puh, manchmal hast du echt ein Brett vorm Kopf.
+    "185efbe0f1502010": "zurueckbleiben",   # Sei vorsichtig, okay? Ich warte hier auf dich.
+    "1787cc94372cd000": "zurueckbleiben",   # Okay, ich warte hier auf dich.
+    "19ec472e462b6000": "zustimmung",   # Das gefällt dir gar nicht, hm?
+    "137c5715552b1000": "zustimmung",   # Warum, gefällt’s dir nicht?
+
     #  Waehrend des Gefechts
     "player_fallback_var_1": "kampf",       # "Pass auf, verdammt! Schalt dein Hirn ein."
     "player_fallback_var_2": "kampf",       # "V, pass besser auf! Tot nuetzt du niemandem!"
@@ -355,12 +388,55 @@ CATEGORIES = [
               [("J", "b", "stealth_restored_var_1"), ("V", "bv", "reaction_happy_var_3")],
               "Erleichterung auf beiden Seiten.")]),
 
+ dict(key="zurueckbleiben", title="Sie bleibt zurueck",
+      when="V geht allein weiter, sie wartet an Ort und Stelle",
+      note="Noch OHNE Ausloeser. Diese Zeilen setzen voraus, dass sie stehen bleibt -"
+           " bei uns folgt sie immer, also wuerde jede von ihnen dem widersprechen, was"
+           " man sieht. NCA kennt ein Halte-Kommando; sobald wir das lesen, haben sie"
+           " ihren Platz. Bis dahin liegen sie hier richtig und stumm.",
+      fams=[],
+      picks=[],
+      judy=[],
+      v=[],
+      pairs=[]),
+
  dict(key="reibung", title="Warten, Troedeln, kleine Reibung",
       when="V bleibt zurueck, bricht ab oder kommt zu spaet",
       note="Reibung ohne Bruch. Ihre Ungeduld liest sich als Vertrautheit, wenn sie nicht"
            " allein steht - deshalb gehoert immer eine Versoehnung dahinter.",
       fams=["follow_me", "hurry_up", "urge", "interrupt", "phone_urge"],
       picks=["Spieler bleibt zurueck", "Warten / Ungeduld"],
+      #  Dieser Topf wird von ZWEI Ausloesern bedient, und die meinen Verschiedenes:
+      #
+      #    Stufe 1  `reibungTick`   - Abstand ueber 10 m, sechs Sekunden lang.
+      #                               Sie haengt hinterher und ruft V nach.
+      #    Stufe 2  Leiter Sprosse 1 - V steht 25 s still, sie ist daneben.
+      #                               V troedelt, sie draengt.
+      #
+      #  Ohne die Trennung zog jeder Ausloeser aus demselben Topf, und "Worauf wartest
+      #  du?" kam, waehrend V dreissig Meter weg war. Der Titel der Kategorie sagt es
+      #  schon - Warten, Troedeln UND Reibung sind drei Dinge, nicht eins.
+      stufen={
+              "16b50051b62fc000": 1,   # Jepp. Bin sofort da. Warte auf mich.
+              "16b5046d372fc000": 1,   # V, warte. Ich bin ganz nah.
+              "16bf45cbac2fc000": 1,   # Wart ’ne Sekunde auf mich.
+              "1a7b10f6e62fc000": 1,   # V, warte noch.
+              "1aa440794d2fc000": 1,   # Schon unterwegs.
+              "39669585fca4e000": 1,   # Jepp, bin sofort da. Warte auf mich.
+              "39675fea699ce000": 1,   # Komm schon, V. Bleib bei mir.
+              "14edc33d565b2000": 2,   # V? Worauf wartest du?
+              "157e1b71602fc008": 2,   # Okay ... Aber lass dir nicht zu viel Zeit.
+              "17c00d5613610000": 2,   # Na los, worauf wartest du?
+              "183b56df2f2b600c": 2,   # So lang hat das nicht Zeit.
+              "185fea344a2b6000": 2,   # Deine Entscheidung, aber trödel nicht.
+              "1a6c40ed992fc000": 2,   # Sag Bescheid, wenn du weiter willst.
+              "1a6c5010692fc004": 2,   # Was sagst du, wollen wir weiter?
+              "1a6d277cc12fc000": 2,   # Na dann komm. Ich will dir was zeigen.
+              "1a6d3771f92fc000": 2,   # Aye aye, Käpt’n – mir nach.
+              "1a76bc30fd2fc004": 2,   # Komm, gehen wir.
+              "1a7bd32bec2fc000": 2,   # V, lass uns abhauen.
+              "1f46422d992b6008": 2,   # Komm schon! Keine falsche Scheu.
+      },
       judy=["39675fea699ce000", "39675ce5d69ce000", "1a9f63e7252b6000",
             "18f9e3bc672b6000", "19ec472e462b6000", "137c5715552b1000"],
       v=[],
@@ -715,7 +791,8 @@ def _pool_liste(bau, d):
     for c in CATEGORIES:
         for name in _fam_barks(c["fams"], d):
             e = d["barkj"][name]
-            zeilen.append((UMHAENGEN.get(name, c["key"]), 0, name, e["dur"],
+            zeilen.append((UMHAENGEN.get(name, c["key"]),
+                           BARK_STUFEN.get(name, 0), name, e["dur"],
                            esc(e["text"]), "b"))
     #  Questzeilen: gebaut als cl_<id>, Dauer aus der Szene.
     for b in bau:

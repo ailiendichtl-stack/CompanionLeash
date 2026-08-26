@@ -7,7 +7,7 @@ Text, Dauer und Lipsync-Lage werden nachgeschlagen, nicht gepflegt. Erweitern
 heisst: eine Id in `tools/build_matrix.py` eintragen und neu erzeugen. Eine
 unbekannte Id bricht den Lauf ab - hier steht nichts Unbelegtes.
 
-**Bestand:** 262 Judy-Eintraege und 40 V-Zeilen in 20 Situationen, dazu 68
+**Bestand:** 262 Judy-Eintraege und 40 V-Zeilen in 21 Situationen, dazu 68
 Wortwechsel. Alle 63 Judy-Barks sind einsortiert; 9 Judy-Zeilen
 brauchen geliehenes Lipsync, der Rest sitzt.
 
@@ -219,6 +219,7 @@ Judy neckt lieber, als dass sie schwaermt. Der Ton bleibt trocken.
 | Jetzt mach keinen Rückzieher mehr. Benutz einfach deine Fantasie. | 5.2 s | `Zeile` | `1897f7fb1a2b6000 sq030_00_holocall` |
 | Sag nicht, ich hätte dich nicht gewarnt. | 2.5 s | `Zeile` | `1897f8b7412b6000 sq030_00_holocall` |
 | Ich summe ein Lied, du sagst mir, welches es ist. | 2.7 s | `Zeile` | `19eba4297c2b6000 sq030_05_lake_test` |
+| Puh, manchmal hast du echt ein Brett vorm Kopf. | 3.8 s | `Zeile` | `18f9e3bc672b6000 sq030_11_morning` |
 
 ### V
 
@@ -751,6 +752,20 @@ Ihre Warnung, Vs Beruhigung.
 Erleichterung auf beiden Seiten.
 
 
+## Sie bleibt zurueck
+
+**Wann:** V geht allein weiter, sie wartet an Ort und Stelle
+
+Noch OHNE Ausloeser. Diese Zeilen setzen voraus, dass sie stehen bleibt - bei uns folgt sie immer, also wuerde jede von ihnen dem widersprechen, was man sieht. NCA kennt ein Halte-Kommando; sobald wir das lesen, haben sie ihren Platz. Bis dahin liegen sie hier richtig und stumm.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Okay, ich warte hier auf dich. | 2.7 s | `Zeile` | `1787cc94372cd000 q202_05_convoy` |
+| Sei vorsichtig, okay? Ich warte hier auf dich. | 3.9 s | `Zeile` | `185efbe0f1502010 q115_02b_ripperdoc_roof` |
+
+
 ## Warten, Troedeln, kleine Reibung
 
 **Wann:** V bleibt zurueck, bricht ab oder kommt zu spaet
@@ -795,12 +810,7 @@ Reibung ohne Bruch. Ihre Ungeduld liest sich als Vertrautheit, wenn sie nicht al
 | So lang hat das nicht Zeit. | 1.7 s | `Zeile` | `183b56df2f2b600c q105_06a_fingers_escape` |
 | Sag Bescheid, wenn du weiter willst. | 2.6 s | `Zeile` | `1a6c40ed992fc000 sq030_06_lake_exploration` |
 | Was sagst du, wollen wir weiter? | 2.0 s | `Zeile` | `1a6c5010692fc004 sq030_06_lake_exploration` |
-| Sei vorsichtig, okay? Ich warte hier auf dich. | 3.9 s | `Zeile` | `185efbe0f1502010 q115_02b_ripperdoc_roof` |
-| Okay, ich warte hier auf dich. | 2.7 s | `Zeile` | `1787cc94372cd000 q202_05_convoy` |
 | Du hast meine Pläne ruiniert, weißt du? | 2.8 s | `Zeile` | `1a9f63e7252b6000 sq030_11_morning` |
-| Puh, manchmal hast du echt ein Brett vorm Kopf. | 3.8 s | `Zeile` | `18f9e3bc672b6000 sq030_11_morning` |
-| Das gefällt dir gar nicht, hm? | 2.5 s | `Zeile` | `19ec472e462b6000 sq030_09_pier` |
-| Warum, gefällt’s dir nicht? | 2.2 s | `Zeile` | `137c5715552b1000 sq030_03_dam_equipment` |
 
 ### Wortwechsel
 
@@ -891,6 +901,8 @@ Keine Bark deckt das ab.
 | Da könntest du recht haben. | 2.2 s | `Zeile` | `19faf887702b6000 sq026_05a_leave` |
 | Wie du willst. | 1.6 s | `Zeile` | `1a33d8c6a32b6000 sq026_08_plan` |
 | Wenn du meinst ... | 2.1 s | `Zeile` | `1a674041712fc000 sq030_09_pier` |
+| Warum, gefällt’s dir nicht? | 2.2 s | `Zeile` | `137c5715552b1000 sq030_03_dam_equipment` |
+| Das gefällt dir gar nicht, hm? | 2.5 s | `Zeile` | `19ec472e462b6000 sq030_09_pier` |
 
 
 ## Wasser und Schwimmen
