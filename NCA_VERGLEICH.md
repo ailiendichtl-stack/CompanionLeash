@@ -70,6 +70,20 @@ Namen: `danger`, `stealth_restored`, `enemy_warning` auf `OnHighLevelStateEnter`
 `Stealth` ist in unseren Daten kein Bark aufgetaucht - was unserem Crouch entgegenkommt,
 aber durch Bark-Abklingzeiten verdeckt sein koennte. **Ungeprueft.**
 
+**5. `isInMenu` ist unbrauchbar - gemessen, nicht vermutet.** Der Vergleich aus Phase 2 hat
+es am ersten Tag gefunden: `wir false, NCA true`, und der Wert blieb haengen. Grund:
+**fuenf** Blackboard-Listener schreiben in denselben einen Bool -
+
+    UI_System.IsInMenu
+    UI_ComDevice.ContactsActive
+    UI_QuickSlotsData.UIRadialContextRequest
+    UI_Scanner.UIVisible
+    UI_QuickSlotsData.quickhackPanelOpen
+
+- alle ueber `UpdateContext(value)`, ohne Zaehlung. Scanner auf setzt `true`, Menue zu setzt
+`false`, und bei Ueberschneidung gewinnt das letzte Ereignis. **Unsere eigene Menuepruefung
+bleibt.** Genau dafuer war der Vergleichsschritt da.
+
 ## Was drueben liegt und wir selbst nachbauen
 
 Der wichtigste Befund der Aufstellung: wir fragen jeden Takt Dinge ab, die NCA als Ereignis
@@ -104,6 +118,49 @@ Drei weitere Sachen, die drueben liegen:
   reine Politur, haben wir nicht.
 * **Der Nameplate-Hook als Blicksignal** - ereignisgetrieben und genau, wo wir jeden Takt
   `GetLookAtObject` abfragen.
+
+## Drei Stellen in NCA, die fertig daliegen und nicht angeschlossen sind
+
+Ein Muster, kein Zufall - und fuer uns die ergiebigste Ecke des ganzen Mods.
+
+| | Zustand | fuer uns |
+|---|---|---|
+| `SetStealthState()` | gebaut, **nie aufgerufen** | war unser Crouch |
+| `OnEnterApartment` / `OnExitApartment` | leerer Rumpf, `isApartment` wird verworfen | Phase 3 nimmt stattdessen `Context().location` |
+| `LiftDevice`-Wraps in `NpcHooks.reds` | **auskommentiert**, samt Erklaerung | Aufzuege, s.u. |
+
+### Aufzuege
+
+NCAs eigener Kommentar nennt die Ursache:
+
+> Lifts only ever enable the PLAYER half of their off-mesh link
+> (`LiftDevice.EnableOffMeshConnections`), while doors enable both halves.
+
+Ohne die NPC-Haelfte gibt es fuer die Wegfindung keine Kante in die Kabine. Sie bleibt
+davor stehen, und zwar ohne Fehlermeldung - der Weg hat fuer sie nie existiert. Damit ist
+alles ausser dem Erdgeschoss unerreichbar; ins Apartment kam man zuletzt nur ueber
+Schnellreise.
+
+Der Fix liegt bei uns in `src/CompanionLeashLift.reds`, bewusst als eigene Datei: **warum
+NCA ihn auskommentiert hat, wissen wir nicht.** Loeschen der einen Datei nimmt ihn zurueck.
+
+## Was NCA nicht tut: heilen
+
+Es gibt **keine** Heilung fuer Begleiter - nur eine Lebensanzeige
+(`UI/HealthBarVisibility.reds`). Ihre Gesundheit kommt nur durch einen Respawn zurueck,
+etwa nach Schnellreise.
+
+Das trifft mit dem Vanilla-Wundsystem zusammen. Die gebueckte, blutende Haltung mit
+haengendem Arm ist **kein Lagezustand**, sondern ein Gliedmassenschaden aus
+`hitReactionComponent`: pro Trefferzone wird Schaden gegen eine Schwelle gezaehlt
+(`WoundLArmDamageThreshold` und Geschwister), und `ProcessWoundsAndDismemberment` setzt den
+Zustand beim Treffer. Einen Rueckweg hat er nicht.
+
+Folgen, die man kennen muss:
+
+* Crouchen aendert daran nichts, und das ist richtig so - es ist eine andere Ebene.
+* Wir ueberschreiben dabei nichts. Unsere Lage und ihre Wunde sind verschiedene Dinge.
+* Ohne Heilung sammeln Begleiter Wunden **dauerhaft** an, bis sie neu gespawnt werden.
 
 ## Was wir haben und NCA nicht
 
