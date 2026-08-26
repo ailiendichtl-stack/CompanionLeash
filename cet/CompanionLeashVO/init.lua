@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "11:28:30"
+local BAU = "11:39:36"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -700,7 +700,10 @@ registerForEvent("onDraw", function()
     ImGui.Text(string.format("Rueckgabe %s   Dauer aus TweakDB %s",
                              tostring(bk.letzte), tostring(bk.dauer or "-")))
     if bk.fehler then ImGui.TextDisabled("   " .. bk.fehler) end
-    ImGui.TextDisabled("   false = im Kampf; das Spiel verweigert den Blick dort.")
+    if bk.letzte == false then
+      ImGui.TextDisabled("   false heisst hier: ihre Lage ist Combat, dort verweigert das "
+                         .. "Spiel den Blick.")
+    end
   end
 
   if Triggers and ImGui.CollapsingHeader("Haltung", ImGuiTreeNodeFlags.DefaultOpen) then

@@ -445,12 +445,14 @@ function T.Blick(obj, dauer)
   end
 
   blick.letzte = r
+  --  Zweiter Rueckgabewert: wie lange der Blick wirklich haelt. Der Sprecher richtet sein
+  --  Auffrischen danach, statt auf Verdacht zu takten.
   if not blick.gemeldet then
     blick.gemeldet = true
     log(string.format("BLICKKONTAKT erster Aufruf - Rueckgabe %s, echte Dauer %.1fs",
         tostring(r), blickDauer()))
   end
-  return r
+  return r, blickDauer()
 end
 
 --  ------------------------------------------------ Haltung: mitlesen statt weiterraten

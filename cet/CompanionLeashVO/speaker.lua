@@ -60,9 +60,11 @@ local S = {
 
 local spielen, schreiben, blicken
 
---  Wie oft der Blick waehrend einer laufenden Zeile erneuert wird. Das Spiel bestimmt
---  seine Dauer ueber TweakDB, nicht wir - ohne Auffrischen dreht sie mitten im Satz weg.
-local BLICK_TAKT = 2.0
+--  Wie lange vor Ablauf des Blicks nachgefasst wird. Seine Dauer bestimmt das Spiel ueber
+--  TweakDB (gemessen: 5.0s), nicht wir - ohne Auffrischen dreht sie mitten im Satz weg,
+--  mit zu haeufigem koennte der erneute Anwurf sichtbar nachschnappen.
+local BLICK_PUFFER = 1.0
+local BLICK_TAKT   = 4.0    -- Ersatzwert, bis die echte Dauer bekannt ist
 
 function Speaker.Init(opts)
   spielen  = opts.spielen
@@ -164,8 +166,8 @@ local function starten(a)
       a.situation, a.prio or 0, a.line, a.dauer or 0, S.aktiv.endeUm))
   --  Blick VOR der Stimme, nicht danach: sie dreht sich hin, dann spricht sie.
   if blicken then
-    blicken(a.ziel, dauer)
-    S.blickBis = S.jetzt + BLICK_TAKT
+    local _, haelt = blicken(a.ziel, dauer)
+    S.blickBis = S.jetzt + math.max(1.0, (haelt or BLICK_TAKT) - BLICK_PUFFER)
   end
   spielen(a.line, a.ziel)
 end
@@ -248,8 +250,8 @@ function Speaker.Tick(d)
 
   --  Solange sie spricht, den Blick halten.
   if S.aktiv and blicken and S.jetzt >= (S.blickBis or 0.0) then
-    S.blickBis = S.jetzt + BLICK_TAKT
-    blicken(S.aktiv.ziel, math.max(1.0, S.aktiv.endeUm - S.jetzt))
+    local _, haelt = blicken(S.aktiv.ziel, math.max(1.0, S.aktiv.endeUm - S.jetzt))
+    S.blickBis = S.jetzt + math.max(1.0, (haelt or BLICK_TAKT) - BLICK_PUFFER)
   end
 
   if S.aktiv and S.jetzt >= S.aktiv.endeUm then
