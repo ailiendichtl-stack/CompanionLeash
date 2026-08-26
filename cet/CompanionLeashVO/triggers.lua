@@ -520,6 +520,33 @@ local function kontextTick(d, p)
   abweichung("menue", ktx.eigen.menue, ktx.nca.menue)
 end
 
+--  `GetLocalInstanced` war der falsche Zugriff - alle Felder kamen als Strich zurueck.
+--  Das Spiel selbst holt dieses Blackboard ueber die Puppe:
+--
+--      puppet.GetPuppetStateBlackboard().GetInt(PuppetState.HighLevel)
+--
+--  Damit ist ihre LAGE lesbar, und das ist die Haelfte, die uns bei der gebueckten
+--  Haltung gefehlt hat: ob dort `Wounded` (8) steht, war bisher schlicht nicht zu sehen.
+local function bbLesen(o, feld)
+  local v
+  pcall(function()
+    local defs = Game.GetAllBlackboardDefs().PuppetState
+    local bb = o:GetPuppetStateBlackboard()
+    if bb and defs[feld] then v = bb:GetInt(defs[feld]) end
+  end)
+  return v
+end
+
+local LAGENAMEN = { [0] = "Alerted", [1] = "Any", [2] = "Combat", [3] = "Dead",
+                    [4] = "Fear", [5] = "Relaxed", [6] = "Stealth",
+                    [7] = "Unconscious", [8] = "Wounded" }
+
+local function lageLesen(o)
+  local v = bbLesen(o or judyHolen(), "HighLevel")
+  if v == nil then return nil, "?" end
+  return v, (LAGENAMEN[v] or tostring(v)) .. " (" .. tostring(v) .. ")"
+end
+
 --  ---------------------------------------------------------------- Heilung
 --
 --  NCA heilt Begleiter ueberhaupt nicht. Es gibt eine Lebensanzeige und nichts dahinter -
@@ -575,6 +602,9 @@ local function heilungTick(d, o)
     end
     heil.war = hp
     return
+  end
+  if heil.war == nil or heil.war >= HEILUNG.voll then
+    log("HEILUNG Lage beim Beginn: " .. select(2, lageLesen(o)))
   end
 
   if heil.war == nil or heil.war >= HEILUNG.voll then
@@ -671,25 +701,18 @@ end
 --  also - nur nicht ueber den Weg, den wir gehen. Damit ist Wege-Raten der falsche Zug.
 --  Das Spiel fuehrt es uns vor; wir lesen mit, WAS sich dabei an ihr aendert.
 
-local function bbLesen(o, feld)
-  local v
-  pcall(function()
-    local defs = Game.GetAllBlackboardDefs().PuppetState
-    local bb = Game.GetBlackboardSystem():GetLocalInstanced(o:GetEntityID(), defs)
-    if bb and defs[feld] then v = bb:GetInt(defs[feld]) end
-  end)
-  return v
-end
 
 --  Jeder Wert einzeln und einzeln abgesichert. Faellt einer aus, steht dort ein Strich,
 --  und die anderen sagen trotzdem etwas.
 local FELDER = {
   { "Haltung",  function(o) return haltungLesen(o) end },
   { "bbStance", function(o) return bbLesen(o, "Stance") end },
-  { "bbHigh",   function(o) return bbLesen(o, "HighLevel") end },
+  { "Lage",     function(o) local _, t = lageLesen(o); return t end },
   { "bbUpper",  function(o) return bbLesen(o, "UpperBody") end },
-  { "bbCover",  function(o) return bbLesen(o, "InCover") end },
-  { "bbLoco",   function(o) return bbLesen(o, "Locomotion") end },
+  { "bbLoco",   function(o) return bbLesen(o, "LocomotionMode") end },
+  { "bbHitRe",  function(o) return bbLesen(o, "HitReactionMode") end },
+  { "bbDefense",function(o) return bbLesen(o, "DefenseMode") end },
+  { "bbBehav",  function(o) return bbLesen(o, "BehaviorState") end },
   { "Kampf",    function(o) return o:IsInCombat() end },
   { "Deckung",  function(o) return o:IsInCover() end },
   { "Waffe",    function(o) return o:HasAnyWeaponEquipped() end },
@@ -995,7 +1018,7 @@ local function haltungText(o)
   return (n and HALTUNGSNAMEN[n] or tostring(v)) .. " (" .. tostring(v) .. ")"
 end
 
-local hbeo = { war = nil, seit = 0.0 }
+local hbeo = { war = nil, lageWar = nil, seit = 0.0 }
 
 local function haltungMitschreiben(d)
   hbeo.seit = hbeo.seit + d
@@ -1003,11 +1026,25 @@ local function haltungMitschreiben(d)
   hbeo.seit = 0.0
   local o = judyHolen()
   if not o then hbeo.war = nil; return end
+  --  Lage und Haltung sind zwei Regler. Die Wunde zeigt sich, wenn ueberhaupt, an der
+  --  Lage - deshalb beide beobachten und beide melden.
+  local lv, lt = lageLesen(o)
+  if lv ~= nil and lv ~= hbeo.lageWar then
+    if hbeo.lageWar ~= nil then
+      log(string.format("LAGE-IST %s -> %s   unser Ziel %s, Wagen %s, Kampf %s",
+          tostring(LAGENAMEN[hbeo.lageWar] or hbeo.lageWar), lt,
+          tostring(haltung.ziel), tostring(ktx.eigen.wagen), tostring(ktx.eigen.kampf)))
+    else
+      log("LAGE-IST erste Messung: " .. lt)
+    end
+    hbeo.lageWar = lv
+  end
+
   local v = haltungLesen(o)
   if v == nil or v == hbeo.war then return end
   if hbeo.war ~= nil then
-    log(string.format("HALTUNG-IST %s -> %s   Ziel %s, Wagen %s, Kampf %s",
-        tostring(hbeo.war), haltungText(o), tostring(haltung.ziel),
+    log(string.format("HALTUNG-IST %s -> %s   Lage %s, Ziel %s, Wagen %s, Kampf %s",
+        tostring(hbeo.war), haltungText(o), lt, tostring(haltung.ziel),
         tostring(ktx.eigen.wagen), tostring(ktx.eigen.kampf)))
   end
   hbeo.war = v
@@ -1249,12 +1286,12 @@ local function kampfTick(d)
 
   if drin and not kampf.drin then
     kampf.drin, kampf.seit, kampf.seitEnde = true, 0.0, nil
-    log("KAMPF beginnt - Haltung " .. haltungText())
+    log("KAMPF beginnt - Haltung " .. haltungText() .. ", Lage " .. select(2, lageLesen()))
   elseif not drin and kampf.drin then
     kampf.drin, kampf.seitEnde = false, 0.0
     --  Was noch fuer den Kampf anstand, ist keine Kampfzeile mehr.
     Speaker.Verwerfen("kampf")
-    log("KAMPF vorbei - Haltung " .. haltungText())
+    log("KAMPF vorbei - Haltung " .. haltungText() .. ", Lage " .. select(2, lageLesen()))
   end
 
   if kampf.drin then
@@ -1612,7 +1649,8 @@ local function fahrtTick(d, p)
 
   if drin and not fahrt.drin then
     fahrt.drin, fahrt.seit = true, 0.0
-    log("FAHRZEUG aufgesessen - Haltung " .. haltungText())
+    log("FAHRZEUG aufgesessen - Haltung " .. haltungText()
+        .. ", Lage " .. select(2, lageLesen()))
   elseif not drin and fahrt.drin then
     fahrt.drin, fahrt.seit = false, nil
     --  Was noch fuers Einsteigen anstand, passt nach dem Aussteigen nicht mehr.

@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "13:44:42"
+local BAU = "14:04:07"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
