@@ -1018,7 +1018,14 @@ local function haltungText(o)
   return (n and HALTUNGSNAMEN[n] or tostring(v)) .. " (" .. tostring(v) .. ")"
 end
 
-local hbeo = { war = nil, lageWar = nil, seit = 0.0 }
+--  Die Lage ist es NICHT - gemessen: Relaxed, Combat, Unconscious, nie `Wounded`. Der
+--  gebueckte Gang mit haengendem Arm muss also in einem der uebrigen Zustandsfelder
+--  stehen. Statt dich Knoepfe druecken zu lassen, waehrend sie so laeuft, beobachten wir
+--  die vier hier mit und melden jeden Wechsel.
+local ZUSTANDSFELDER = { "LocomotionMode", "HitReactionMode", "DefenseMode",
+                         "BehaviorState", "UpperBody", "PhaseState" }
+
+local hbeo = { war = nil, lageWar = nil, seit = 0.0, felder = {} }
 
 local function haltungMitschreiben(d)
   hbeo.seit = hbeo.seit + d
@@ -1038,6 +1045,18 @@ local function haltungMitschreiben(d)
       log("LAGE-IST erste Messung: " .. lt)
     end
     hbeo.lageWar = lv
+  end
+
+  for _, feld in ipairs(ZUSTANDSFELDER) do
+    local fv = bbLesen(o, feld)
+    if fv ~= nil and fv ~= hbeo.felder[feld] then
+      if hbeo.felder[feld] ~= nil then
+        log(string.format("ZUSTAND %s: %s -> %s   Lage %s, Kampf %s",
+            feld, tostring(hbeo.felder[feld]), tostring(fv), lt,
+            tostring(ktx.eigen.kampf)))
+      end
+      hbeo.felder[feld] = fv
+    end
   end
 
   local v = haltungLesen(o)

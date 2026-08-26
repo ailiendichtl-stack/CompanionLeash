@@ -84,6 +84,20 @@ es am ersten Tag gefunden: `wir false, NCA true`, und der Wert blieb haengen. Gr
 `false`, und bei Ueberschneidung gewinnt das letzte Ereignis. **Unsere eigene Menuepruefung
 bleibt.** Genau dafuer war der Vergleichsschritt da.
 
+**6. `isInCombat` ist ebenfalls unbrauchbar.** 341 Abweichungen in einer Sitzung, immer in
+dieselbe Richtung: **wir true, NCA false**. Sein Wert bleibt stehen, waehrend das Gefecht
+laeuft. Damit sind zwei von drei vergleichbaren Kontextfeldern kaputt, und beide auf dieselbe
+Weise - der Haken feuert nicht zuverlaessig, und niemand prueft nach.
+
+Unsere Wahl war trotzdem richtig: wir lesen `PlayerStateMachine.Combat` **direkt**, also
+dieselbe Quelle, aus der NCAs `OnCombatStateChanged` gespeist wird - nur ohne die Kopie
+dazwischen, die veralten kann.
+
+**Bilanz Phase 2:** von den fuenf Feldern, die wir uebernehmen wollten, bleiben `location`
+und `isInInteraction` (haben wir nicht selbst) und `isInCar` (stimmt ueberein). `isInMenu`
+und `isInCombat` behalten wir selbst. Der Vergleichsschritt hat sich damit zweimal bezahlt
+gemacht.
+
 ## Was drueben liegt und wir selbst nachbauen
 
 Der wichtigste Befund der Aufstellung: wir fragen jeden Takt Dinge ab, die NCA als Ereignis
