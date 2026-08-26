@@ -469,9 +469,97 @@ local function kontextTick(d, p)
   ktx.nca.ort         = ncaFeld(c, "location")
   ktx.nca.distrikt    = ncaFeld(c, "district")
 
+  --  Ort und Distrikt haben keine Vergleichsspalte, aber einen Verlauf. Ohne den ist ein
+  --  Besuch in der Wohnung nachher spurlos, und Phase 3 haengt genau daran.
+  if ktx.nca.ort ~= ktx.ortWar then
+    log(string.format("KONTEXT Ort: %s -> %s", tostring(ktx.ortWar), tostring(ktx.nca.ort)))
+    ktx.ortWar = ktx.nca.ort
+  end
+  if ktx.nca.distrikt ~= ktx.distriktWar then
+    log(string.format("KONTEXT Distrikt: %s -> %s",
+        tostring(ktx.distriktWar), tostring(ktx.nca.distrikt)))
+    ktx.distriktWar = ktx.nca.distrikt
+  end
+
   abweichung("kampf", ktx.eigen.kampf, ktx.nca.kampf)
   abweichung("wagen", ktx.eigen.wagen, ktx.nca.wagen)
   abweichung("menue", ktx.eigen.menue, ktx.nca.menue)
+end
+
+--  ---------------------------------------------------------------- Heilung
+--
+--  NCA heilt Begleiter ueberhaupt nicht. Es gibt eine Lebensanzeige und nichts dahinter -
+--  ihre Gesundheit kam bisher nur durch einen Respawn zurueck, also praktisch nur nach
+--  Schnellreise. Wer laenger mit ihr unterwegs ist, laeuft mit einer dauerhaft
+--  angeschlagenen Judy herum, und das ist keine Design-Entscheidung, sondern eine Luecke.
+--
+--  Erste Fassung bewusst stumpf: fester Zuwachs ausserhalb des Kampfes. Das richtige
+--  System - ihr Medikamente geben, Verhalten bei niedrigem Leben - steht auf der Liste.
+--
+--  Die Frage, die dieser Bau beantworten soll: heilt das auch den GLIEDMASSENSCHADEN? Die
+--  gebueckte, blutende Haltung kommt aus `hitReactionComponent`, wird beim Treffer gesetzt
+--  und hat im Vanilla-Code keinen Rueckweg. Wenn volle Gesundheit sie nicht loest, brauchen
+--  wir dafuer etwas anderes - und dann wissen wir es, statt es anzunehmen.
+local HEILUNG = { takt = 1.0, proSekunde = 2.0, ruheNachKampf = 5.0, voll = 99.5 }
+local heil = { an = true, seit = 0.0, ruhe = 0.0, war = nil,
+               gemeldet = false, fehler = nil, hp = nil }
+
+local function heilungTick(d, o)
+  if not heil.an then return end
+
+  --  Im Kampf nicht, und ein paar Sekunden danach auch nicht: sonst heilt sie sich
+  --  mitten im Gefecht wieder hoch und der Kampf verliert sein Gewicht.
+  if ktx.eigen.kampf then heil.ruhe = 0.0; return end
+  heil.ruhe = heil.ruhe + d
+  if heil.ruhe < HEILUNG.ruheNachKampf then return end
+
+  heil.seit = heil.seit + d
+  if heil.seit < HEILUNG.takt then return end
+  local dt = heil.seit
+  heil.seit = 0.0
+  if not o then return end
+
+  local hp
+  pcall(function()
+    hp = Game.GetStatPoolsSystem():GetStatPoolValue(o:GetEntityID(),
+                                                   gamedataStatPoolType.Health, true)
+  end)
+  if hp == nil then
+    if not heil.gemeldet then
+      heil.gemeldet = true
+      log("HEILUNG ihre Gesundheit ist nicht lesbar - Regeneration bleibt aus")
+    end
+    return
+  end
+  heil.hp = hp
+
+  if hp >= HEILUNG.voll then
+    if heil.war ~= nil and heil.war < HEILUNG.voll then
+      log(string.format("HEILUNG voll (war %.0f%%). Jetzt pruefen: loest sich die "
+                        .. "gebueckte Haltung, oder bleibt der Gliedmassenschaden?",
+                        heil.war))
+    end
+    heil.war = hp
+    return
+  end
+
+  if heil.war == nil or heil.war >= HEILUNG.voll then
+    log(string.format("HEILUNG beginnt bei %.0f%%", hp))
+  end
+
+  --  `RequestChangingStatPoolValue(objID, typ, diff, ausloeser, chunkTransfer, prozent)`.
+  --  Der fuenfte ist NICHT `perc` - das ist der sechste. Vertauscht heilt sie um 2 Punkte
+  --  statt 2 Prozent, was bei 343 Punkten Gesamtleben fast wirkungslos waere.
+  local ok, fehler = pcall(function()
+    Game.GetStatPoolsSystem():RequestChangingStatPoolValue(
+      o:GetEntityID(), gamedataStatPoolType.Health,
+      HEILUNG.proSekunde * dt, nil, false, true)
+  end)
+  if not ok and heil.fehler ~= tostring(fehler) then
+    heil.fehler = tostring(fehler)
+    log("HEILUNG Aufruf fehlgeschlagen: " .. tostring(fehler))
+  end
+  heil.war = hp
 end
 
 --  ---------------------------------------------------------------- Blickkontakt
@@ -1519,6 +1607,7 @@ function T.Tick(d)
   abstand(p)
   beziehungLesen()
   kontextTick(d, p)
+  heilungTick(d, judyHolen())
   stimmeTick()
   nachmessen(d)
   beobTick(d)
@@ -1539,6 +1628,8 @@ function T.Status()
   return {
     beob  = beob.an,
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
+    heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
+              proSekunde = HEILUNG.proSekunde, fehler = heil.fehler },
     ktx   = { da = ktx.nca.da, proben = ktx.proben,
               eigen = ktx.eigen, nca = ktx.nca, abw = ktx.abw },
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
@@ -1573,6 +1664,7 @@ function T.Status()
 end
 
 function T.Setzen(was, an)
+  if was == "heilung"  then heil.an = an end
   if was == "blick"    then gaze.an  = an end
   if was == "kampf"    then kampf.an = an end
   if was == "sorge"    then sorge.an = an end

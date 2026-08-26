@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "11:43:43"
+local BAU = "12:30:20"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -691,6 +691,20 @@ registerForEvent("onDraw", function()
       ImGui.SameLine()
       ImGui.TextDisabled(name)
     end
+  end
+
+  if Triggers and ImGui.CollapsingHeader("Heilung", ImGuiTreeNodeFlags.DefaultOpen) then
+    local h = Triggers.Status().heil or {}
+    local an = ImGui.Checkbox("Regeneration ausser Kampf##hl", h.an)
+    if an ~= h.an then Triggers.Setzen("heilung", an) end
+    ImGui.SameLine()
+    ImGui.TextDisabled(string.format("%.1f%%/s", h.proSekunde or 0))
+    ImGui.Text(string.format("ihre Gesundheit %s",
+                             h.hp and string.format("%.0f%%", h.hp) or "-"))
+    if h.fehler then ImGui.TextDisabled("   " .. h.fehler) end
+    ImGui.TextWrapped("NCA heilt Begleiter gar nicht. Offen: ob volle Gesundheit auch den "
+                      .. "Gliedmassenschaden loest - die gebueckte, blutende Haltung hat "
+                      .. "im Vanilla-Code keinen Rueckweg.")
   end
 
   if Triggers and ImGui.CollapsingHeader("Kontext - wir gegen NCA",
