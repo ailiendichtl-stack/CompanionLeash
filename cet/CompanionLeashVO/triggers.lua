@@ -691,18 +691,25 @@ end
 --  Koerperteile statt NPCs und haengt am Zielkegel - sie sah 21 Treffer fuer eine Handvoll
 --  Gegner und 0, als V wegschaute. Damit ist die Fraktionsgruppe, die den gelben Gegner
 --  verraten wuerde, vorerst nicht erreichbar. Steht als offene Frage im Plan.
---  Die vorlaeufige Schliessgrenze ist eine MESSGRENZE, kein Entwurf. Erste Runde stand sie
---  auf 20 s, und beide Begegnungen schlossen prompt bei "laengste Ruhe 20.2s" - also durch
---  sie selbst, nicht weil etwas zu Ende war. Damit hatte ich nur eine Untergrenze.
+--  Zweiter Anlauf, und die erste Auswertung war falsch.
 --
---  Gemessen wurde eine echte Pause von 18,7 s zwischen zwei Wellen. Das raeumt die 2-5 s
---  aus dem Entwurf ab: ein Fenster in der Groesse haette "das war knapp" mitten ins
---  Gefecht gesetzt. Also erst einmal weit aufmachen und sehen, wie lang Pausen wirklich
---  werden, bevor die Zahl gewaehlt wird.
-local BEGEGNUNG = { takt = 0.5, schliesst = 60.0, obergrenze = 600.0, meldeAb = 8.0 }
+--  Gemessen: eine Pause von 18,7 s, danach ging es weiter - und ich habe daraus "Wellen
+--  eines Gefechts" gelesen und geschlossen, das Fenster muesse GROESSER werden. Es waren
+--  aber vier eigenstaendige Begegnungen: ein Mini-Auftrag, drei Schlaeger auf der Strasse,
+--  ein Ueberfall, nochmal zwei. Meine Klammer hat zwei davon zusammengezogen, weil ihre
+--  Schwelle bei 20 s stand.
+--
+--  Damit haben wir bisher KEINEN einzigen Beleg fuer eine echte Pause innerhalb eines
+--  Gefechts. Was wir gemessen haben, waren Abstaende ZWISCHEN Gefechten.
+--
+--  Zeit allein trennt die beiden also nicht. Was sie trennen koennte: zwischen zwei
+--  Begegnungen geht V WEITER, innerhalb einer bleibt er ungefaehr, wo er ist. Deshalb
+--  wird ab jetzt mitgeschrieben, wie weit sich V waehrend der Pause bewegt hat.
+local BEGEGNUNG = { takt = 0.5, schliesst = 15.0, obergrenze = 600.0, meldeAb = 4.0 }
 local begegnung = { offen = false, seitStart = 0.0, seitRuhe = 0.0, seit = 0.0,
                     hatteKampf = false, kaempfe = 0, fremdGesagt = false,
-                    generation = 0, gefechtWar = false, ruheLaengste = 0.0 }
+                    generation = 0, gefechtWar = false, ruheLaengste = 0.0,
+                    ruhePos = nil, ruheWeg = 0.0 }
 
 local function bedrohungen(p)
   local n
@@ -752,8 +759,10 @@ local function begegnungTick(d, p)
   if imGefecht and not begegnung.gefechtWar then
     begegnung.kaempfe = begegnung.kaempfe + 1
     begegnung.hatteKampf = true
-    log(string.format("BEGEGNUNG %d Welle %d nach %.0fs (Ruhe war %.1fs)",
-        begegnung.generation, begegnung.kaempfe, begegnung.seitStart, begegnung.seitRuhe))
+    log(string.format(
+        "BEGEGNUNG %d Gefecht %d nach %.0fs (Ruhe war %.1fs, dabei %.0f m gegangen)",
+        begegnung.generation, begegnung.kaempfe, begegnung.seitStart,
+        begegnung.seitRuhe, begegnung.ruheWeg))
   end
   begegnung.gefechtWar = imGefecht
 
@@ -761,14 +770,27 @@ local function begegnungTick(d, p)
     --  Jede Pause, die laenger war als die Meldeschwelle, einzeln festhalten. Nur die
     --  laengste zu behalten verschenkt die Verteilung, und die brauchen wir zum Waehlen.
     if begegnung.seitRuhe >= BEGEGNUNG.meldeAb then
-      log(string.format("BEGEGNUNG %d Pause von %.1fs ging vorbei - es ging weiter",
-          begegnung.generation, begegnung.seitRuhe))
+      log(string.format("BEGEGNUNG %d Pause von %.1fs vorbei - V ist dabei %.0f m gegangen",
+          begegnung.generation, begegnung.seitRuhe, begegnung.ruheWeg))
     end
-    begegnung.seitRuhe = 0.0
+    begegnung.seitRuhe, begegnung.ruhePos, begegnung.ruheWeg = 0.0, nil, 0.0
   else
     begegnung.seitRuhe = begegnung.seitRuhe + dt
     if begegnung.seitRuhe > begegnung.ruheLaengste then
       begegnung.ruheLaengste = begegnung.seitRuhe
+    end
+    --  Wie weit ist V seit Beginn der Pause gekommen? Das ist der Kandidat fuer die
+    --  Unterscheidung, die die Zeit nicht leisten kann.
+    local pos
+    pcall(function() pos = p:GetWorldPosition() end)
+    if pos then
+      if not begegnung.ruhePos then
+        begegnung.ruhePos = pos
+      else
+        pcall(function()
+          begegnung.ruheWeg = Vector4.Distance(pos, begegnung.ruhePos)
+        end)
+      end
     end
   end
 
@@ -780,10 +802,10 @@ local function begegnungTick(d, p)
   if begegnung.seitRuhe >= BEGEGNUNG.schliesst
      or begegnung.seitStart >= BEGEGNUNG.obergrenze then
     log(string.format(
-        "BEGEGNUNG %d geschlossen nach %.0fs - %d Welle(n), laengste Ruhe %.1fs, "
-        .. "fremde Stimme: %s%s",
+        "BEGEGNUNG %d geschlossen nach %.0fs - %d Gefecht(e), laengste Ruhe %.1fs, "
+        .. "in der Ruhe %.0f m gegangen, fremde Stimme: %s%s",
         begegnung.generation, begegnung.seitStart, begegnung.kaempfe,
-        begegnung.ruheLaengste, tostring(begegnung.fremdGesagt),
+        begegnung.ruheLaengste, begegnung.ruheWeg, tostring(begegnung.fremdGesagt),
         begegnung.seitStart >= BEGEGNUNG.obergrenze and "  (OBERGRENZE)" or ""))
     begegnung.offen = false
   end
