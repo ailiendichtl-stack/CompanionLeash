@@ -1708,12 +1708,20 @@ local function leiterTick(d, p)
     return
   end
 
+  --  Der Sprecher fuehrt Abklingzeit und "zuletzt gesagt" JE POOLNAME. Drei Sprossen
+  --  ziehen aber aus demselben Topf `wohnung` mit verschiedenen Stufen - und teilten sich
+  --  damit einen Riegel: die Nachtzeile setzte eine Stunde Sperre und nahm der Morgen-
+  --  und der Jederzeit-Sprosse gleich mit die Luft. Dasselbe draussen zwischen der
+  --  Reibungs-Sprosse und dem Abstands-Ausloeser, seit wir die beiden getrennt haben.
+  --
+  --  Also ein eigener Schluessel je Stufe, so wie es der Blick laengst macht.
+  local schluessel = st.pool .. (st.stufe and tostring(st.stufe) or "")
   local k = pool(st.pool, st.stufe)
-  if #k == 0 or not Speaker.Frei(st.pool) then return end
+  if #k == 0 or not Speaker.Frei(schluessel) then return end
   log(string.format("LEITER%s Sprosse %d nach %.0fs Stillstand, Pool %s (%d)",
-      drin and " (Wohnung)" or "", leiter.stufe, leiter.stehtSeit, st.pool, #k))
+      drin and " (Wohnung)" or "", leiter.stufe, leiter.stehtSeit, schluessel, #k))
   Speaker.Request({ situation = "leiter", prio = Speaker.PRIO.alltag,
-                    pool = st.pool, kandidaten = k, cd = st.cd or 60.0 })
+                    pool = schluessel, kandidaten = k, cd = st.cd or 60.0 })
   leiter.stufe = leiter.stufe + 1
 end
 
@@ -1851,9 +1859,9 @@ local function reibungTick(d, p)
   --  Stufe 1: sie haengt hinterher und ruft V nach. Stufe 2 setzt voraus, dass sie
   --  danebensteht, und gehoert der Leiter.
   local k = pool("reibung", 1)
-  if #k > 0 and Speaker.Frei("reibung") then
+  if #k > 0 and Speaker.Frei("reibung1") then
     log(string.format("WARTEN %.0f m seit %.0fs", w, REIBUNG.geduld))
-    Speaker.Request({ situation = "reibung", pool = "reibung",
+    Speaker.Request({ situation = "reibung", pool = "reibung1",
                       kandidaten = k, cd = REIBUNG.cd })
   end
 end
