@@ -29,9 +29,9 @@
     "CompanionLeash.yaml": "30cdc450c7006af80acf29ce40e0b87a"
   },
   "cet_files": {
-    "CompanionLeashVO/init.lua": "8e8aad22a0d429d520d704992f67e564",
+    "CompanionLeashVO/init.lua": "0a7c20650b8b364e6c7d171b1e6126d5",
     "CompanionLeashVO/speaker.lua": "23ed93072b67a36a97fdc5fec5810a0e",
-    "CompanionLeashVO/triggers.lua": "897f08ca3a30ef60264b63310df962af",
+    "CompanionLeashVO/triggers.lua": "bd290205ee37f60c151fb34e07202ad1",
     "CompanionLeashVO/lines.lua": "950d401c3f23453319bb199e73ef9f46"
   }
 }

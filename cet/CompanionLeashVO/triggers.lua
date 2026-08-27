@@ -1504,7 +1504,6 @@ local function fremdeLaden()
   end)
   log(string.format("FREMD %d Barks aus frueheren Sitzungen gelesen", fremdeAnzahl))
 end
-fremdeLaden()
 
 local function fremdMerken(text, dauer)
   local e = fremde[text]
@@ -2156,6 +2155,9 @@ function T.Init(opts)
   log         = opts.log or function() end
   holeZiel    = opts.ziel
   letzteZeile = opts.letzteZeile
+  --  NICHT beim Laden der Datei: dort ist `log` noch nil, und der Aufruf hat das ganze
+  --  Modul mitgerissen. Hier steht alles, was er braucht.
+  fremdeLaden()
 end
 
 --  Fuer das Panel: was sieht V gerade an?

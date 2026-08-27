@@ -20,6 +20,9 @@ gemeldet - dafuer braeuchte es eine echte Bereichsanalyse, und das waere ein and
 Werkzeug. In dem Fall ist Umbenennen die richtige Antwort: einen Namen der Dateiebene in
 einer Schliessung zu verdecken ist ohnehin fuer jeden Leser zweideutig.
 
+Geprueft wird ausserdem, ob eine eigene Funktion auf DATEIEBENE aufgerufen wird. Solche
+Aufrufe laufen beim Laden des Moduls, bevor `T.Init` irgendetwas gesetzt hat.
+
     python tools/check_lua.py cet/CompanionLeashVO/*.lua
 """
 import re
@@ -130,6 +133,19 @@ def pruefen(pfad):
             zeile = src.count("\n", 0, m.start()) + 1
             treffer.append((zeile, name, src.split("\n")[zeile - 1].strip()[:70]))
             break
+
+    #  Aufrufe auf DATEIEBENE laufen beim Laden des Moduls - lange bevor `T.Init` die
+    #  Abhaengigkeiten gesetzt hat. `fremdeLaden()` ganz links hat genau so die komplette
+    #  Datei mitgerissen: `log` war noch nil, das Modul liess sich nicht laden, und kein
+    #  einziger Ausloeser lief mehr. Von aussen sah das aus wie "alles kaputt".
+    #
+    #  Nur eigene Namen zaehlen. `registerForEvent(...)` und Geschwister sind Globale des
+    #  Rahmens und gehoeren dorthin.
+    for m in re.finditer(r"^([A-Za-z_][\w]*)\s*\(", rein, re.M):
+        if m.group(1) in deklariert:
+            zeile = src.count("\n", 0, m.start()) + 1
+            treffer.append((zeile, m.group(1),
+                            "AUFRUF BEIM LADEN: " + src.split("\n")[zeile - 1].strip()[:52]))
 
     kurz = pfad.replace(BS, "/").split("/")[-1]
     if not treffer:
