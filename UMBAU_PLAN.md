@@ -81,49 +81,108 @@ Bekannt bisher: `CombatBehavior.OnAttach` -> `enemy_warning`;
 jeder Lagewechsel nach `Alerted`/`Combat` -> Vanilla-Bark; `Stealth`/`Relaxed` -> keiner
 (gemessen, vier Wechsel ohne Bark).
 
-## 5. Begegnungs-Klammer
+## 5. Begegnungs-Klammer  (ausgearbeitet)
 
-Der eine echte Umbau. Nicht "Kampf-Tracker", sondern allgemeiner:
+Der eine echte Umbau. Alles andere in diesem Plan war Zubehoer; hier bekommen drei Ausloeser
+zum ersten Mal einen gemeinsamen Begriff.
 
-    encounter.active
-    encounter.startedAt
-    encounter.lastThreatAt
-    encounter.hadCombat
-    encounter.hadStealth
-    encounter.combatCount
-    encounter.generation
+### Warum ueberhaupt
 
-Damit sauber ausdrueckbar:
+Heute misst jeder Ausloeser fuer sich, und drei Fehler folgen daraus:
 
-    erste relevante Bedrohung       -> Stealth-Einstieg genau einmal
-    Kampf beginnt                   -> Kampfzeile einmal
-    Kampf endet                     -> Kampfende erst nach Ruhefenster
-    erneutes Hocken in derselben    -> keine neue Einstiegszeile
-    Begegnung wirklich vorbei       -> zuruecksetzen
+* **Stealth-Einstieg wiederholt sich.** Aufstehen und wieder ducken im selben Gefecht ist
+  derselbe Moment, aber der Ausloeser sieht nur "Locomotion == Crouch" und feuert erneut.
+* **Kampfende haengt am Flag.** `Combat == false` kommt auch zwischen zwei Wellen. Die Zeile
+  "das war knapp" kommt dann mitten hinein.
+* **Nichts weiss, ob NCA schon gesprochen hat.** Wir erkennen fremde Stimmen, ordnen sie aber
+  keinem Vorgang zu - also koennen wir auch nicht zurueckhalten.
 
-**Entscheidend ist das Ruhefenster, nicht `isInCombat == false`:**
+### Der Zustand
 
-    kein Kampf + keine Bedrohungen + keine neue Schadens-/Alarmaktivitaet
-    + 2-5 s Stabilitaet  =  Begegnung geschlossen
+    begegnung = {
+      offen         = false,
+      seitStart     = 0.0,   -- wie lange laeuft sie
+      seitRuhe      = 0.0,   -- wie lange nichts mehr passiert ist
+      hatteKampf    = false,
+      hatteStealth  = false,
+      kaempfe       = 0,     -- Wellen: Combat true->false->true zaehlt zwei
+      fremdGesagt   = false, -- eine ihrer eigenen Barks lief waehrenddessen
+      generation    = 0,     -- steigt bei jedem Oeffnen
+    }
 
-Die Dauer waehlen wir **nach** dem Loggen, nicht davor.
+`generation` ist nicht Zierde: eine Anfrage, die waehrend Begegnung 3 gestellt wurde, darf in
+Begegnung 4 nicht mehr angenommen werden. Der Sprecher hat dieselbe Idee schon (`S.gen`).
 
-### Kampf neben NCA
+### Was sie oeffnet, haelt und schliesst
 
-Drei denkbare Betriebsarten - fuer den Anfang die dritte:
+| | Signal | Stand |
+|---|---|---|
+| oeffnet | `psm("Combat") == 1` | **gesichert**, lesen wir laengst |
+| oeffnet | Feind in X m | **UNGEPRUEFT** - siehe Schritt 0 |
+| haelt | Kampf laeuft, oder Feind da, oder sie liegt | gesichert |
+| schliesst | nichts davon, N Sekunden am Stueck | N wird gemessen, nicht geraten |
 
-| | |
-|---|---|
-| NCA allein | eigener Kampfpool unterdrueckt |
-| Wir allein | NCAs Bark unterdrueckt |
-| **Zusammen** | NCAs Bark als fremde Stimme erkennen, eigene Zeile nur nach kurzer Wartezeit nachreichen |
+**Das Ruhefenster ist der Kern.** `Combat == false` allein ist wertlos - es faellt auch
+zwischen zwei Wellen. Deshalb: kein Kampf, keine Bedrohung, kein neuer Schaden, N Sekunden
+stabil.
 
-    fremde Stimme waehrend Kampf -> encounter.nativeSpoke = true -> eigene Anfrage verwerfen
+### Vorgehen: erst messen, dann sperren
 
-**Nicht sofort nachreichen, wenn NCA nichts hoerbar macht.** "Nicht wahrgenommen" und "nicht
-ausgeloest" sind verschiedene Dinge - das hat uns die Voiceset-Arbeit schon vorgefuehrt.
-Erkannte fremde Stimme plus konservatives Zeitfenster, keine Hoerbarkeitspruefung als
-alleinige Wahrheit.
+Derselbe Zuschnitt wie Phase 2, und aus demselben Grund.
+
+**Schritt 0 - herausfinden, ob wir Feinde sehen.** Ein Panel-Knopf, der einmal abfragt und
+protokolliert, was zurueckkommt. Faellt das aus, oeffnet die Begegnung nur ueber den Kampf,
+und der Stealth-Einstieg haengt an "geduckt, seit dem letzten Gefecht noch nicht gesagt". Das
+waere weniger, aber immer noch besser als heute.
+
+**Schritt 1 - Klammer laeuft mit, sperrt nichts.** Sie oeffnet, zaehlt, protokolliert:
+
+    BEGEGNUNG geoeffnet (Kampf)
+    BEGEGNUNG Welle 2
+    BEGEGNUNG fremde Stimme waehrenddessen: "Da kommen sie!"
+    BEGEGNUNG geschlossen nach 84s, 3 Wellen, Ruhe 6.2s
+
+Nach ein paar Sitzungen sagt der Log, wie lang das Ruhefenster sein muss. Die 2-5 s aus dem
+Entwurf sind geraten; die echte Zahl steht im Log.
+
+**Schritt 2 - dann erst die drei Ausloeser daranhaengen.**
+
+    Stealth-Einstieg   einmal je Begegnung, nur wenn V duckt
+    kampf              einmal je Welle, nur wenn `fremdGesagt` falsch
+    kampf_ende         beim SCHLIESSEN, nicht beim Flag
+
+### Kampf neben NCA - jetzt mit Daten
+
+Die Besitzmatrix (16 gesammelte Barks) hat die Grenze verschoben: die native Ebene deckt den
+Kampf **dicht** ab - Granaten, Nachladen, Treffer, Anruecken, Ueberstehen -, ausserhalb ist
+sie fast stumm.
+
+Also nicht "nachreichen, wenn NCA schweigt", sondern **zurueckhalten, solange sie selbst
+redet**:
+
+    fremde Stimme waehrend der Begegnung  ->  begegnung.fremdGesagt = true
+                                         ->  eigene kampf-Anfrage wird verworfen
+
+`kampf_ende` bleibt bei uns: "Sieh uns an. Nicht totzukriegen." ist ihre einzige Zeile dafuer,
+und unsere neun sind besser. Aber erst nach dem Ruhefenster.
+
+**Nicht** ueber Hoerbarkeit entscheiden. "Nicht wahrgenommen" und "nicht ausgeloest" sind
+verschiedene Dinge - das hat die Voiceset-Arbeit vorgefuehrt.
+
+### Was dabei schiefgehen kann
+
+* **Begegnung schliesst nie.** Wenn ein Signal haengenbleibt - wie NCAs `isInCombat`, das wir
+  deswegen nicht benutzen -, laeuft sie ewig und sperrt alles. Deshalb eine harte Obergrenze:
+  nach X Minuten ohne Kampf wird sie geschlossen, mit Protokolleintrag.
+* **Begegnung schliesst zu frueh.** Dann kommt "das war knapp" zwischen zwei Wellen. Genau
+  dagegen wird N gemessen statt gesetzt.
+* **Alte Anfragen.** Ohne `generation` spricht sie in der naechsten Begegnung etwas aus der
+  vorigen aus.
+
+### Was sie NICHT anfasst
+
+Den Sprecher. Die Klammer ist ein Ausloeser-Begriff; Prioritaeten, Abklingzeiten und
+Fremdstimmen-Erkennung bleiben, wo sie sind.
 
 ## 6. Mimik - erst ein Bark, dann breit
 
