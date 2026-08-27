@@ -616,9 +616,22 @@ local function feindeWeg2(p, weite)
           if a and meins then at = tostring(a:GetAttitudeTowards(meins)) end
         end)
         if at and at:find("Hostile") then feindlich = feindlich + 1 end
+
+        --  Gelbe Marker: feindliche Fraktion, aber noch nicht aggro. Die Haltung allein
+        --  sagt das womoeglich nicht - deshalb alles mitschreiben, was sie von einem
+        --  Passanten unterscheiden koennte, und danach entscheiden statt zu raten.
+        local gruppe, menge, name
+        pcall(function()
+          local a = e:GetAttitudeAgent()
+          if a then gruppe = tostring(a:GetAttitudeGroup()) end
+        end)
+        pcall(function() menge = e:IsCrowd() end)
+        pcall(function() name = tostring(e:GetDisplayName()) end)
         if #zeilen < 8 then
-          zeilen[#zeilen + 1] = string.format("%.0fm IsHostile=%s Haltung=%s",
-              d or -1, tostring(hs), tostring(at))
+          zeilen[#zeilen + 1] = string.format(
+              "%.0fm  Haltung=%s  Gruppe=%s  Menge=%s  IsHostile=%s  %s",
+              d or -1, tostring(at), tostring(gruppe), tostring(menge),
+              tostring(hs), tostring(name))
         end
       end)
     end
