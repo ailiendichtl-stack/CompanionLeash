@@ -691,7 +691,15 @@ end
 --  Koerperteile statt NPCs und haengt am Zielkegel - sie sah 21 Treffer fuer eine Handvoll
 --  Gegner und 0, als V wegschaute. Damit ist die Fraktionsgruppe, die den gelben Gegner
 --  verraten wuerde, vorerst nicht erreichbar. Steht als offene Frage im Plan.
-local BEGEGNUNG = { takt = 0.5, obergrenze = 600.0 }
+--  Die vorlaeufige Schliessgrenze ist eine MESSGRENZE, kein Entwurf. Erste Runde stand sie
+--  auf 20 s, und beide Begegnungen schlossen prompt bei "laengste Ruhe 20.2s" - also durch
+--  sie selbst, nicht weil etwas zu Ende war. Damit hatte ich nur eine Untergrenze.
+--
+--  Gemessen wurde eine echte Pause von 18,7 s zwischen zwei Wellen. Das raeumt die 2-5 s
+--  aus dem Entwurf ab: ein Fenster in der Groesse haette "das war knapp" mitten ins
+--  Gefecht gesetzt. Also erst einmal weit aufmachen und sehen, wie lang Pausen wirklich
+--  werden, bevor die Zahl gewaehlt wird.
+local BEGEGNUNG = { takt = 0.5, schliesst = 60.0, obergrenze = 600.0, meldeAb = 8.0 }
 local begegnung = { offen = false, seitStart = 0.0, seitRuhe = 0.0, seit = 0.0,
                     hatteKampf = false, kaempfe = 0, fremdGesagt = false,
                     generation = 0, gefechtWar = false, ruheLaengste = 0.0 }
@@ -750,6 +758,12 @@ local function begegnungTick(d, p)
   begegnung.gefechtWar = imGefecht
 
   if etwasLos then
+    --  Jede Pause, die laenger war als die Meldeschwelle, einzeln festhalten. Nur die
+    --  laengste zu behalten verschenkt die Verteilung, und die brauchen wir zum Waehlen.
+    if begegnung.seitRuhe >= BEGEGNUNG.meldeAb then
+      log(string.format("BEGEGNUNG %d Pause von %.1fs ging vorbei - es ging weiter",
+          begegnung.generation, begegnung.seitRuhe))
+    end
     begegnung.seitRuhe = 0.0
   else
     begegnung.seitRuhe = begegnung.seitRuhe + dt
@@ -763,7 +777,8 @@ local function begegnungTick(d, p)
   --
   --  Eine harte Obergrenze braucht es trotzdem: bliebe ein Signal haengen, liefe die
   --  Begegnung ewig. Genau das tut NCAs `isInCombat`, weshalb wir es nicht benutzen.
-  if begegnung.seitRuhe >= 20.0 or begegnung.seitStart >= BEGEGNUNG.obergrenze then
+  if begegnung.seitRuhe >= BEGEGNUNG.schliesst
+     or begegnung.seitStart >= BEGEGNUNG.obergrenze then
     log(string.format(
         "BEGEGNUNG %d geschlossen nach %.0fs - %d Welle(n), laengste Ruhe %.1fs, "
         .. "fremde Stimme: %s%s",
