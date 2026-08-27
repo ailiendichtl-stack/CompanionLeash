@@ -670,6 +670,110 @@ function T.FeindeProbe()
       tostring(LAGENAMEN[lage] or lage), tostring(ktx.eigen.kampf)))
 end
 
+--  ---------------------------------------------------------------- Begegnung
+--
+--  Phase 5, Schritt 1: die Klammer laeuft mit und SPERRT NICHTS. Erst wenn der Log sagt,
+--  wie lang das Ruhefenster wirklich sein muss, haengen die Ausloeser daran.
+--
+--  Was Schritt 0 ergeben hat, in Zahlen:
+--
+--      neben gelben Gegnern   Threats 0    Flag false
+--      zwischen zwei Wellen   Threats 3    Flag FALSE     <- hier steckt der Wert
+--      mitten im Kampf        Threats 3    Flag true
+--      im Apartment           Threats 0    Flag false
+--
+--  `GetThreats` ist damit kein "Gefahr in der Naehe" - gelbe, noch nicht aggrote Gegner
+--  meldet es nicht. Es ist etwas Besseres: ein VORGANGS-Signal. Es bleibt stehen,
+--  waehrend das Kampf-Flag zwischen zwei Wellen schon abfaellt. Genau daran erkennt man,
+--  dass die Begegnung noch laeuft.
+--
+--  Nicht erreicht: der Einstieg VOR der ersten Entdeckung. Die Umkreissuche liefert
+--  Koerperteile statt NPCs und haengt am Zielkegel - sie sah 21 Treffer fuer eine Handvoll
+--  Gegner und 0, als V wegschaute. Damit ist die Fraktionsgruppe, die den gelben Gegner
+--  verraten wuerde, vorerst nicht erreichbar. Steht als offene Frage im Plan.
+local BEGEGNUNG = { takt = 0.5, obergrenze = 600.0 }
+local begegnung = { offen = false, seitStart = 0.0, seitRuhe = 0.0, seit = 0.0,
+                    hatteKampf = false, kaempfe = 0, fremdGesagt = false,
+                    generation = 0, gefechtWar = false, ruheLaengste = 0.0 }
+
+local function bedrohungen(p)
+  local n
+  pcall(function()
+    local c = p:GetTargetTrackerComponent()
+    if c then
+      local t = c:GetThreats(false)
+      n = t and #t or 0
+    end
+  end)
+  return n
+end
+
+--  Von der Fremdstimmen-Erkennung gemeldet.
+local function begegnungFremd(text)
+  if not begegnung.offen or begegnung.fremdGesagt then return end
+  begegnung.fremdGesagt = true
+  log("BEGEGNUNG fremde Stimme waehrenddessen: " .. tostring(text))
+end
+
+local function begegnungTick(d, p)
+  begegnung.seit = begegnung.seit + d
+  if begegnung.seit < BEGEGNUNG.takt then return end
+  local dt = begegnung.seit
+  begegnung.seit = 0.0
+
+  local imGefecht = ktx.eigen.kampf == true
+  local n = bedrohungen(p)
+  local etwasLos = imGefecht or (n ~= nil and n > 0)
+
+  if not begegnung.offen then
+    if etwasLos then
+      begegnung.generation = begegnung.generation + 1
+      begegnung.offen, begegnung.seitStart, begegnung.seitRuhe = true, 0.0, 0.0
+      begegnung.hatteKampf, begegnung.kaempfe = imGefecht, imGefecht and 1 or 0
+      begegnung.fremdGesagt, begegnung.gefechtWar = false, imGefecht
+      begegnung.ruheLaengste = 0.0
+      log(string.format("BEGEGNUNG %d geoeffnet (%s, Bedrohungen %s)",
+          begegnung.generation, imGefecht and "Kampf" or "Bedrohung", tostring(n)))
+    end
+    return
+  end
+
+  begegnung.seitStart = begegnung.seitStart + dt
+
+  --  Wellen zaehlen: das Flag faellt zwischen zwei Gruppen ab und steigt wieder.
+  if imGefecht and not begegnung.gefechtWar then
+    begegnung.kaempfe = begegnung.kaempfe + 1
+    begegnung.hatteKampf = true
+    log(string.format("BEGEGNUNG %d Welle %d nach %.0fs (Ruhe war %.1fs)",
+        begegnung.generation, begegnung.kaempfe, begegnung.seitStart, begegnung.seitRuhe))
+  end
+  begegnung.gefechtWar = imGefecht
+
+  if etwasLos then
+    begegnung.seitRuhe = 0.0
+  else
+    begegnung.seitRuhe = begegnung.seitRuhe + dt
+    if begegnung.seitRuhe > begegnung.ruheLaengste then
+      begegnung.ruheLaengste = begegnung.seitRuhe
+    end
+  end
+
+  --  Noch wird NICHT geschlossen - nur festgehalten, wie lange die Ruhe angehalten hat,
+  --  bis wieder etwas passierte. Aus diesen Zahlen waehlen wir das Fenster.
+  --
+  --  Eine harte Obergrenze braucht es trotzdem: bliebe ein Signal haengen, liefe die
+  --  Begegnung ewig. Genau das tut NCAs `isInCombat`, weshalb wir es nicht benutzen.
+  if begegnung.seitRuhe >= 20.0 or begegnung.seitStart >= BEGEGNUNG.obergrenze then
+    log(string.format(
+        "BEGEGNUNG %d geschlossen nach %.0fs - %d Welle(n), laengste Ruhe %.1fs, "
+        .. "fremde Stimme: %s%s",
+        begegnung.generation, begegnung.seitStart, begegnung.kaempfe,
+        begegnung.ruheLaengste, tostring(begegnung.fremdGesagt),
+        begegnung.seitStart >= BEGEGNUNG.obergrenze and "  (OBERGRENZE)" or ""))
+    begegnung.offen = false
+  end
+end
+
 --  ---------------------------------------------------------------- Aufhelfen
 --
 --  Denselben Griff auch bei uns, weil der Weg ueber NCAs Menue unzuverlaessig ist:
@@ -1580,6 +1684,7 @@ local function stimmeTick()
   Speaker.Fremd(dl.dur)
   stimme.zuletztFremd = dl.text
   fremdMerken(dl.text, dl.dur)
+  begegnungFremd(dl.text)
   log(string.format("FREMD Judy spricht selbst (%.1fs): %s", dl.dur or 0, dl.text))
 end
 
@@ -2225,6 +2330,7 @@ function T.Tick(d)
   beziehungLesen()
   weltTick(d, p)
   kontextTick(d, p)
+  begegnungTick(d, p)
   heilungTick(d, judyHolen())
   ortTick(d)
   stimmeTick()
@@ -2259,6 +2365,10 @@ function T.Status()
     heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
               proSekunde = HEILUNG.proSekunde, fehler = heil.fehler },
     stunde = ktx.nca.stunde,
+    begegnung = { offen = begegnung.offen, gen = begegnung.generation,
+                  seit = begegnung.seitStart, ruhe = begegnung.seitRuhe,
+                  wellen = begegnung.kaempfe, fremd = begegnung.fremdGesagt,
+                  ruheLaengste = begegnung.ruheLaengste },
     ktx   = { da = ktx.nca.da, proben = ktx.proben,
               eigen = ktx.eigen, nca = ktx.nca, abw = ktx.abw },
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,
