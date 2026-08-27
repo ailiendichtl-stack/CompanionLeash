@@ -684,7 +684,7 @@ local function ortTick(d)
   ort.letztePos = pos
 
   ort.judySeit = ort.judySeit + d
-  if ort.judySeit >= 30.0 then
+  if ort.judySeit >= 20.0 then
     ort.judySeit = 0.0
     log(string.format("ORT %s: %.0f s drin, Judy %s m weg, steht seit %.0f s still",
         ORTSNAMEN[ort.tag] or ort.tag, ort.seit,
@@ -1611,13 +1611,29 @@ local LEITER = {
 --  In Metern JE SEKUNDE. Der erste Anlauf verglich die Strecke EINES BILDES mit einem
 --  festen Wert; bei 60 Bildern waren das knapp ein Meter pro Bild, und damit haette
 --  Sprinten noch als Stehen gezaehlt. 0,5 m/s ist langsamer als Schleichen.
+--  Zu Hause misst die Leiter das Falsche.
+--
+--  Draussen ist Stillstehen ein Hinweis darauf, dass V sie stehenlaesst - deshalb faengt
+--  die Leiter dort mit Ungeduld an. In der Wohnung ist Stillstehen der NORMALFALL, und
+--  Ungeduld waere schlicht daneben: sie hat sich gerade selbst hingesetzt.
+--
+--  Also eine eigene Leiter. Kein Reibungs-Sprosse, kuerzere Abstaende, waermere Toepfe.
+--  Kein neuer Inhalt - dieselben Zeilen in einem anderen Mischungsverhaeltnis.
+local LEITER_WOHNUNG = {
+  { steht =  20.0, pool = "alltag",     cd =  90.0 },   -- frueher als draussen
+  { steht =  60.0, pool = "naehe",      cd = 180.0 },   -- zu Hause traegt das
+  { steht = 150.0, pool = "initiative", cd = 120.0 },
+  { steht = 300.0, pool = "flirt",      cd = 600.0, liebe = true },
+}
+
 local STILL_TEMPO = 0.5
 local RUHE_MIN    = 15.0   -- so lange muss sie mindestens geschwiegen haben
 --  Karenz: erst ANHALTENDE Bewegung setzt die Leiter zurueck. Sich umzudrehen oder einen
 --  Schritt zur Seite zu machen ist kein Weitergehen - ohne die Karenz reichte eine
 --  Sekunde, um von vorn zu beginnen, und dann faengt sie alle 25 s wieder an.
 local KARENZ      = 4.0
-local leiter = { stufe = 1, an = true, stehtSeit = 0.0, bewegtSeit = 0.0, letztePos = nil }
+local leiter = { stufe = 1, an = true, stehtSeit = 0.0, bewegtSeit = 0.0, letztePos = nil,
+                 wohnungWar = false }
 
 local function leiterTick(d, p)
   if not leiter.an then return end
@@ -1650,7 +1666,19 @@ local function leiterTick(d, p)
   end
   leiter.letztePos = pos
 
-  local st = LEITER[leiter.stufe]
+  --  Beim Wechsel zwischen den beiden Leitern die Sprosse zuruecksetzen. Ohne das wuerde
+  --  ein Index aus der einen auf die andere angewandt - Sprosse 3 draussen ist
+  --  `initiative`, drinnen auch, aber die Schwellen und Abklingzeiten passen nicht, und
+  --  bei ungleich langen Leitern zeigte der Index ins Leere.
+  local drin = T.InWohnung()
+  if drin ~= leiter.wohnungWar then
+    leiter.wohnungWar = drin
+    leiter.stufe, leiter.stehtSeit, leiter.bewegtSeit = 1, 0.0, 0.0
+    log("LEITER " .. (drin and "Wohnungsleiter" or "Leiter draussen") .. " uebernimmt")
+    return
+  end
+
+  local st = (drin and LEITER_WOHNUNG or LEITER)[leiter.stufe]
   if not st then return end
   if leiter.stehtSeit < st.steht then return end
   if Speaker.StillSeit() < RUHE_MIN then return end
@@ -1658,8 +1686,8 @@ local function leiterTick(d, p)
 
   local k = pool(st.pool, st.stufe)
   if #k == 0 or not Speaker.Frei(st.pool) then return end
-  log(string.format("LEITER Sprosse %d nach %.0fs Stillstand, Pool %s (%d)",
-      leiter.stufe, leiter.stehtSeit, st.pool, #k))
+  log(string.format("LEITER%s Sprosse %d nach %.0fs Stillstand, Pool %s (%d)",
+      drin and " (Wohnung)" or "", leiter.stufe, leiter.stehtSeit, st.pool, #k))
   Speaker.Request({ situation = "leiter", prio = Speaker.PRIO.alltag,
                     pool = st.pool, kandidaten = k, cd = st.cd or 60.0 })
   leiter.stufe = leiter.stufe + 1
@@ -1769,6 +1797,13 @@ local function reibungTick(d, p)
   local imWagen = sonde("GetMountedVehicle", function() return Game.GetMountedVehicle(p) end,
                     true)
   if imWagen ~= nil or psm("Combat") == 1 then
+    reibung.seit = 0.0
+    return
+  end
+
+  --  Und in der Wohnung ist Abstand ebenfalls normal: sie sitzt auf der Couch, V steht in
+  --  der Kueche. "V, warte, ich bin ganz nah" waere dort schlicht falsch.
+  if T.InWohnung() then
     reibung.seit = 0.0
     return
   end
@@ -2049,6 +2084,8 @@ function T.Status()
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
     liegen = { hat = liegen.hat, geholfen = liegen.geholfen, fehler = liegen.fehler },
+    leiter2 = { wohnung = leiter.wohnungWar, stufe = leiter.stufe,
+                stehtSeit = leiter.stehtSeit },
     ort   = { tag = ort.tag, name = ort.tag and (ORTSNAMEN[ort.tag] or ort.tag) or nil,
               wohnung = ort.wohnung, seit = ort.seit, still = ort.judyStill },
     wunde = { an = WUNDE.an, hat = wunde.hat, entfernt = wunde.entfernt,
