@@ -500,6 +500,7 @@ local function kontextTick(d, p)
   ktx.nca.wagen       = ncaFeld(c, "isInCar")
   ktx.nca.menue       = ncaFeld(c, "isInMenu")
   ktx.nca.interaktion = ncaFeld(c, "isInInteraction")
+  ktx.nca.stunde      = ncaFeld(c, "hour")
   ktx.nca.ort         = ncaFeld(c, "location")
   ktx.nca.distrikt    = ncaFeld(c, "district")
 
@@ -527,6 +528,16 @@ end
 --
 --  Damit ist ihre LAGE lesbar, und das ist die Haelfte, die uns bei der gebueckten
 --  Haltung gefehlt hat: ob dort `Wounded` (8) steht, war bisher schlicht nicht zu sehen.
+--  Tageszeit. Bisher hatten wir diese Dimension gar nicht - NCA fuehrt sie mit, weil sein
+--  Timer sie ohnehin braucht. Zwei Fenster, eines davon geht ueber Mitternacht.
+local function stundeIn(fenster)
+  local h = ktx.nca.stunde
+  if type(h) ~= "number" then return false end
+  local von, bis = fenster[1], fenster[2]
+  if von <= bis then return h >= von and h < bis end
+  return h >= von or h < bis     -- ueber Mitternacht
+end
+
 local function bbLesen(o, feld)
   local v
   pcall(function()
@@ -1620,10 +1631,15 @@ local LEITER = {
 --  Also eine eigene Leiter. Kein Reibungs-Sprosse, kuerzere Abstaende, waermere Toepfe.
 --  Kein neuer Inhalt - dieselben Zeilen in einem anderen Mischungsverhaeltnis.
 local LEITER_WOHNUNG = {
-  { steht =  20.0, pool = "alltag",     cd =  90.0 },   -- frueher als draussen
-  { steht =  60.0, pool = "naehe",      cd = 180.0 },   -- zu Hause traegt das
-  { steht = 150.0, pool = "initiative", cd = 120.0 },
-  { steht = 300.0, pool = "flirt",      cd = 600.0, liebe = true },
+  { steht =  20.0, pool = "alltag",  cd =   90.0 },
+  --  Tageszeit-Sprossen. Passt die Stunde nicht, werden sie UEBERSPRUNGEN, nicht
+  --  abgewartet - sonst stuende die Leiter mittags an der Morgenzeile fest.
+  { steht =  40.0, pool = "wohnung", stufe = 2, cd = 3600.0, stunden = {  5, 11 } },
+  { steht =  40.0, pool = "wohnung", stufe = 3, cd = 3600.0, stunden = { 22,  4 } },
+  { steht =  70.0, pool = "wohnung", stufe = 1, cd =  300.0 },
+  { steht = 120.0, pool = "naehe",   cd =  180.0 },
+  { steht = 200.0, pool = "initiative", cd = 120.0 },
+  { steht = 320.0, pool = "flirt",   cd =  600.0, liebe = true },
 }
 
 local STILL_TEMPO = 0.5
@@ -1682,7 +1698,15 @@ local function leiterTick(d, p)
   if not st then return end
   if leiter.stehtSeit < st.steht then return end
   if Speaker.StillSeit() < RUHE_MIN then return end
-  if st.liebe and not verliebtGenug() then return end
+
+  --  Bedingte Sprossen ueberspringen statt blockieren. Frueher stand hier ein `return`
+  --  fuer die Liebes-Sprosse; als letzte war das gleichbedeutend, mitten in der Leiter
+  --  waere es eine Sperre gewesen.
+  if (st.liebe and not verliebtGenug())
+     or (st.stunden and not stundeIn(st.stunden)) then
+    leiter.stufe = leiter.stufe + 1
+    return
+  end
 
   local k = pool(st.pool, st.stufe)
   if #k == 0 or not Speaker.Frei(st.pool) then return end
@@ -2092,6 +2116,7 @@ function T.Status()
               versuche = wunde.versuche, abHp = WUNDE.abHp, fehler = wunde.fehler },
     heil  = { an = heil.an, hp = heil.hp, ruhe = heil.ruhe,
               proSekunde = HEILUNG.proSekunde, fehler = heil.fehler },
+    stunde = ktx.nca.stunde,
     ktx   = { da = ktx.nca.da, proben = ktx.proben,
               eigen = ktx.eigen, nca = ktx.nca, abw = ktx.abw },
     gaze  = { an = gaze.an, t = gaze.t, aktiv = gaze.id ~= nil, zuletzt = gaze.zuletzt,

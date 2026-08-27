@@ -87,6 +87,13 @@ BARK_STUFEN = {
 }
 
 UMHAENGEN = {
+    #  Aus `wohnung` heraus. Der Topf gilt kuenftig VS Wohnungen; diese drei koennen das
+    #  nicht: einer ist ein einmaliger Handlungsmoment, zwei haengen an Orten, die wir
+    #  (noch) nicht erkennen.
+    "18795a0a822fc000": "ungemappt",   # "... Zugang zu meiner Wohnung" - einmalig
+    "18feb70a322b600c": "ort_offen",   # "Unser Nest fuer heut Nacht" - Huette am See
+    "1a04f187642fc000": "ort_offen",   # "kein Fan von Tueren" - Huette und ihre Wohnung
+
     #  Aus `reibung` heraus: Gespraechsantworten, die ohne ihren Anlass nirgends passen,
     #  und zwei Zeilen, in denen sie ZURUECKBLEIBT - was sie bei uns nie tut, solange sie
     #  folgt. Im Spiel kam dadurch "Das gefaellt dir gar nicht, hm?" als Reaktion darauf,
@@ -388,6 +395,21 @@ CATEGORIES = [
               [("J", "b", "stealth_restored_var_1"), ("V", "bv", "reaction_happy_var_3")],
               "Erleichterung auf beiden Seiten.")]),
 
+ dict(key="ungemappt", title="Ungemappt",
+      when="passt nirgends, und das ist in Ordnung",
+      note="Einmalige Handlungsmomente, die sich nicht wiederholen lassen. Sie hier"
+           " abzulegen ist ehrlicher, als sie in eine Situation zu draengen, in der sie"
+           " falsch klaengen.",
+      fams=[], picks=[], judy=[], v=[], pairs=[]),
+
+ dict(key="ort_offen", title="Orte, die wir noch nicht kennen",
+      when="an einen bestimmten Ort gebunden, den wir nicht erkennen",
+      note="Zeilen, die einen Ort brauchen, den NCA nicht registriert: die Huette am See"
+           " aus der letzten Romanze und Judys Wohnung. Beides liesse sich ueber einen"
+           " Umkreis definieren - spaeter, keine Eile. Judys Wohnung wuerde danach wie Vs"
+           " behandelt, nur mit diesen Zeilen zusaetzlich.",
+      fams=[], picks=[], judy=[], v=[], pairs=[]),
+
  dict(key="zurueckbleiben", title="Sie bleibt zurueck",
       when="V geht allein weiter, sie wartet an Ort und Stelle",
       note="Noch OHNE Ausloeser. Diese Zeilen setzen voraus, dass sie stehen bleibt -"
@@ -494,6 +516,16 @@ CATEGORIES = [
            " Material vollstaendig da ist - vom Schluessel ueber den Kaffee bis zur"
            " Couch. Naeher an einer Beziehung als jede Liebeserklaerung.",
       fams=[], picks=[],
+      #  Die Stufe ist hier eine TAGESZEIT, kein Rang:
+      #    1  jederzeit zu Hause
+      #    2  morgens
+      #    3  spaet
+      stufen={
+              "1a676388f12fc000": 1,   # "Du musst furchtbar frieren. Ich brueh was auf."
+              "18a2fa98762fc00c": 1,   # "Wenn du willst, kannst du auf der Couch schlafen."
+              "1a96129b222b6000": 2,   # "Hier ist dein Kaffee. Endlich."
+              "18a2fa98762fc004": 3,   # "Es ist spaet. Du bist muede."
+      },
       judy=["18795a0a822fc000", "18feb70a322b600c", "1a676388f12fc000",
             "1a96129b222b6000", "18a2fa98762fc004", "18a2fa98762fc00c",
             "1a04f187642fc000", "18795a9ae52fc000"],

@@ -7,7 +7,7 @@ Text, Dauer und Lipsync-Lage werden nachgeschlagen, nicht gepflegt. Erweitern
 heisst: eine Id in `tools/build_matrix.py` eintragen und neu erzeugen. Eine
 unbekannte Id bricht den Lauf ab - hier steht nichts Unbelegtes.
 
-**Bestand:** 262 Judy-Eintraege und 40 V-Zeilen in 21 Situationen, dazu 68
+**Bestand:** 262 Judy-Eintraege und 40 V-Zeilen in 23 Situationen, dazu 68
 Wortwechsel. Alle 63 Judy-Barks sind einsortiert; 9 Judy-Zeilen
 brauchen geliehenes Lipsync, der Rest sitzt.
 
@@ -752,6 +752,33 @@ Ihre Warnung, Vs Beruhigung.
 Erleichterung auf beiden Seiten.
 
 
+## Ungemappt
+
+**Wann:** passt nirgends, und das ist in Ordnung
+
+Einmalige Handlungsmomente, die sich nicht wiederholen lassen. Sie hier abzulegen ist ehrlicher, als sie in eine Situation zu draengen, in der sie falsch klaengen.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Das war’s schon. Glückwunsch, du hast jetzt Zugang zu meiner Wohnung. | 5.0 s | `Zeile` | `18795a0a822fc000 sq030_11_morning` |
+
+
+## Orte, die wir noch nicht kennen
+
+**Wann:** an einen bestimmten Ort gebunden, den wir nicht erkennen
+
+Zeilen, die einen Ort brauchen, den NCA nicht registriert: die Huette am See aus der letzten Romanze und Judys Wohnung. Beides liesse sich ueber einen Umkreis definieren - spaeter, keine Eile. Judys Wohnung wuerde danach wie Vs behandelt, nur mit diesen Zeilen zusaetzlich.
+
+### Judy
+
+| Zeile | Dauer | Status | Quelle |
+|---|---|---|---|
+| Nein. Da. Unser Nest für heut Nacht. / Nein. Da drin. Ich übernachte da öfter nach dem Tauchen. | 4.3 s | `Zeile` | `18feb70a322b600c sq030_09_pier` |
+| Oh, du bist schon da? Hättest ja sagen können, dass du kein Fan von Türen bist. | 4.8 s | `Zeile` | `1a04f187642fc000 q105_06a_fingers_escape` |
+
+
 ## Sie bleibt zurueck
 
 **Wann:** V geht allein weiter, sie wartet an Ort und Stelle
@@ -958,13 +985,10 @@ Die Kategorie fehlte in allen drei Vorgaengerdokumenten, obwohl das Material vol
 
 | Zeile | Dauer | Status | Quelle |
 |---|---|---|---|
-| Das war’s schon. Glückwunsch, du hast jetzt Zugang zu meiner Wohnung. | 5.0 s | `Zeile` | `18795a0a822fc000 sq030_11_morning` |
-| Nein. Da. Unser Nest für heut Nacht. / Nein. Da drin. Ich übernachte da öfter nach dem Tauchen. | 4.3 s | `Zeile` | `18feb70a322b600c sq030_09_pier` |
 | Du musst furchtbar frieren. Ich brüh was auf. | 3.5 s | `Zeile` | `1a676388f12fc000 sq030_09_pier` |
 | Hier ist dein Kaffee. Endlich. | 2.5 s | `Zeile` | `1a96129b222b6000 sq030_11_morning` |
 | Es ist spät. Du bist müde. | 2.4 s | `Zeile` | `18a2fa98762fc004 sq026_08_plan` |
 | Wenn du willst, kannst du auf der Couch schlafen. | 2.3 s | `Zeile` | `18a2fa98762fc00c sq026_08_plan` |
-| Oh, du bist schon da? Hättest ja sagen können, dass du kein Fan von Türen bist. | 4.8 s | `Zeile` | `1a04f187642fc000 q105_06a_fingers_escape` |
 | Wenn du das willst ... Oder komm einfach vorbei, wenn du magst. | 4.9 s | `Zeile` | `18795a9ae52fc000 sq030_11_morning` |
 
 ### V
