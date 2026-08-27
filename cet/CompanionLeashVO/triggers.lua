@@ -724,6 +724,12 @@ local function bedrohungen(p)
 end
 
 --  Von der Fremdstimmen-Erkennung gemeldet.
+--  Fuer den Sprecher-Log: lief gerade eine Begegnung? Damit steht in jeder ACCEPT-Zeile,
+--  ob sie im Gefecht fiel - sonst muss man das beim Auswerten aus zwei Logs zusammensuchen.
+function T.BegegnungOffen()
+  return begegnung.offen, begegnung.generation
+end
+
 local function begegnungFremd(text)
   if not begegnung.offen or begegnung.fremdGesagt then return end
   begegnung.fremdGesagt = true

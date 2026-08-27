@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "01:08:43"
+local BAU = "03:10:05"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -371,6 +371,9 @@ registerForEvent("onInit", function()
   pcall(function() math.randomseed(os.time()) end)
   if Speaker then
     Speaker.Init({
+      begegnung = function()
+        if Triggers and Triggers.BegegnungOffen then return Triggers.BegegnungOffen() end
+      end,
       blick = function(obj, dauer)
         if Triggers and Triggers.Blick then return Triggers.Blick(obj, dauer) end
       end,

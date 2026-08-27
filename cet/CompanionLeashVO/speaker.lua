@@ -58,7 +58,7 @@ local S = {
   stillSeit = 0.0,    -- Zeitpunkt, seit dem nichts mehr gesprochen wurde
 }
 
-local spielen, schreiben, blicken
+local spielen, schreiben, blicken, lageFragen
 
 --  Wie lange vor Ablauf des Blicks nachgefasst wird. Seine Dauer bestimmt das Spiel ueber
 --  TweakDB (gemessen: 5.0s), nicht wir - ohne Auffrischen dreht sie mitten im Satz weg,
@@ -70,6 +70,7 @@ function Speaker.Init(opts)
   spielen  = opts.spielen
   schreiben = opts.schreiben or function() end
   blicken  = opts.blick
+  lageFragen = opts.begegnung
 end
 
 local function buchen(art, text)
@@ -162,8 +163,16 @@ local function starten(a)
   end
   S.zaehler.angenommen = S.zaehler.angenommen + 1
   buchen("ACCEPT", string.format("%s  %s  %.1fs", a.situation, a.line, a.dauer or 0))
-  schreiben(string.format("SPEAKER ACCEPT situation=%s prio=%d line=%s dauer=%.2f bis=%.1f",
-      a.situation, a.prio or 0, a.line, a.dauer or 0, S.aktiv.endeUm))
+  local seitFremd = Speaker.SeitFremd()
+  schreiben(string.format(
+      "SPEAKER ACCEPT situation=%s prio=%d line=%s dauer=%.2f bis=%.1f fremdVor=%s",
+      a.situation, a.prio or 0, a.line, a.dauer or 0, S.aktiv.endeUm,
+      seitFremd and string.format("%.1fs", seitFremd) or "-")
+      .. (function()
+            if not lageFragen then return "" end
+            local offen, gen = lageFragen()
+            return offen and string.format(" begegnung=%d", gen) or ""
+          end)())
   --  Blick VOR der Stimme, nicht danach: sie dreht sich hin, dann spricht sie.
   if blicken then
     local _, haelt = blicken(a.ziel, dauer)
@@ -222,7 +231,17 @@ end
 function Speaker.Fremd(dauer)
   local d = math.max(0.5, math.min(12.0, dauer or 2.0))
   S.fremdBis = math.max(S.fremdBis, S.jetzt + d + 0.8)
+  S.fremdZuletzt = S.jetzt
   buchen("FREMD", string.format("%.1fs", d))
+end
+
+--  Wie lange ist es her, dass sie von selbst gesprochen hat? Bisher standen unsere Zeilen
+--  und ihre Barks im Log nebeneinander, ohne dass irgendwo der ABSTAND dazwischen stand -
+--  und genau der ist die Groesse, um die es in Phase 5 geht. Ohne ihn muesste man ihn beim
+--  Auswerten von Hand aus Zeitstempeln zusammensuchen.
+function Speaker.SeitFremd()
+  if not S.fremdZuletzt then return nil end
+  return S.jetzt - S.fremdZuletzt
 end
 
 --  Waere ein Antrag fuer diesen Pool jetzt ueberhaupt aussichtsreich? Ein Ausloeser, der
