@@ -558,6 +558,81 @@ local function lageLesen(o)
   return v, (LAGENAMEN[v] or tostring(v)) .. " (" .. tostring(v) .. ")"
 end
 
+--  ---------------------------------------------------------------- Feinde in der Naehe
+--
+--  Schritt 0 der Begegnungs-Klammer. Ich habe frueher behauptet, wir koennten Bedrohungen
+--  lesen, und es nie geprueft. Bevor die Klammer darauf baut, muss feststehen, ob und wie.
+--
+--  Drei Wege, jeder einzeln gemessen und einzeln gemeldet. Zusammengefasst wuesste man
+--  hinterher wieder nicht, welcher es war - genau der Fehler, der uns beim Crouch viermal
+--  in die Irre gefuehrt hat.
+local feinde = { weg = nil, zahl = nil, seit = 0.0, fehler = {}, gemeldet = false }
+
+--  Weg 1: der Ziel-Verfolger der Spielerfigur fuehrt eine Bedrohungsliste.
+local function feindeWeg1(p)
+  local n
+  local ok, fehler = pcall(function()
+    local c = p:GetTargetTrackerComponent()
+    if not c then error("keine TargetTrackerComponent") end
+    local t = c:GetThreats(false)
+    n = t and #t or 0
+  end)
+  if not ok then return nil, tostring(fehler) end
+  return n, nil
+end
+
+--  Weg 2: Suchanfrage nach NPCs im Umkreis. Der uebliche CET-Weg; sagt aber nichts ueber
+--  Feindseligkeit, das muss je Treffer geprueft werden.
+local function feindeWeg2(p, weite)
+  local gesamt, feindlich
+  local ok, fehler = pcall(function()
+    local q = Game["TSQ_NPC;"]()
+    q.maxDistance = weite
+    q.ignoreInstigator = true
+    local erfolg, teile = Game.GetTargetingSystem():GetTargetParts(p, q)
+    if not erfolg or not teile then error("GetTargetParts ohne Ergebnis") end
+    gesamt, feindlich = 0, 0
+    for _, teil in ipairs(teile) do
+      gesamt = gesamt + 1
+      pcall(function()
+        local e = teil:GetComponent():GetEntity()
+        if e and e:IsHostile() then feindlich = feindlich + 1 end
+      end)
+    end
+  end)
+  if not ok then return nil, nil, tostring(fehler) end
+  return gesamt, feindlich, nil
+end
+
+--  Weg 3: NCAs eigener Blick auf die Lage - haelt sie sich fuer im Kampf?
+local function feindeWeg3(o)
+  local v = bbLesen(o or judyHolen(), "HighLevel")
+  if v == nil then return nil end
+  return v   -- 0 Alerted, 2 Combat
+end
+
+function T.FeindeProbe()
+  local p = spieler()
+  if not p then log("FEINDE Spieler nicht greifbar"); return end
+
+  local n1, f1 = feindeWeg1(p)
+  log(string.format("FEINDE Weg 1 (TargetTracker.GetThreats): %s%s",
+      n1 ~= nil and (tostring(n1) .. " Bedrohungen") or "faellt aus",
+      f1 and (" - " .. f1) or ""))
+
+  for _, weite in ipairs({ 50.0, 100.0 }) do
+    local g, f, fehler = feindeWeg2(p, weite)
+    log(string.format("FEINDE Weg 2 (TSQ_NPC, %.0f m): %s%s", weite,
+        g ~= nil and (tostring(g) .. " NPC, davon " .. tostring(f) .. " feindlich")
+                 or "faellt aus",
+        fehler and (" - " .. fehler) or ""))
+  end
+
+  local lage = feindeWeg3()
+  log(string.format("FEINDE Weg 3 (ihre Lage): %s   unser Kampf-Flag %s",
+      tostring(LAGENAMEN[lage] or lage), tostring(ktx.eigen.kampf)))
+end
+
 --  ---------------------------------------------------------------- Aufhelfen
 --
 --  Denselben Griff auch bei uns, weil der Weg ueber NCAs Menue unzuverlaessig ist:
