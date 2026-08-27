@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "00:14:54"
+local BAU = "00:26:28"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -877,14 +877,24 @@ registerForEvent("onDraw", function()
       local wi = ImGui.Checkbox("Wiedersehen##wi", st.wieder.an)
       if wi ~= st.wieder.an then Triggers.Setzen("wieder", wi) end
       ImGui.SameLine()
-      if st.wieder.offen then
-        ImGui.TextDisabled(string.format("Start in %.0fs  |  %d Zeilen",
-                                         math.max(0, st.wieder.nach - st.wieder.seit),
-                                         st.wieder.n))
+      --  Diese Zeile hat seit dem Umbau auf den Blickkontakt jeden Frame geworfen:
+      --  `seitBlick` ist nil, bis der Blick eintritt, und damit war das ganze Panel
+      --  unterhalb dieser Stelle nicht mehr gezeichnet. Jeder Fall einzeln, kein
+      --  Rechnen auf einem Wert, den es vielleicht nicht gibt.
+      local w, txt = st.wieder, nil
+      if w.seitBlick then
+        txt = string.format("Blick erkannt, in %.1fs",
+                            math.max(0, (w.nachBlick or 0) - w.seitBlick))
+      elseif w.seitSprung then
+        txt = string.format("nach Ortssprung, in %.0fs",
+                            math.max(0, (w.nachSprung or 0) - w.seitSprung))
+      elseif w.offen then
+        txt = string.format("wartet auf Blickkontakt, Rueckfall in %.0fs",
+                            math.max(0, (w.spaetestens or 0) - (w.seitStart or 0)))
       else
-        ImGui.TextDisabled(string.format("wartet auf Ortssprung  |  %d Zeilen",
-                                         st.wieder.n))
+        txt = "wartet auf Ortssprung"
       end
+      ImGui.TextDisabled(string.format("%s  |  %d Zeilen", txt, w.n))
 
       ImGui.Separator()
       if st.bez.offen then
