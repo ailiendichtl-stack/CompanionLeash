@@ -581,27 +581,50 @@ local function feindeWeg1(p)
   return n, nil
 end
 
---  Weg 2: Suchanfrage nach NPCs im Umkreis. Der uebliche CET-Weg; sagt aber nichts ueber
---  Feindseligkeit, das muss je Treffer geprueft werden.
+--  Weg 2: Suchanfrage nach NPCs im Umkreis.
+--
+--  Erster Anlauf meldete 5 NPC und 0 feindlich, obwohl Gegner dastanden - und dieselben 5
+--  bei 50 wie bei 100 m. Zwei Fehler in einer Zeile:
+--
+--  * `IsHostile()` ist die falsche Frage. Feindseligkeit ist ein VERHAELTNIS, und das
+--    steht im Attitude-Agenten. Ein Gegner, der einen noch nicht bemerkt hat, ist
+--    trotzdem feindlich gesinnt - genau den wollen wir ja finden.
+--  * Ob `maxDistance` ueberhaupt greift, war nicht zu sehen. Deshalb wird die Entfernung
+--    jetzt je Treffer selbst gemessen.
 local function feindeWeg2(p, weite)
-  local gesamt, feindlich
+  local gesamt, feindlich, zeilen
   local ok, fehler = pcall(function()
     local q = Game["TSQ_NPC;"]()
     q.maxDistance = weite
     q.ignoreInstigator = true
     local erfolg, teile = Game.GetTargetingSystem():GetTargetParts(p, q)
     if not erfolg or not teile then error("GetTargetParts ohne Ergebnis") end
-    gesamt, feindlich = 0, 0
+    local meins
+    pcall(function() meins = p:GetAttitudeAgent() end)
+    local pos = p:GetWorldPosition()
+    gesamt, feindlich, zeilen = 0, 0, {}
     for _, teil in ipairs(teile) do
       gesamt = gesamt + 1
       pcall(function()
         local e = teil:GetComponent():GetEntity()
-        if e and e:IsHostile() then feindlich = feindlich + 1 end
+        if not e then return end
+        local d, hs, at = nil, nil, nil
+        pcall(function() d = Vector4.Distance(pos, e:GetWorldPosition()) end)
+        pcall(function() hs = e:IsHostile() end)
+        pcall(function()
+          local a = e:GetAttitudeAgent()
+          if a and meins then at = tostring(a:GetAttitudeTowards(meins)) end
+        end)
+        if at and at:find("Hostile") then feindlich = feindlich + 1 end
+        if #zeilen < 8 then
+          zeilen[#zeilen + 1] = string.format("%.0fm IsHostile=%s Haltung=%s",
+              d or -1, tostring(hs), tostring(at))
+        end
       end)
     end
   end)
-  if not ok then return nil, nil, tostring(fehler) end
-  return gesamt, feindlich, nil
+  if not ok then return nil, nil, nil, tostring(fehler) end
+  return gesamt, feindlich, zeilen, nil
 end
 
 --  Weg 3: NCAs eigener Blick auf die Lage - haelt sie sich fuer im Kampf?
@@ -620,12 +643,13 @@ function T.FeindeProbe()
       n1 ~= nil and (tostring(n1) .. " Bedrohungen") or "faellt aus",
       f1 and (" - " .. f1) or ""))
 
-  for _, weite in ipairs({ 50.0, 100.0 }) do
-    local g, f, fehler = feindeWeg2(p, weite)
+  for _, weite in ipairs({ 30.0, 100.0 }) do
+    local g, f, zeilen, fehler = feindeWeg2(p, weite)
     log(string.format("FEINDE Weg 2 (TSQ_NPC, %.0f m): %s%s", weite,
         g ~= nil and (tostring(g) .. " NPC, davon " .. tostring(f) .. " feindlich")
                  or "faellt aus",
         fehler and (" - " .. fehler) or ""))
+    for _, z in ipairs(zeilen or {}) do log("     " .. z) end
   end
 
   local lage = feindeWeg3()
