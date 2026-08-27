@@ -306,7 +306,7 @@ local HALTUNG = { takt = 0.4, auffrischen = 3.0 }
 local LAGEN = { hocke = "Stealth", normal = "Relaxed" }
 
 local haltung = { an = true, ziel = nil, ist = nil, seit = 0.0,
-                  weg = nil, auffrisch = 0.0,
+                  auffrisch = 0.0,
                   gesetzt = 0, korrekturen = 0, aufgefrischt = 0,
                   gemeldet = false, gemeldetOk = false }
 
@@ -378,14 +378,12 @@ local function haltungSetzen(o, name)
   return ok
 end
 
---  ---------------------------------------------------------------- Haltung: alle Wege
+--  ---------------------------------------------------------------- Haltung: die Lage
 --
---  Solange nichts wirkt, ist Raten teuer: jeder Versuch kostet einen Reload und einen
---  Testlauf. Darum liegt jeder Weg auf einem eigenen Knopf, und jeder misst den ECHTEN
---  Zustand vor und nach dem Versuch - `GetCurrentStanceState()`, nicht den Spiegel.
---
---  Der interessanteste ist Nummer 6: `SetReplicatedStanceState` gibt einen Bool zurueck,
---  den das private `ChangeStanceState` verschluckt. Den hat noch nie jemand gesehen.
+--  Fuenfzehn Testwege lagen hier einmal auf eigenen Knoepfen, weil nichts wirkte und jeder
+--  Versuch einen Reload kostete. Die Frage ist beantwortet - `ChangeHighLevelState` mit
+--  `Stealth` gibt die Hocke, `Relaxed` nimmt sie zurueck -, also sind sie weg. Der ganze
+--  Vorgang samt der Wege, die NICHT gingen, steht in `PRESENCE_PLAN.md` Abschnitt 3.
 --  ---------------------------------------------------------------- Kontext
 --
 --  Eine Momentaufnahme, aus der alle Module lesen. Ohne sie liest jedes neue Modul die
@@ -1189,313 +1187,12 @@ function T.Blick(obj, dauer)
   return r, blickDauer()
 end
 
---  ------------------------------------------------ Haltung: mitlesen statt weiterraten
---
---  Im Kampf geht sie von selbst in Deckung und in die Hocke. Ihr Animationsgraph kann es
---  also - nur nicht ueber den Weg, den wir gehen. Damit ist Wege-Raten der falsche Zug.
---  Das Spiel fuehrt es uns vor; wir lesen mit, WAS sich dabei an ihr aendert.
-
-
---  Jeder Wert einzeln und einzeln abgesichert. Faellt einer aus, steht dort ein Strich,
---  und die anderen sagen trotzdem etwas.
-local FELDER = {
-  { "Haltung",  function(o) return haltungLesen(o) end },
-  { "bbStance", function(o) return bbLesen(o, "Stance") end },
-  { "Lage",     function(o) local _, t = lageLesen(o); return t end },
-  { "bbUpper",  function(o) return bbLesen(o, "UpperBody") end },
-  { "bbLoco",   function(o) return bbLesen(o, "LocomotionMode") end },
-  { "bbHitRe",  function(o) return bbLesen(o, "HitReactionMode") end },
-  { "bbDefense",function(o) return bbLesen(o, "DefenseMode") end },
-  { "bbBehav",  function(o) return bbLesen(o, "BehaviorState") end },
-  { "Kampf",    function(o) return o:IsInCombat() end },
-  { "Deckung",  function(o) return o:IsInCover() end },
-  { "Waffe",    function(o) return o:HasAnyWeaponEquipped() end },
-  { "Tempo",    function(o) return string.format("%.1f", Vector4.Length(o:GetVelocity())) end },
-}
-
-local beob = { an = false, takt = 0.0, vorher = nil }
-
-local function probeNehmen(o)
-  local pr = {}
-  for _, f in ipairs(FELDER) do
-    local v
-    pcall(function() v = f[2](o) end)
-    pr[f[1]] = (v == nil) and "-" or tostring(v)
-  end
-  return pr
-end
-
-local function probeSchreiben(kopf, pr)
-  log("PROBE " .. kopf)
-  for _, f in ipairs(FELDER) do
-    log(string.format("   %-9s %s", f[1], pr[f[1]]))
-  end
-end
-
---  Nur Aenderungen melden. Waehrend eines Gefechts stuende sonst alle 0.4s dasselbe im
---  Log und die eine Zeile, auf die es ankommt, ginge darin unter.
-local function beobTick(d)
-  if not beob.an then return end
-  beob.takt = beob.takt + d
-  if beob.takt < 0.4 then return end
-  beob.takt = 0.0
-  local o = judyHolen()
-  if not o then return end
-  local jetzt = probeNehmen(o)
-  if not beob.vorher then
-    beob.vorher = jetzt
-    probeSchreiben("Ausgangslage", jetzt)
-    return
-  end
-  local aend = {}
-  for _, f in ipairs(FELDER) do
-    local n = f[1]
-    if jetzt[n] ~= beob.vorher[n] then
-      aend[#aend + 1] = string.format("%s %s -> %s", n, beob.vorher[n], jetzt[n])
-    end
-  end
-  if #aend > 0 then log("PROBE " .. table.concat(aend, " | ")) end
-  beob.vorher = jetzt
-end
-
---  Die Ebene UEBER der Haltung. Der Verdacht: in `Relaxed` hat ihr Graph gar keinen
---  Hock-Zustand, deshalb bleibt der gesetzte Wert unbenutzt liegen. Im Kampf setzt die KI
---  beides - Lage UND Haltung - und dann sieht man es.
 local function lageSetzen(o, name)
   local ok, fehler = pcall(function()
     NPCPuppet.ChangeHighLevelState(o, Enum.new("gamedataNPCHighLevelState", name))
   end)
   if ok then return true, "Lage " .. name end
   return false, "Lage " .. name .. " fehlt: " .. tostring(fehler)
-end
-
-local HWEGE = {
-  { name = "1 NPCPuppet.ChangeStanceState", fn = function(o, st)
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      return "aufgerufen"
-    end },
-  { name = "2 Signaltabelle (Puppet)", fn = function(o, st)
-      local tbl = o:GetSignalTable()
-      if not tbl then return "keine Tabelle" end
-      local sig = NewObject("NPCStateChangeSignal")
-      sig.m_stanceState = Enum.new("gamedataNPCStanceState", st)
-      sig.m_stanceStateValid = true
-      local id = tbl:GetOrCreateSignal(CName.new("NPCStateChangeSignal"))
-      tbl:Set(id, false)
-      tbl:SetWithData(id, sig)
-      return "gesendet"
-    end },
-  { name = "3 Signaltabelle (AI-Controller)", fn = function(o, st)
-      local tbl = o:GetAIControllerComponent():GetSignals()
-      if not tbl then return "keine Tabelle" end
-      local sig = NewObject("NPCStateChangeSignal")
-      sig.m_stanceState = Enum.new("gamedataNPCStanceState", st)
-      sig.m_stanceStateValid = true
-      local id = tbl:GetOrCreateSignal(CName.new("NPCStateChangeSignal"))
-      tbl:Set(id, false)
-      tbl:SetWithData(id, sig)
-      return "gesendet"
-    end },
-  { name = "4 Empfaenger direkt", fn = function(o, st)
-      local sig = NewObject("NPCStateChangeSignal")
-      sig.m_stanceState = Enum.new("gamedataNPCStanceState", st)
-      sig.m_stanceStateValid = true
-      o:GetStatesComponent():OnNPCStateChangeSignalReceived(sig)
-      return "zugestellt"
-    end },
-  { name = "5 SetCurrentStanceState", fn = function(o, st)
-      local r = o:GetStatesComponent():SetCurrentStanceState(
-                  Enum.new("gamedataNPCStanceState", st))
-      return "Rueckgabe " .. tostring(r)
-    end },
-  { name = "6 SetReplicatedStanceState", fn = function(o, st)
-      --  2 = Crouch, 3 = Stand. Der Bool ist der Wert, den alles andere verschluckt.
-      local r = o:GetStatesComponent():SetReplicatedStanceState((st == "Crouch") and 2 or 3)
-      return "Rueckgabe " .. tostring(r)
-    end },
-  { name = "7 Anim-Feature + Wrapper", fn = function(o, st)
-      --  Jeder Aufruf einzeln mit seinem Rueckgabewert. "angewandt" fuer beides zusammen
-      --  hiess nur, dass nichts geworfen hat, und das ist keine Auskunft.
-      local feat = NewObject("animAnimFeature_NPCState")
-      if not feat then return "Feature nicht baubar" end
-      feat.state = (st == "Crouch") and 2 or 3
-      local a = AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-      local b = AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
-                  o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
-      return string.format("Feature=%s state=%s Wrapper=%s",
-                           tostring(a), tostring(feat.state), tostring(b))
-    end },
-  { name = "11 Anim-Feature 3s lang halten", fn = function(o, st)
-      --  Ein einzelner Anwurf koennte vom naechsten Durchlauf der NPC-Zustandsmaschine
-      --  sofort ueberschrieben werden. Wenn Halten wirkt und Setzen nicht, wissen wir das.
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      haltung.halten = { o = o, st = st, rest = 3.0 }
-      return "halte 3s"
-    end },
-  { name = "9 Zustand + Anim zusammen", fn = function(o, st)
-      --  `UpdateStanceState` macht beides nacheinander. Route 1 sollte das intern tun -
-      --  falls nicht, holt das hier es nach.
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      local feat = NewObject("animAnimFeature_NPCState")
-      feat.state = (st == "Crouch") and 2 or 3
-      AnimationControllerComponent.ApplyFeature(o, CName.new("stanceState"), feat)
-      AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
-        o, CName.new("inCrouch"), (st == "Crouch") and 1.0 or 0.0)
-      return "beides"
-    end },
-  { name = "10 Zustand, dann 3s nachmessen", fn = function(o, st)
-      --  Bleibt der Zustand stehen, oder dreht die KI ihn zurueck? Der Einzelmesswert
-      --  direkt nach dem Setzen sagt das nicht.
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      haltung.nachmessen = { o = o, rest = 3.0, takt = 0.0 }
-      return "messe 3s nach"
-    end },
-  { name = "12 Lage Combat, dann Hocke", fn = function(o, st)
-      local _, m = lageSetzen(o, "Combat")
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      return m
-    end },
-  { name = "13 Lage Alerted, dann Hocke", fn = function(o, st)
-      local _, m = lageSetzen(o, "Alerted")
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      return m
-    end },
-  { name = "14 Lage Stealth, dann Hocke", fn = function(o, st)
-      local _, m = lageSetzen(o, "Stealth")
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", st))
-      return m
-    end },
-  { name = "15 Lage Relaxed (Rueckweg)", fn = function(o, st)
-      --  Der Rueckweg aus der Hocke. Nicht die Haltung, die Lage.
-      local _, m = lageSetzen(o, "Relaxed")
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState", "Stand"))
-      return m
-    end },
-  { name = "8 Cover statt Crouch", fn = function(o, st)
-      NPCPuppet.ChangeStanceState(o, Enum.new("gamedataNPCStanceState",
-                                              (st == "Crouch") and "Cover" or "Stand"))
-      return "aufgerufen"
-    end },
-}
-
---  Was gibt es ueberhaupt? Bisher habe ich Namen aus dem Skript-Dump geraten, und die
---  RTTI kennt nicht jeden davon - `AnimFeature_NPCState` gegen `animAnimFeature_NPCState`
---  hat uns das schon vorgefuehrt. Hier fragen wir die laufende RTTI selbst.
-local RTTI_KLASSEN = { "ScriptedPuppet", "NPCPuppet", "npcStateComponent", "gamePuppet",
-                       "AnimationControllerComponent", "AIHumanComponent", "AIComponent" }
-local RTTI_MUSTER  = { "stance", "crouch", "stealth", "cover", "locomotion", "movement",
-                       "highlevel", "state" }
-
-local function enumZeigen(name, bis)
-  local teile = {}
-  for i = 0, bis do
-    local ok, txt = pcall(function() return tostring(Enum.new(name, i)) end)
-    if ok and txt and txt ~= "" then teile[#teile + 1] = i .. "=" .. txt end
-  end
-  log("ENUM " .. name .. ": " .. table.concat(teile, "  "))
-end
-
-function T.HaltungRTTI()
-  for _, kn in ipairs(RTTI_KLASSEN) do
-    local ok, fehler = pcall(function()
-      local c = Reflection.GetClass(kn)
-      if not c then log("RTTI " .. kn .. " - unbekannt"); return end
-      local treffer = {}
-      for _, liste in ipairs({ c:GetFunctions(), c:GetStaticFunctions() }) do
-        for _, f in ipairs(liste) do
-          local n = tostring(f:GetName())
-          local klein = string.lower(n)
-          for _, m in ipairs(RTTI_MUSTER) do
-            if string.find(klein, m, 1, true) then treffer[#treffer + 1] = n; break end
-          end
-        end
-      end
-      log(string.format("RTTI %s - %d Treffer", kn, #treffer))
-      for _, n in ipairs(treffer) do log("   " .. n) end
-    end)
-    if not ok then log("RTTI " .. kn .. " - Fehler: " .. tostring(fehler)) end
-  end
-
-  local ok, fehler = pcall(function()
-    local c = Reflection.GetClass("PuppetStateDef")
-    if not c then log("RTTI PuppetStateDef - unbekannt"); return end
-    local namen = {}
-    for _, pr in ipairs(c:GetProperties()) do
-      namen[#namen + 1] = tostring(pr:GetName())
-    end
-    log("RTTI PuppetStateDef - Felder: " .. table.concat(namen, ", "))
-  end)
-  if not ok then log("RTTI PuppetStateDef - Fehler: " .. tostring(fehler)) end
-
-  enumZeigen("gamedataNPCStanceState", 6)
-  enumZeigen("gamedataNPCHighLevelState", 8)
-  enumZeigen("gamedataNPCUpperBodyState", 8)
-  enumZeigen("moveMovementType", 8)
-end
-
-function T.Probe()
-  local o = judyHolen()
-  if not o then log("PROBE Judy nicht greifbar"); return end
-  probeSchreiben("Momentaufnahme", probeNehmen(o))
-end
-
-function T.Beobachten(an)
-  beob.an = an and true or false
-  beob.vorher = nil
-  log("PROBE Beobachtung " .. (beob.an and "an" or "aus"))
-end
-
-function T.HaltungWege()
-  local out = {}
-  for i, w in ipairs(HWEGE) do out[i] = w.name end
-  return out
-end
-
-function T.HaltungTest(i, hocken)
-  local w = HWEGE[i]
-  if not w then return end
-  local o = judyHolen()
-  if not o then log("HTEST Judy nicht greifbar"); return end
-  local st = hocken and "Crouch" or "Stand"
-  local vorher = haltungLesen(o)
-  local ergebnis
-  local ok = pcall(function() ergebnis = w.fn(o, st) end)
-  local nachher = haltungLesen(o)
-  log(string.format("HTEST %s -> %s | %s | vorher %s, nachher %s",
-      w.name, st, ok and tostring(ergebnis) or "FEHLER",
-      tostring(vorher), tostring(nachher)))
-end
-
---  Laeuft nach einem Test drei Sekunden mit und schreibt den echten Zustand mit. Ein
---  Wert direkt nach dem Setzen sagt nur, dass er ankam - nicht, ob er bleibt.
-local function nachmessen(d)
-  local n = haltung.nachmessen
-  if not n then return end
-  n.rest = n.rest - d
-  n.takt = n.takt + d
-  if n.takt >= 0.5 then
-    n.takt = 0.0
-    log(string.format("   nachher %.1fs: %s", 3.0 - n.rest, tostring(haltungLesen(n.o))))
-  end
-  if n.rest <= 0.0 then haltung.nachmessen = nil end
-end
-
---  Legt das Anim-Feature in jedem Frame neu auf, drei Sekunden lang.
-local function halten(d)
-  local h = haltung.halten
-  if not h then return end
-  h.rest = h.rest - d
-  if h.rest <= 0.0 then
-    haltung.halten = nil
-    log(string.format("   gehalten bis Ende, Zustand jetzt %s", tostring(haltungLesen(h.o))))
-    return
-  end
-  local feat = NewObject("animAnimFeature_NPCState")
-  if not feat then haltung.halten = nil; return end
-  feat.state = (h.st == "Crouch") and 2 or 3
-  AnimationControllerComponent.ApplyFeature(h.o, CName.new("stanceState"), feat)
-  AnimationControllerComponent.SetAnimWrapperWeightOnOwnerAndItems(
-    h.o, CName.new("inCrouch"), (h.st == "Crouch") and 1.0 or 0.0)
 end
 
 --  Die Haltung mitschreiben, unabhaengig davon, ob wir sie gerade steuern. Nach einer
@@ -1516,10 +1213,11 @@ end
 --  gebueckte Gang mit haengendem Arm muss also in einem der uebrigen Zustandsfelder
 --  stehen. Statt dich Knoepfe druecken zu lassen, waehrend sie so laeuft, beobachten wir
 --  die vier hier mit und melden jeden Wechsel.
-local ZUSTANDSFELDER = { "LocomotionMode", "HitReactionMode", "DefenseMode",
-                         "BehaviorState", "UpperBody", "PhaseState" }
+--  Sechs Puppenfelder waren die Suche nach der gebueckten Haltung. Die war ein
+--  Statuseffekt, die Frage ist beantwortet - und im Gefecht springen sie im Sekundentakt.
+--  Weg damit; `LAGE-IST` und `HALTUNG-IST` bleiben, die sind weiter brauchbar.
 
-local hbeo = { war = nil, lageWar = nil, seit = 0.0, felder = {} }
+local hbeo = { war = nil, lageWar = nil, seit = 0.0 }
 
 local function haltungMitschreiben(d)
   hbeo.seit = hbeo.seit + d
@@ -1558,18 +1256,6 @@ local function haltungMitschreiben(d)
           w and "aufgetreten" or "verschwunden", lt, tostring(ktx.eigen.kampf)))
     end
     wunde.hat = w
-  end
-
-  for _, feld in ipairs(ZUSTANDSFELDER) do
-    local fv = bbLesen(o, feld)
-    if fv ~= nil and fv ~= hbeo.felder[feld] then
-      if hbeo.felder[feld] ~= nil then
-        log(string.format("ZUSTAND %s: %s -> %s   Lage %s, Kampf %s",
-            feld, tostring(hbeo.felder[feld]), tostring(fv), lt,
-            tostring(ktx.eigen.kampf)))
-      end
-      hbeo.felder[feld] = fv
-    end
   end
 
   local v = haltungLesen(o)
@@ -2378,9 +2064,6 @@ function T.Tick(d)
   ortTick(d)
   stimmeTick()
   haltungMitschreiben(d)
-  nachmessen(d)
-  beobTick(d)
-  halten(d)
   gazeTick(d, p)
   kampfTick(d)
   sorgeTick()
@@ -2395,7 +2078,6 @@ end
 
 function T.Status()
   return {
-    beob  = beob.an,
     fremde = { anzahl = fremdeAnzahl, liste = fremde },
     blickkontakt = { dauer = blick.dauer, letzte = blick.letzte, fehler = blick.fehler },
     liegen = { hat = liegen.hat, geholfen = liegen.geholfen, fehler = liegen.fehler },

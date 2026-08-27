@@ -17,7 +17,7 @@ local MOD = "[CompanionLeashVO]"
 --  Baustempel. Dreimal habe ich eine alte Fassung fuer eine neue gehalten, weil
 --  Datei und Sitzung um eine Minute versetzt waren - das kostet jedes Mal einen
 --  ganzen Testlauf. Jetzt steht es in der ersten Zeile jeder Sitzung.
-local BAU = "03:10:05"
+local BAU = "03:14:05"
 
 --  print() erreicht nur CETs Konsolen-Overlay; spdlog schreibt die Mod-Logdatei.
 local function log(msg)
@@ -609,7 +609,7 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if ImGui.CollapsingHeader("Testmatrix", ImGuiTreeNodeFlags.DefaultOpen) then
+  if ImGui.CollapsingHeader("Testmatrix") then
     ImGui.TextWrapped("Name und Ziel werden getrennt uebergeben. Ein VVF-Name auf Judy " ..
                       "waere kein aussagekraeftiger Fehlschlag - der Dispatcher waehlt " ..
                       "das Voiceset am Puppet, und VVFs Eintraege liegen in vset_v.scene.")
@@ -672,30 +672,6 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if Triggers and ImGui.CollapsingHeader("Haltung - Wege durchtesten",
-                                         ImGuiTreeNodeFlags.DefaultOpen) then
-    ImGui.TextWrapped("Jeder Knopf geht einen anderen Weg und misst den ECHTEN Zustand "
-                      .. "vor und nach dem Versuch. 2 = Crouch, 3 = Stand. Aendert sich "
-                      .. "'nachher', hat der Weg gegriffen.")
-    if ImGui.Button("RTTI abfragen") then Triggers.HaltungRTTI() end
-    ImGui.SameLine()
-    if ImGui.Button("Probe nehmen") then Triggers.Probe() end
-    ImGui.SameLine()
-    local be = ImGui.Checkbox("mitlesen", Triggers.Status().beob)
-    if be ~= Triggers.Status().beob then Triggers.Beobachten(be) end
-    ImGui.TextWrapped("'mitlesen' schreibt nur AENDERUNGEN mit. Einschalten, in ein "
-                      .. "Gefecht gehen: der Log zeigt dann, was sich an ihr aendert, "
-                      .. "wenn die KI sie in die Hocke schickt.")
-    ImGui.Separator()
-    for i, name in ipairs(Triggers.HaltungWege()) do
-      if ImGui.Button("Hocke##h" .. i) then Triggers.HaltungTest(i, true) end
-      ImGui.SameLine()
-      if ImGui.Button("Stand##s" .. i) then Triggers.HaltungTest(i, false) end
-      ImGui.SameLine()
-      ImGui.TextDisabled(name)
-    end
-  end
-
   if Triggers and ImGui.CollapsingHeader("Ihre eigenen Barks") then
     local f = Triggers.Status().fremde or {}
     ImGui.TextWrapped("Was sie von selbst sagt. Wird beim ersten Auftreten nach "
@@ -706,7 +682,7 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if Triggers and ImGui.CollapsingHeader("Heilung", ImGuiTreeNodeFlags.DefaultOpen) then
+  if Triggers and ImGui.CollapsingHeader("Heilung") then
     local h = Triggers.Status().heil or {}
     local an = ImGui.Checkbox("Regeneration ausser Kampf##hl", h.an)
     if an ~= h.an then Triggers.Setzen("heilung", an) end
@@ -727,8 +703,7 @@ registerForEvent("onDraw", function()
                       .. "ihn nur ein Respawn.")
   end
 
-  if Triggers and ImGui.CollapsingHeader("Kontext - wir gegen NCA",
-                                         ImGuiTreeNodeFlags.DefaultOpen) then
+  if Triggers and ImGui.CollapsingHeader("Kontext - wir gegen NCA") then
     local k = Triggers.Status().ktx or {}
     if not k.da then
       ImGui.TextDisabled("NCAs ContextSystem nicht erreichbar - eigene Messung allein.")
@@ -771,16 +746,7 @@ registerForEvent("onDraw", function()
                       .. "wir danach das Fenster - geraten waere es 2-5 s.")
   end
 
-  if Triggers and ImGui.CollapsingHeader("Feinde - Schritt 0 der Begegnung",
-                                         ImGuiTreeNodeFlags.DefaultOpen) then
-    ImGui.TextWrapped("Bevor die Begegnungs-Klammer auf 'Feind in der Naehe' baut, muss "
-                      .. "feststehen, ob wir das ueberhaupt lesen koennen. Drei Wege, "
-                      .. "jeder einzeln. Ergebnis steht im Log.")
-    if ImGui.Button("Einmal abfragen##fe") then Triggers.FeindeProbe() end
-    ImGui.TextDisabled("Am besten zweimal druecken: einmal ruhig, einmal im Gefecht.")
-  end
-
-  if Triggers and ImGui.CollapsingHeader("Aufhelfen", ImGuiTreeNodeFlags.DefaultOpen) then
+  if Triggers and ImGui.CollapsingHeader("Aufhelfen") then
     local l = Triggers.Status().liegen or {}
     if ImGui.Button("Aufhelfen##auf") then Triggers.Aufhelfen() end
     ImGui.SameLine()
@@ -813,7 +779,7 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if Triggers and ImGui.CollapsingHeader("Blickkontakt", ImGuiTreeNodeFlags.DefaultOpen) then
+  if Triggers and ImGui.CollapsingHeader("Blickkontakt") then
     local bk = Triggers.Status().blickkontakt or {}
     ImGui.TextWrapped("Sie dreht sich zu V, dann spricht sie. Der Sprecher haelt den Blick, "
                       .. "solange die Zeile laeuft.")
@@ -826,7 +792,7 @@ registerForEvent("onDraw", function()
     end
   end
 
-  if Triggers and ImGui.CollapsingHeader("Haltung", ImGuiTreeNodeFlags.DefaultOpen) then
+  if Triggers and ImGui.CollapsingHeader("Haltung und Lage") then
     local st = Triggers.Status().haltung
     local ha = ImGui.Checkbox("Hocke uebernehmen##ha", st.an)
     if ha ~= st.an then Triggers.Setzen("haltung", ha) end
