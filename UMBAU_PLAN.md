@@ -179,14 +179,24 @@ Leben, bewegt sie sich verletzt, statt es nur zu sagen.
 
 ## Reihenfolge
 
-    1. Blickkontakt zentral im Sprecher
-    2. NCA-Kontext fuer Fahrzeug, Menue, Interaktion, Ort
-    3. Wohnungsmodus und Pools
-    4. Besitzmatrix der Barks dokumentieren
-    5. Begegnungs-Klammer bauen
+    1. Blickkontakt zentral im Sprecher                      ERLEDIGT
+    2. NCA-Kontext fuer Fahrzeug, Menue, Interaktion, Ort     ERLEDIGT
+    3. Wohnungsmodus und Pools                               ERLEDIGT
+    4. Besitzmatrix der Barks dokumentieren                  ERLEDIGT
+    5. Begegnungs-Klammer bauen                              <- als naechstes
     6. Mimik an einem Bark testen
     7. Schadens-Bruecke ergaenzen
     8. danach erst weitere Flirt-, Smalltalk- und Sonderpools
+
+Was die ersten vier ergeben haben, steht in `NCA_VERGLEICH.md`:
+
+* **1** Blick laeuft, wirkt aber nur, wo ihr Koerper nicht ohnehin zu V zeigt - die Drehung
+  macht das meiste davon schon. Bleibt Unterbau fuer die Mimik.
+* **2** Von fuenf Feldern sind zwei unbrauchbar: `isInMenu` (fuenf Listener auf einem Bool)
+  und `isInCombat` (341 Abweichungen, bleibt haengen). Beide behalten wir selbst.
+* **3** Eigene Wohnungsleiter ohne Ungeduld, plus Tageszeit als neue Dimension.
+* **4** Die native Ebene deckt den Kampf dicht ab und schweigt ausserhalb - das setzt die
+  Grenze fuer Schritt 5.
 
 Vor Schritt 3 kommt eine einheitliche **Momentaufnahme** des Kontexts - klein, keine
 Architektur, aber sonst liest jedes neue Modul die NCA-Felder leicht unterschiedlich:

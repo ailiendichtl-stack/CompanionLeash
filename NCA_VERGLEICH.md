@@ -98,6 +98,40 @@ und `isInInteraction` (haben wir nicht selbst) und `isInCar` (stimmt ueberein). 
 und `isInCombat` behalten wir selbst. Der Vergleichsschritt hat sich damit zweimal bezahlt
 gemacht.
 
+## Besitzmatrix: wer spricht wann
+
+Gesammelt ueber mehrere Sitzungen in `fremde_zeilen.txt` - was sie **von selbst** sagt, ohne
+dass wir etwas anfragen. 16 verschiedene bisher.
+
+| Ihr Bark | Anlass | unsere Situation | Vorschlag |
+|---|---|---|---|
+| "Was zur Hoelle?" | Kampfbeginn, Ueberraschung | `kampf` | sie |
+| "Da kommen sie!" | Gegner ruecken an | `kampf` | sie |
+| "Sie sind hier. Bleib wachsam." | Gegner in der Naehe | - | sie |
+| "Vorsicht, die haben was gehoert!" | Schleichen aufgeflogen | `stealth` | sie |
+| "In Deckung! Granate!" / "Achtung, Granate!" | Granate | `kampf` | sie |
+| "Warte kurz, muss nachladen." / "Deck mich, ich lade nach!" | Nachladen | - | sie |
+| "Aaah!" / "Fuuuck!" / "Oh, Scheisse!" | Treffer | - | sie |
+| "Hey, V! Mach was, verdammte Scheisse!" | V tut nichts im Gefecht | `kampf` | sie |
+| "Sieh uns an. Nicht totzukriegen." | Gefecht ueberstanden | `kampf_ende` | **wir, nach Wartezeit** |
+| "Echt jetzt?!" | Aerger | `reibung` | sie - und bei uns heruntergewichtet |
+| "Hab grad an dich gedacht. ... In meinen Gedanken warst du nackt." | Leerlauf | `flirt` | **wir** |
+| "Ooooh, ausgefallen." | Reaktion auf etwas | - | sie |
+
+**Der Befund, der die Planung aendert:** die native Ebene deckt den KAMPF dicht ab -
+Granaten, Nachladen, Treffer, Anruecken, Ueberstehen. Unsere `kampf` (7 Zeilen) und
+`kampf_ende` (9) treten dort gegen etwas an, das ohnehin laufend spricht.
+
+Ausserhalb des Kampfes ist sie dagegen fast stumm: von 16 Barks sind **zwei** nicht
+Kampf - der Flirt und "Ooooh, ausgefallen". Genau dort liegen unsere 244 Zeilen.
+
+**Vorschlag fuer Phase 5:** im Gefecht zurueckhaltend - eigene Zeile nur, wenn nach einer
+Wartezeit keine fremde Stimme kam. Ausserhalb bleibt alles wie es ist. Das ist der
+"Zusammen"-Modus aus dem Plan, und die Daten sagen jetzt, wo seine Grenze liegen sollte.
+
+**Offen:** ob "Echt jetzt?!" ueberhaupt aus unserem Topf kommt oder immer ihres ist. Im Log
+stand es einmal ohne vorheriges ACCEPT, also mindestens auch nativ.
+
 ## Was drueben liegt und wir selbst nachbauen
 
 Der wichtigste Befund der Aufstellung: wir fragen jeden Takt Dinge ab, die NCA als Ereignis

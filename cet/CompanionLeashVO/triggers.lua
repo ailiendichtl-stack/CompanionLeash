@@ -1411,6 +1411,26 @@ local FREMD_DATEI = "fremde_zeilen.txt"
 local fremde = { }        -- Text -> { anzahl, dauer }
 local fremdeAnzahl = 0
 
+--  Beim Start einlesen, was schon dasteht. Ohne das faengt die Tabelle jede Sitzung bei
+--  null an und haengt dieselben Zeilen erneut an - nach ein paar Abenden standen 34 Zeilen
+--  in der Datei fuer 16 verschiedene Barks.
+local function fremdeLaden()
+  pcall(function()
+    local f = io.open(FREMD_DATEI, "r")
+    if not f then return end
+    for zeile in f:lines() do
+      local dauer, text = zeile:match("^([%d.]+)s%s+(.+)$")
+      if text and not fremde[text] then
+        fremde[text] = { anzahl = 0, dauer = tonumber(dauer) or 0, alt = true }
+        fremdeAnzahl = fremdeAnzahl + 1
+      end
+    end
+    f:close()
+  end)
+  log(string.format("FREMD %d Barks aus frueheren Sitzungen gelesen", fremdeAnzahl))
+end
+fremdeLaden()
+
 local function fremdMerken(text, dauer)
   local e = fremde[text]
   if e then
